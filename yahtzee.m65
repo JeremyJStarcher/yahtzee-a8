@@ -1,0 +1,326 @@
+; ================================================================
+; Atari 800XL / Atari 8-bit
+; 6502 Assembly Springboard Program
+;
+; Purpose:
+;   Open the screen editor device "E:"
+;   Print one line of text
+;   Stop in an infinite loop
+;
+; Auto-run:
+;   This source includes a RUNAD segment at $02E0/$02E1.
+;   When loaded as an Atari DOS binary/XEX file, DOS will jump
+;   to START after the file finishes loading.
+;
+; Boot-time auto-run:
+;   Save/name the final binary as AUTORUN.SYS on a DOS disk.
+;
+; ================================================================
+
+
+; ------------------------------------------------
+; Main program load address
+; ------------------------------------------------
+; $5000 is a reasonable place for a small test program
+; on a 48K/64K Atari when DOS is present.
+;
+; The assembler starts placing the main program here.
+; ------------------------------------------------
+
+        *=$5000
+
+
+; ================================================================
+; OS / CIO CONSTANTS
+; ================================================================
+
+EOL     = $9B          ; Atari end-of-line character.
+                       ; This is not ASCII CR/LF.
+                       ; Atari text lines usually end with $9B.
+
+; ------------------------------------------------
+; CIO command numbers
+; ------------------------------------------------
+; CIO = Central Input/Output.
+; You place a command in an IOCB, then call CIOV.
+; ------------------------------------------------
+
+OPEN    = $03          ; CIO command: OPEN a device/file
+OWRIT   = $08          ; OPEN mode: output/write
+PUTCHR  = $0B          ; CIO command: PUT characters
+CLOSE   = $0C          ; CIO command: CLOSE device/file
+
+; ------------------------------------------------
+; IOCB selection
+; ------------------------------------------------
+; Atari has multiple IOCBs.
+;
+; IOCB #0 starts at $0340
+; IOCB #1 starts at $0350
+; IOCB #2 starts at $0360
+; etc.
+;
+; CIO expects X to contain the IOCB offset:
+;
+;   IOCB #0 = $00
+;   IOCB #1 = $10
+;   IOCB #2 = $20
+;
+; This program uses IOCB #2, so X = $20.
+; ------------------------------------------------
+
+IOCB2   = $20
+
+
+; ------------------------------------------------
+; IOCB field addresses
+; ------------------------------------------------
+; These are the base addresses for IOCB #0.
+; Adding X selects IOCB #1, #2, #3, etc.
+;
+; Example:
+;
+;   LDX #IOCB2
+;   STA ICCOM,X
+;
+; stores into the command field for IOCB #2.
+; ------------------------------------------------
+
+ICCOM   = $0342        ; IOCB command byte
+
+ICBAL   = $0344        ; Buffer address, low byte
+ICBAH   = $0345        ; Buffer address, high byte
+
+ICBLL   = $0348        ; Buffer length, low byte
+ICBLH   = $0349        ; Buffer length, high byte
+
+ICAX1   = $034A        ; Auxiliary byte 1
+                       ; For OPEN, this usually holds the mode.
+                       ; OWRIT means open for output.
+
+ICAX2   = $034B        ; Auxiliary byte 2
+                       ; Often zero for simple OPEN calls.
+
+; ------------------------------------------------
+; CIO entry point in the Atari OS ROM
+; ------------------------------------------------
+
+CIOV    = $E456        ; Jump here with X pointing to an IOCB
+
+
+; ================================================================
+; PROGRAM ENTRY POINT
+; ================================================================
+
+START
+        ; Open the screen editor device "E:" for output.
+        JSR OPEN_SCREEN
+
+        ; Print the message.
+        JSR PRINT_MESSAGE
+
+        ; Optional: close IOCB #2.
+        ; For a tiny demo this is not strictly required,
+        ; but it is a good habit for larger programs.
+        JSR CLOSE_SCREEN
+
+        ; Stop here forever.
+        ; This prevents the CPU from running into data bytes.
+FOREVER
+        JMP FOREVER
+
+
+; ================================================================
+; OPEN_SCREEN
+;
+; Opens the Atari screen editor device:
+;
+;   E:
+;
+; The screen editor is the normal text screen device.
+;
+; CIO recipe for OPEN:
+;
+;   X      = IOCB number offset
+;   ICCOM = OPEN
+;   ICBAL = low byte of device-name string address
+;   ICBAH = high byte of device-name string address
+;   ICAX1 = open mode
+;   ICAX2 = usually zero
+;   JSR CIOV
+;
+; ================================================================
+
+OPEN_SCREEN
+        LDX #IOCB2
+
+        ; Close IOCB #2 first.
+        ; This is defensive. If the channel was already open,
+        ; closing it avoids "channel already open" problems.
+        ;
+        ; We deliberately ignore any error here because closing
+        ; an unopened channel can itself report an error.
+        LDA #CLOSE
+        STA ICCOM,X
+        JSR CIOV
+
+        ; Re-select IOCB #2 after CIO.
+        ; Some OS calls may alter registers, so do not assume
+        ; X is still unchanged unless you know the call preserves it.
+        LDX #IOCB2
+
+        ; Tell CIO that this is an OPEN command.
+        LDA #OPEN
+        STA ICCOM,X
+
+        ; Tell CIO where the device-name string is.
+        ; SCRNAM contains:
+        ;
+        ;   "E:", EOL
+        ;
+        ; Atari device/file names passed to CIO are usually
+        ; terminated by EOL, $9B.
+        LDA #<SCRNAM
+        STA ICBAL,X
+        LDA #>SCRNAM
+        STA ICBAH,X
+
+        ; Open mode.
+        ; OWRIT means output/write.
+        LDA #OWRIT
+        STA ICAX1,X
+
+        ; Aux byte 2 is not needed here.
+        LDA #0
+        STA ICAX2,X
+
+        ; Call the Atari OS CIO routine.
+        JSR CIOV
+
+        RTS
+
+
+; ================================================================
+; PRINT_MESSAGE
+;
+; Writes MESSAGE to the screen editor device.
+;
+; CIO recipe for PUTCHR:
+;
+;   X      = IOCB number offset
+;   ICCOM = PUTCHR
+;   ICBAL = low byte of buffer address
+;   ICBAH = high byte of buffer address
+;   ICBLL = low byte of buffer length
+;   ICBLH = high byte of buffer length
+;   JSR CIOV
+;
+; ================================================================
+
+PRINT_MESSAGE
+        LDX #IOCB2
+
+        ; Tell CIO that this is a PUT characters command.
+        ;
+        ; Important:
+        ;   The command goes in ICCOM.
+        ;   The buffer address goes in ICBAL/ICBAH.
+        ;
+        ; A common transcription mistake is to accidentally
+        ; store the command into ICBAL instead of ICCOM.
+        LDA #PUTCHR
+        STA ICCOM,X
+
+        ; Address of the text buffer to print.
+        LDA #<MESSAGE
+        STA ICBAL,X
+        LDA #>MESSAGE
+        STA ICBAH,X
+
+        ; Length of the text buffer.
+        ;
+        ; MESSAGE_LEN is computed by the assembler:
+        ;
+        ;   MESSAGE_END - MESSAGE
+        ;
+        ; That avoids hand-counting characters.
+        LDA #<MESSAGE_LEN
+        STA ICBLL,X
+        LDA #>MESSAGE_LEN
+        STA ICBLH,X
+
+        ; Call CIO to perform the output.
+        JSR CIOV
+
+        RTS
+
+
+; ================================================================
+; CLOSE_SCREEN
+;
+; Closes IOCB #2.
+; Good housekeeping for programs that return to DOS or BASIC.
+; ================================================================
+
+CLOSE_SCREEN
+        LDX #IOCB2
+
+        LDA #CLOSE
+        STA ICCOM,X
+
+        JSR CIOV
+
+        RTS
+
+
+; ================================================================
+; DATA AREA
+; ================================================================
+
+; ------------------------------------------------
+; CIO device name for the screen editor
+; ------------------------------------------------
+; "E:" means the screen editor device.
+; The string must end with Atari EOL, $9B.
+; ------------------------------------------------
+
+SCRNAM
+        .BYTE "E:",EOL
+
+
+; ------------------------------------------------
+; Message to print
+; ------------------------------------------------
+; The EOL at the end moves the cursor to the next line.
+; ------------------------------------------------
+
+MESSAGE
+        .BYTE "I AM THE LEADER YOU FOOL",EOL
+MESSAGE_END
+
+; Let the assembler calculate the length.
+; This is much safer than hand-counting characters.
+MESSAGE_LEN = MESSAGE_END - MESSAGE
+
+
+; ================================================================
+; AUTO-RUN SEGMENT
+; ================================================================
+;
+; Atari DOS binary loaders use locations $02E0/$02E1 as RUNAD.
+;
+; RUNAD contains the address to execute after the whole binary
+; file has finished loading.
+;
+; By placing START here, the DOS binary loader will run START
+; automatically after load.
+;
+; Many Atari-aware assemblers will output this as a second
+; binary segment in the same .OBJ/.XEX file.
+;
+; If your assembler only creates a raw flat binary, see notes below.
+; ================================================================
+
+        *=$02E0
+
+        .WORD START
