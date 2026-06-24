@@ -1,0 +1,10 @@
+        
+        LDX #IOCB2
+
+        LDA #IO_CLOSE
+        STA ICCOM,X
+
+        JSR CIOV
+
+        RTS
+

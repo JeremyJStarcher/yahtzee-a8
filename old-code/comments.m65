@@ -1,0 +1,35 @@
+
+; ------------------------------------------------
+; IOCB field addresses
+; ------------------------------------------------
+; These are the base addresses for IOCB #0.
+; Adding X selects IOCB #1, #2, #3, etc.
+;
+; Example:
+;
+;   LDX #IOCB2
+;   STA ICCOM,X
+;
+; stores into the command field for IOCB #2.
+; ------------------------------------------------
+
+
+ICBAL   = $0344        ; Buffer address, low byte
+ICBAH   = $0345        ; Buffer address, high byte
+
+ICBLL   = $0348        ; Buffer length, low byte
+ICBLH   = $0349        ; Buffer length, high byte
+
+ICAX1   = $034A        ; Auxiliary byte 1
+                       ; For OPEN, this usually holds the mode.
+                       ; OWRIT means open for output.
+
+ICAX2   = $034B        ; Auxiliary byte 2
+                       ; Often zero for simple OPEN calls.
+
+; ------------------------------------------------
+; CIO entry point in the Atari OS ROM
+; ------------------------------------------------
+
+CIOV    = $E456        ; Jump here with X pointing to an IOCB
+

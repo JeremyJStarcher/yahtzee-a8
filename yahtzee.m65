@@ -22,6 +22,9 @@
 ; Main program load address
 ; ------------------------------------------------
 
+.INCLUDE sysequ.m65
+.INCLUDE iomac.lib
+
         *=$2400
 
 
@@ -40,10 +43,10 @@ EOL     = $9B          ; Atari end-of-line character.
 ; You place a command in an IOCB, then call CIOV.
 ; ------------------------------------------------
 
-OPEN    = $03          ; CIO command: OPEN a device/file
-OWRIT   = $08          ; OPEN mode: output/write
-PUTCHR  = $0B          ; CIO command: PUT characters
-CLOSE   = $0C          ; CIO command: CLOSE device/file
+IO_OPEN    = $03          ; CIO command: OPEN a device/file
+IO_OWRIT   = $08          ; OPEN mode: output/write
+IO_PUTCHR  = $0B          ; CIO command: PUT characters
+IO_CLOSE   = $0C          ; CIO command: CLOSE device/file
 
 ; ------------------------------------------------
 ; IOCB selection
@@ -65,7 +68,7 @@ CLOSE   = $0C          ; CIO command: CLOSE device/file
 ; ------------------------------------------------
 
 IOCB2   = $20
-
+IO_CHANNEL = 2
 
 ; ------------------------------------------------
 ; IOCB field addresses
@@ -81,7 +84,6 @@ IOCB2   = $20
 ; stores into the command field for IOCB #2.
 ; ------------------------------------------------
 
-ICCOM   = $0342        ; IOCB command byte
 
 ICBAL   = $0344        ; Buffer address, low byte
 ICBAH   = $0345        ; Buffer address, high byte
@@ -108,9 +110,7 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 ; ================================================================
 
 START
-        ; Open the screen editor device "E:" for output.
         JSR OPEN_SCREEN
-
 
 CCOL    = 0       ; CURSOR COLUMN PRINT POSITION
 CROW    = 3     ; CUSOR ROW POSITION
@@ -167,52 +167,9 @@ FOREVER
 ; ================================================================
 
 OPEN_SCREEN
-        LDX #IOCB2
-
-        ; Close IOCB #2 first.
-        ; This is defensive. If the channel was already open,
-        ; closing it avoids "channel already open" problems.
-        ;
-        ; We deliberately ignore any error here because closing
-        ; an unopened channel can itself report an error.
-        LDA #CLOSE
-        STA ICCOM,X
-        JSR CIOV
-
-        ; Re-select IOCB #2 after CIO.
-        ; Some OS calls may alter registers, so do not assume
-        ; X is still unchanged unless you know the call preserves it.
-        LDX #IOCB2
-
-        ; Tell CIO that this is an OPEN command.
-        LDA #OPEN
-        STA ICCOM,X
-
-        ; Tell CIO where the device-name string is.
-        ; SCRNAM contains:
-        ;
-        ;   "E:", EOL
-        ;
-        ; Atari device/file names passed to CIO are usually
-        ; terminated by EOL, $9B.
-        LDA #<SCRNAM
-        STA ICBAL,X
-        LDA #>SCRNAM
-        STA ICBAH,X
-
-        ; Open mode.
-        ; OWRIT means output/write.
-        LDA #OWRIT
-        STA ICAX1,X
-
-        ; Aux byte 2 is not needed here.
-        LDA #0
-        STA ICAX2,X
-
-        ; Call the Atari OS CIO routine.
-        JSR CIOV
-
+        OPEN  IO_CHANNEL,IO_OWRIT,0,"E:"
         RTS
+
 
 
 ; ================================================================
@@ -223,7 +180,7 @@ OPEN_SCREEN
 ; CIO recipe for PUTCHR:
 ;
 ;   X      = IOCB number offset
-;   ICCOM = PUTCHR
+;   ICCOM = IO_PUTCHR
 ;   ICBAL = low byte of buffer address
 ;   ICBAH = high byte of buffer address
 ;   ICBLL = low byte of buffer length
@@ -235,7 +192,7 @@ OPEN_SCREEN
 PRINT_MESSAGE
         LDX #IOCB2
 
-        LDA #PUTCHR
+        LDA #IO_PUTCHR
         STA ICCOM,X
 
         ; Address of the text buffer to print.
@@ -259,7 +216,6 @@ PRINT_MESSAGE
         JSR CIOV
         RTS
 
-
 ; ================================================================
 ; CLOSE_SCREEN
 ;
@@ -268,30 +224,13 @@ PRINT_MESSAGE
 ; ================================================================
 
 CLOSE_SCREEN
-        LDX #IOCB2
-
-        LDA #CLOSE
-        STA ICCOM,X
-
-        JSR CIOV
-
+        CLOSE IO_CHANNEL
         RTS
 
 
 ; ================================================================
 ; DATA AREA
 ; ================================================================
-
-; ------------------------------------------------
-; CIO device name for the screen editor
-; ------------------------------------------------
-; "E:" means the screen editor device.
-; The string must end with Atari EOL, $9B.
-; ------------------------------------------------
-
-SCRNAM
-        .BYTE "E:",EOL
-
 
 ; ------------------------------------------------
 ; Message to print
@@ -302,55 +241,6 @@ SCRNAM
 MESSAGE
         .BYTE "I AM THE LEADER YOU FOOL"
         .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
- ;       .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";;
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
-
 
         .BYTE EOL
 MESSAGE_END

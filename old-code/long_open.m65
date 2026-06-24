@@ -1,0 +1,47 @@
+        LDX #IOCB2
+
+        ; Close IOCB #2 first.
+        ; This is defensive. If the channel was already open,
+        ; closing it avoids "channel already open" problems.
+        ;
+        ; We deliberately ignore any error here because closing
+        ; an unopened channel can itself report an error.
+        LDA #IO_CLOSE
+        STA ICCOM,X
+        JSR CIOV
+
+        ; Re-select IOCB #2 after CIO.
+        ; Some OS calls may alter registers, so do not assume
+        ; X is still unchanged unless you know the call preserves it.
+        LDX #IOCB2
+
+        ; Tell CIO that this is an OPEN command.
+        LDA #IO_OPEN
+        STA ICCOM,X
+
+        ; Tell CIO where the device-name string is.
+        ; SCRNAM contains:
+        ;
+        ;   "E:", EOL
+        ;
+        ; Atari device/file names passed to CIO are usually
+        ; terminated by EOL, $9B.
+        LDA #<SCRNAM
+        STA ICBAL,X
+        LDA #>SCRNAM
+        STA ICBAH,X
+
+        ; Open mode.
+        ; OWRIT means output/write.
+        LDA #IO_OWRIT
+        STA ICAX1,X
+
+        ; Aux byte 2 is not needed here.
+        LDA #0
+        STA ICAX2,X
+
+        ; Call the Atari OS CIO routine.
+        JSR CIOV
+
+        RTS
+
