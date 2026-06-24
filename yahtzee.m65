@@ -21,13 +21,8 @@
 ; ------------------------------------------------
 ; Main program load address
 ; ------------------------------------------------
-; $5000 is a reasonable place for a small test program
-; on a 48K/64K Atari when DOS is present.
-;
-; The assembler starts placing the main program here.
-; ------------------------------------------------
 
-        *=$5000
+        *=$2400
 
 
 ; ================================================================
@@ -115,6 +110,26 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 START
         ; Open the screen editor device "E:" for output.
         JSR OPEN_SCREEN
+
+
+CCOL    = 0       ; CURSOR COLUMN PRINT POSITION
+CROW    = 3     ; CUSOR ROW POSITION
+
+        ; Set left margin
+        LDA #2
+        STA $52
+
+        ; Set col
+        LDA #CROW;
+        STA 84;
+
+        ; Set column
+        LDA # < CCOL
+        STA 85;
+        LDA # > CCOL
+        STA 86
+
+
 
         ; Print the message.
         JSR PRINT_MESSAGE
@@ -220,14 +235,6 @@ OPEN_SCREEN
 PRINT_MESSAGE
         LDX #IOCB2
 
-        ; Tell CIO that this is a PUT characters command.
-        ;
-        ; Important:
-        ;   The command goes in ICCOM.
-        ;   The buffer address goes in ICBAL/ICBAH.
-        ;
-        ; A common transcription mistake is to accidentally
-        ; store the command into ICBAL instead of ICCOM.
         LDA #PUTCHR
         STA ICCOM,X
 
@@ -249,9 +256,7 @@ PRINT_MESSAGE
         LDA #>MESSAGE_LEN
         STA ICBLH,X
 
-        ; Call CIO to perform the output.
         JSR CIOV
-
         RTS
 
 
@@ -295,7 +300,59 @@ SCRNAM
 ; ------------------------------------------------
 
 MESSAGE
-        .BYTE "I AM THE LEADER YOU FOOL",EOL
+        .BYTE "I AM THE LEADER YOU FOOL"
+        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+ ;       .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";;
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+;        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+
+
+        .BYTE EOL
 MESSAGE_END
 
 ; Let the assembler calculate the length.
