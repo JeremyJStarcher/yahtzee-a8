@@ -2,6 +2,20 @@
 
 ASM_FILE_NAME = "strings.m65"
 
+
+
+ATASCII = [
+    '♥','├','🮇','┘','┤','┐','╱','╲','◢','▗','◣','▝','▘','🮂','▂','▖',
+    '♣','┌','─','┼','•','▄','▎','┬','┴','▌','└','␛','↑','↓','←','→',
+    ' ','!','"','#','$','%','&',"'",'(',')','*','+',',','-','.','/',
+    '0','1','2','3','4','5','6','7','8','9',':',';','<','=','>','?',
+    '@','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
+    'P','Q','R','S','T','U','V','W','X','Y','Z','[','\\',']','^','_',
+    '♦','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
+    'p','q','r','s','t','u','v','w','x','y','z','♠','|','🢰','◀','▶',
+]
+
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -36,7 +50,7 @@ def get_sheet_for_screen() -> list[Chrome]:
         txt = line.txt
 
         inchar: bool = False
-        out = ''
+        out = []
         for char in line.txt:
             if char == ' ':
                 inchar = False
@@ -45,16 +59,33 @@ def get_sheet_for_screen() -> list[Chrome]:
                 inchar = True
 
             if inchar == False:
-                out = out + char;
+                pass
+                # out = out + char;
             if inchar == True:
-                out = out + "."
+                char = '.'
+                # out = out + "."
+
+            try:
+                idx = ATASCII.index(char)
+            except ValueError:
+                print("Warning: character '{char}' is not ATASCII")
+
+
+            hex = '$' + f"{idx:02X}"
+
+            out.append(hex)
+        
 
         line.txt = out
 
     return sheet
 
 def convert_sheet_do_m65(sheet: list[Chrome]) -> list[str]:
-    out = [ '.BYTE "' + line.txt + '",' for line in sheet]
+    out = []
+    for line in sheet:
+        txt = ",".join(line.txt)
+        out.append(" .BYTE " + txt)
+
     return out;
 
 
@@ -65,3 +96,4 @@ with open(ASM_FILE_NAME, 'w') as file:
     file.write('\n'.join(sheet2))
 
 print(sheet2)
+
