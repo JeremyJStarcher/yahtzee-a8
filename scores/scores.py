@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+# We convert all the strings to hex because its easier to reason about
+# When mixing ASCII and Atari Graphics characters.  We take all risk and confusion
+# out of it.
+
 ASM_FILE_NAME = "strings.m65"
-
-
 
 ATASCII = [
     '♥','├','🮇','┘','┤','┐','╱','╲','◢','▗','◣','▝','▘','🮂','▂','▖',
@@ -21,10 +23,9 @@ from typing import Optional
 
 @dataclass
 class Chrome:
-    name: str
-    col: int
-    row: int
     txt: str
+    txt_processed: str = ''
+    asm_bytes: Optional[list[str]] = None
 
 @dataclass
 class ScreenLabel:
@@ -33,37 +34,37 @@ class ScreenLabel:
 
 def get_sheet_old() -> list[Chrome]:
     sheet = [
-        Chrome('L00', 0,  0, " ┌────────────┤ FIVE DICE ├───────────┐ "),
-        Chrome('L01', 0,  1, " |ACES       #S1C#  |3 OF KIND  #S3K# | "),
-        Chrome('L02', 0,  2, " |TWOS       #S2C#  |4 OF KIND  #S4K# | "),
-        Chrome('L03', 0,  3, " |THREES     #S3C#  |FULL HOUSE #SFH# | "),
-        Chrome('L04', 0,  4, " |FOURS      #S4C#  |S STRAIGHT #SSS# | "),
-        Chrome('L05', 0,  5, " |FIVES      #S5C#  |L STRAIGHT #SLS# | "),
-        Chrome('L06', 0,  6, " |SIXES      #S6C#  |5 OF KIND  #S5K# | "),
-        Chrome('L07', 0,  7, " |TOP SCORE  #STS#  |CHANCE     #SCH# | "),
-        Chrome('L08', 0,  8, " |BONUS      #STB#  |5K BONUS   #S5B# | "),
-        Chrome('L09', 0,  9, " |TOTAL      #SUT#  |TOTAL      #SLT# | "),
-        Chrome('L09', 0,  9, " ├───────┬──────────┴─────────┬───────┤ "),
-        Chrome('L10', 0, 10, " | ♥♣♦♠  | Grand Total  #GT## | ␛↑␛↓␛←␛→  | "),
-        Chrome('L09', 0,  9, " └───────┴────────────────────┴───────┘ "),
+        Chrome(" ┌────────────┤ FIVE DICE ├───────────┐ "),
+        Chrome(" |ACES       #S1C#  |3 OF KIND  #S3K# | "),
+        Chrome(" |TWOS       #S2C#  |4 OF KIND  #S4K# | "),
+        Chrome(" |THREES     #S3C#  |FULL HOUSE #SFH# | "),
+        Chrome(" |FOURS      #S4C#  |S STRAIGHT #SSS# | "),
+        Chrome(" |FIVES      #S5C#  |L STRAIGHT #SLS# | "),
+        Chrome(" |SIXES      #S6C#  |5 OF KIND  #S5K# | "),
+        Chrome(" |TOP SCORE  #STS#  |CHANCE     #SCH# | "),
+        Chrome(" |BONUS      #STB#  |5K BONUS   #S5B# | "),
+        Chrome(" |TOTAL      #SUT#  |TOTAL      #SLT# | "),
+        Chrome(" ├───────┬──────────┴─────────┬───────┤ "),
+        Chrome(" | ♥♣♦♠  | Grand Total  #GT## | ␛↑␛↓␛←␛→  | "),
+        Chrome(" └───────┴────────────────────┴───────┘ "),
     ]
     return sheet
 
 def get_sheet() -> list[Chrome]:
     sheet = [
-        Chrome('L00', 0,  0, " ┌────────────┤ FIVE DICE ├───────────┐ "),
-        Chrome('L01', 0,  1, " |#L1C######  #S1C# |#L3K###### #S3K# | "),
-        Chrome('L02', 0,  2, " |#L2C######  #S2C# |#L4K###### #S4K# | "),
-        Chrome('L03', 0,  3, " |#L3C######  #S3C# |#LFH###### #SFH# | "),
-        Chrome('L04', 0,  4, " |#L4C######  #S4C# |#LSS###### #SSS# | "),
-        Chrome('L05', 0,  5, " |#L5C######  #S5C# |#LLS###### #SLS# | "),
-        Chrome('L06', 0,  6, " |#L6C######  #S6C# |#L5K###### #S5K# | "),
-        Chrome('L07', 0,  7, " |#LTS######  #STS# |#LCH###### #SCH# | "),
-        Chrome('L08', 0,  8, " |#LTB######  #STB# |#L5B###### #S5B# | "),
-        Chrome('L09', 0,  9, " |#LUT######  #SUT# |#LLT###### #SLT# | "),
-        Chrome('L09', 0,  9, " ├───────┬──────────┴─────────┬───────┤ "),
-        Chrome('L10', 0, 10, " | ♥♣♦♠  | #GTT#######  #SGT# | ␛↑␛↓␛←␛→  | "),
-        Chrome('L09', 0,  9, " └───────┴────────────────────┴───────┘ "),
+        Chrome(" ┌────────────┤!FIVE DICE!├───────────┐ "),
+        Chrome(" |#L1C        #S1C  |#L3K       #S3K  | "),
+        Chrome(" |#L2C        #S2C  |#L4K       #S4K  | "),
+        Chrome(" |#L3C        #S3C  |#LFH       #SFH  | "),
+        Chrome(" |#L4C        #S4C  |#LSS       #SSS  | "),
+        Chrome(" |#L5C        #S5C  |#LLS       #SLS  | "),
+        Chrome(" |#L6C        #S6C  |#L5K       #S5K  | "),
+        Chrome(" |#LTS        #STS  |#LCH       #SCH  | "),
+        Chrome(" |#LTB        #STB  |#L5B       #S5B  | "),
+        Chrome(" |#LUT        #SUT  |#LLT       #SLT  | "),
+        Chrome(" ├───────┬──────────┴─────────┬───────┤ "),
+        Chrome(" | ♥♣♦♠  | #GTT      #  #SGT  | ␛↑␛↓␛←␛→  | "),
+        Chrome(" └───────┴────────────────────┴───────┘ "),
     ]
     return sheet
 
@@ -113,6 +114,18 @@ def get_labels() -> list[ScreenLabel]:
     ]
     return out;
 
+def ascii_to_atari_hex(ascii: str) -> list[str]:
+    atari :list[str] = [];
+    for char in ascii:
+        try:
+            idx = ATASCII.index(char)
+            hex = '$' + f"{idx:02X}"
+            atari.append(hex)
+        except ValueError:
+            print(f"Warning: character '{char}' is not ATASCII")
+
+    return atari
+
 def get_sheet_for_screen() -> list[Chrome]:
     sheet = get_sheet();
 
@@ -138,25 +151,21 @@ def get_sheet_for_screen() -> list[Chrome]:
                 char = '.'
                 # out = out + "."
 
-            try:
-                idx = ATASCII.index(char)
-            except ValueError:
-                print(f"Warning: character '{char}' is not ATASCII")
+            out.append(char)
 
-
-            hex = '$' + f"{idx:02X}"
-
-            out.append(hex)
-        
-
-        line.txt = out
+        line.txt_processed = "".join(out)
+        line.asm_bytes = ascii_to_atari_hex(out)
 
     return sheet
 
 def convert_sheet_do_m65(sheet: list[Chrome]) -> list[str]:
     out = []
+
     for line in sheet:
-        txt = ",".join(line.txt)
+        out.append(";; >" + line.txt_processed + "<")
+
+    for line in sheet:
+        txt = ", ".join(line.asm_bytes)
         out.append(" .BYTE " + txt)
 
     return out;
@@ -172,6 +181,4 @@ with open(ASM_FILE_NAME, 'w') as file:
     file.write('\n')
     file.write('MESSAGE_END\n')
     file.write('MESSAGE_LEN = MESSAGE_END - MESSAGE\n\n')
-
-# print(sheet2)
 
