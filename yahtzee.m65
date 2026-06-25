@@ -112,8 +112,8 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 START
         JSR OPEN_SCREEN
 
-CCOL    = 0       ; CURSOR COLUMN PRINT POSITION
-CROW    = 3     ; CUSOR ROW POSITION
+CCOL    = 2       ; CURSOR COLUMN PRINT POSITION
+CROW    = 0     ; CUSOR ROW POSITION
 
         ; Set left margin
         LDA #2
@@ -216,6 +216,34 @@ PRINT_MESSAGE
         JSR CIOV
         RTS
 
+
+PRINT_STR
+        LDX #IOCB2
+
+        LDA #IO_PUTCHR
+        STA ICCOM,X
+
+        ; Address of the text buffer to print.
+        LDA #<MESSAGE
+        STA ICBAL,X
+        LDA #>MESSAGE
+        STA ICBAH,X
+
+        ; Length of the text buffer.
+        ;
+        ; MESSAGE_LEN is computed by the assembler:
+        ;
+        ;   MESSAGE_END - MESSAGE
+        ;
+        ; That avoids hand-counting characters.
+        LDA #<MESSAGE_LEN
+        STA ICBLL,X
+        LDA #>MESSAGE_LEN
+        STA ICBLH,X
+
+        JSR CIOV
+        RTS
+
 ; ================================================================
 ; CLOSE_SCREEN
 ;
@@ -239,8 +267,17 @@ CLOSE_SCREEN
 ; ------------------------------------------------
 
 MESSAGE
-        .BYTE "I AM THE LEADER YOU FOOL"
-        .BYTE "THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS ";
+        .BYTE "-------------| FIVE DICE |------------",
+        .BYTE "ACES       .....   | 3 OF KIND  ..... ",
+        .BYTE "TWOS       .....   | 4 OF KIND  ..... ",
+        .BYTE "THREES     .....   | FULL HOUSE ..... ",
+        .BYTE "FOURS      .....   | S STRAIGHT ..... ",
+        .BYTE "FIVES      .....   | L STRAIGHT ..... ",
+        .BYTE "SIXES      .....   | 5 OF KIND  ..... ",
+        .BYTE "TOP SCORE  .....   | CHANCE     ..... ",
+        .BYTE "BONUS      .....   | 5K BONUS   ..... ",
+        .BYTE "TOTAL      .....   | TOTAL      ..... ",
+        .BYTE "          GRAND TOTAL  .....          ",
 
         .BYTE EOL
 MESSAGE_END
