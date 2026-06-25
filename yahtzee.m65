@@ -22,6 +22,9 @@
 ; Main program load address
 ; ------------------------------------------------
 
+; Free 0-page address (USED BY BASIC)
+; $CB - $D1
+
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
 
