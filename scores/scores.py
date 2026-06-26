@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-# We convert all the strings to hex because its easier to reason about
-# When mixing ASCII and Atari Graphics characters.  We take all risk and confusion
-# out of it.
+# Source of truth: the ASCII-art sheet in get_sheet(), where each #KEY marker
+# anchors a label on screen. We derive row/column metadata from those markers,
+# render a populated preview, and emit ATASCII .BYTE tables for assembly.
 
 ASM_FILE_NAME = "strings.m65"
 
@@ -16,6 +16,8 @@ ATASCII = [
     '♦','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
     'p','q','r','s','t','u','v','w','x','y','z','♠','|','🢰','◀','▶',
 ]
+
+ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
 
 
 from dataclasses import dataclass
@@ -56,22 +58,23 @@ class ScreenLabel:
                 self.screen_row = row_idx
                 self.screen_col = col_idx + 1  # +1 to skip the '#'
 
-        print(self)
+        if self.screen_row == -1:
+            raise Exception(f"Label '{key}' was not found in the sheet")
 
 def get_sheet() -> list[Chrome]:
     sheet = [
-        Chrome(" ┌────────────┤␛◀FIVE DICE␛▶├───────────┐ "),
-        Chrome(" |#L1C        #S1C  |#L3K       #S3K  | "),
-        Chrome(" |#L2C        #S2C  |#L4K       #S4K  | "),
-        Chrome(" |#L3C        #S3C  |#LFH       #SFH  | "),
-        Chrome(" |#L4C        #S4C  |#LSS       #SSS  | "),
-        Chrome(" |#L5C        #S5C  |#LLS       #SLS  | "),
-        Chrome(" |#L6C        #S6C  |#L5K       #S5K  | "),
-        Chrome(" |#LTS        #STS  |#LCH       #SCH  | "),
-        Chrome(" |#LTB        #STB  |#L5B       #S5B  | "),
-        Chrome(" |#LUT        #SUT  |#LLT       #SLT  | "),
-        Chrome(" ├───────┬──────────┴─────────┬───────┤ "),
-        Chrome(" | ♥♣♦♠  | #GTT         #SGT  | ␛↑␛↓␛←␛→  | "),
+        Chrome(" ┌────────────┤!FIVE DICE ├───────────┐ "),
+        Chrome(" |#L1C        #S1C |#L3K        #S3K  | "),
+        Chrome(" |#L2C        #S2C |#L4K        #S4K  | "),
+        Chrome(" |#L3C        #S3C |#LFH        #SFH  | "),
+        Chrome(" |#L4C        #S4C |#LSS        #SSS  | "),
+        Chrome(" |#L5C        #S5C |#LLS        #SLS  | "),
+        Chrome(" |#L6C        #S6C |#L5K        #S5K  | "),
+        Chrome(" |#LTS        #STS |#LCH        #SCH  | "),
+        Chrome(" |#LTB        #STB |#L5B        #S5B  | "),
+        Chrome(" |#LUT        #SUT |#LLT        #SLT  | "),
+        Chrome(" ├───────┬─────────┴──────────┬───────┤ "),
+        Chrome(" | ♥♣♦♠  | #GTT         #SGT  | ♥♣♦♠  | "),
         Chrome(" └───────┴────────────────────┴───────┘ "),
     ]
     return sheet
@@ -104,15 +107,15 @@ def get_labels() -> list[ScreenLabel]:
         ScreenLabel('S4K', num),
         ScreenLabel('LFH', 'Full House'),
         ScreenLabel('SFH', num),
-        ScreenLabel('LSS', 'Small Straight'),
+        ScreenLabel('LSS', 'S Straight'),
         ScreenLabel('SSS', num),
-        ScreenLabel('LLS', 'Large Straight'),
+        ScreenLabel('LLS', 'L Straight'),
         ScreenLabel('SLS', num),
         ScreenLabel('L5K', '5 of a Kind'),
         ScreenLabel('S5K', num),
         ScreenLabel('LCH', 'Chance'),
         ScreenLabel('SCH', num),
-        ScreenLabel('L5B', '5 Kind Bonus'),
+        ScreenLabel('L5B', '5K Bonus'),
         ScreenLabel('S5B', num),
         ScreenLabel('LLT', 'Lower Total'),
         ScreenLabel('SLT', num),
@@ -123,19 +126,18 @@ def get_labels() -> list[ScreenLabel]:
     return out;
 
 def ascii_to_atari_hex(ascii: str) -> list[str]:
-    atari :list[str] = [];
+    atari: list[str] = []
     for char in ascii:
-        try:
-            idx = ATASCII.index(char)
-            hex = '$' + f"{idx:02X}"
-            atari.append(hex)
-        except ValueError:
-            print(f"Warning: character '{char}' is not ATASCII")
+        if char not in ATASCII_MAP:
+            raise ValueError(f"character '{char}' is not ATASCII")
+
+        idx = ATASCII_MAP[char]
+        atari.append('$' + f"{idx:02X}")
 
     return atari
 
 def get_sheet_for_screen() -> list[Chrome]:
-    sheet = get_sheet();
+    sheet = get_sheet()
 
     for line in sheet:
         txt = line.txt
@@ -183,34 +185,110 @@ def convert_sheet_do_m65(sheet: list[Chrome]) -> list[str]:
 
     return out
 
+
+def render_populated_sheet_preview() -> list[str]:
+    label_lookup = {label.key: label.ascii for label in labels}
+    out: list[str] = []
+
+    for line in get_sheet():
+        rendered = list(line.txt)
+        idx = 0
+
+        while idx < len(line.txt):
+            if line.txt[idx] == '#':
+                key = line.txt[idx + 1:idx + 4]
+                if key not in label_lookup:
+                    raise Exception(f"Unknown label key '{key}' in sheet preview")
+
+                value = label_lookup[key]
+                end_idx = idx + 4
+
+                while end_idx < len(rendered) and rendered[end_idx] == ' ':
+                    end_idx += 1
+
+                field_width = end_idx - idx
+                fitted_value = value[:field_width].ljust(field_width)
+
+                for value_idx, char in enumerate(fitted_value):
+                    rendered[idx + value_idx] = char
+
+                idx = end_idx
+                continue
+
+            idx += 1
+
+        out.append(";; FULL >" + "".join(rendered) + "<")
+
+    return out
+
 sheet2 = convert_sheet_do_m65(get_sheet_for_screen())
 labels = get_labels()
 
 def make_key_full(key: str) -> str:
-    return f"LABEL_{label.key}_F"
+    return f"LABEL_{key}_F"
 
-with open(ASM_FILE_NAME, 'w') as file:
-    file.write('MESSAGE\n')
-    file.write('\n'.join(sheet2))
-    file.write('\n')
-    file.write('MESSAGE_END\n')
-    file.write('MESSAGE_LEN = MESSAGE_END - MESSAGE\n\n')
 
-    file.write('LABEL_LOOKUP_FULL\n')
+def build_message_section() -> list[str]:
+    out: list[str] = []
+
+    out.append(';; FULLY POPULATED SCREEN PREVIEW')
+    out.extend(render_populated_sheet_preview())
+    out.append('')
+    out.append('MESSAGE')
+    out.extend(sheet2)
+    out.append('MESSAGE_END')
+    out.append('MESSAGE_LEN = MESSAGE_END - MESSAGE')
+    out.append('')
+
+    return out
+
+
+def build_label_full_section() -> list[str]:
+    out: list[str] = []
+
+    out.append('LABEL_LOOKUP_FULL')
     for label in labels:
-        file.write(f"{make_key_full(label.key)}\n")
-        file.write(' .BYTE $' + f"{label.length:02X} ; Length\n")
-        file.write(' .BYTE $' + f"{label.screen_row:02X} ; row\n")
-        file.write(' .BYTE $' + f"{label.screen_col:02X} ; col\n")
-        file.write("; Rendered Text: " + label.ascii + "\n")
+        out.append(f"{make_key_full(label.key)}")
+        out.append(' .BYTE $' + f"{label.length:02X} ; Length")
+        out.append(' .BYTE $' + f"{label.screen_row:02X} ; row")
+        out.append(' .BYTE $' + f"{label.screen_col:02X} ; col")
+        out.append('; Rendered Text: ' + label.ascii)
+        out.append(convert_line_to_m65(label.asm_bytes))
 
-        file.write(convert_line_to_m65(label.asm_bytes) + "\n")
+    return out
 
-    file.write('LABEL_LOOKUP_HIGH\n')
+
+def build_label_pointer_sections() -> tuple[list[str], list[str]]:
+    high_lines: list[str] = ['LABEL_LOOKUP_HIGH']
+    low_lines: list[str] = ['LABEL_LOOKUP_LOW']
+
     for label in labels:
-        file.write(f"LABEL_{label.key}_H .BYTE >{make_key_full(label.key)}\n")
+        high_lines.append(f"LABEL_{label.key}_H .BYTE >{make_key_full(label.key)}")
+        low_lines.append(f"LABEL_{label.key}_L .BYTE <{make_key_full(label.key)}")
 
-    file.write('LABEL_LOOKUP_LOW\n')
-    for label in labels:
-        file.write(f"LABEL_{label.key}_L .BYTE <{make_key_full(label.key)}\n")
+    return high_lines, low_lines
+
+
+def build_output() -> str:
+    out: list[str] = []
+
+    message_section = build_message_section()
+    label_full_section = build_label_full_section()
+    label_high_section, label_low_section = build_label_pointer_sections()
+
+    out.extend(message_section)
+    out.extend(label_full_section)
+    out.extend(label_high_section)
+    out.extend(label_low_section)
+
+    return '\n'.join(out) + '\n'
+
+
+def main() -> None:
+    with open(ASM_FILE_NAME, 'w', encoding='utf-8') as file:
+        file.write(build_output())
+
+
+if __name__ == '__main__':
+    main()
 
