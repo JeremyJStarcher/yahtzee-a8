@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 
-# Source of truth: the ASCII-art sheet in get_sheet(), where each #KEY marker
-# anchors a label on screen. We derive row/column metadata from those markers,
-# render a populated preview, and emit ATASCII .BYTE tables for assembly.
+"""
+ATASCII Screen Layout Generator for Yahtzee Scorecard
+Generates .BYTE tables and label lookup structures for assembly.
+"""
+
+import re
+from dataclasses import dataclass, field
+from typing import Optional
 
 ASM_FILE_NAME = "strings.m65"
 
@@ -20,50 +25,130 @@ ATASCII = [
 ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
 
 
-from dataclasses import dataclass
-from typing import Optional
-
 @dataclass
 class Chrome:
+    """Represents a line in the screen layout."""
     txt: str
     txt_processed: str = ''
-    asm_bytes: Optional[list[str]] = None
+    asm_bytes: list[str] = field(default_factory=list)
+
 
 @dataclass
 class ScreenLabel:
+    """Represents a label definition with its position on screen."""
     key: str
     ascii: str
-
-    asm_bytes: Optional[list[str]] = None
+    asm_bytes: list[str] = field(default_factory=list)
     length: int = 0
     screen_row: int = -1
     screen_col: int = -1
 
-    def __init__(self,key:str, ascii:str):
-        self.key = key
-        self.ascii = ascii
-        self.asm_bytes = ascii_to_atari_hex(ascii)
-        self.length = len(ascii)
+    def __post_init__(self):
+        self.asm_bytes = ascii_to_atari_hex(self.ascii)
+        self.length = len(self.ascii)
 
-        # Get sheet and find the row and column where the label appears
-        # We use '#' to show the start of a label.
-        sheet = get_sheet()
-        for row_idx, chrome in enumerate(sheet):
-            col_idx = chrome.txt.find('#' + key)
-            if col_idx != -1:
 
-                if self.screen_row != -1:
-                    raise Exception(f"Label '{key}' appears more than once in the sheet")
+class SheetParser:
+    """Handles parsing the ASCII-art sheet and extracting label positions."""
 
-                self.screen_row = row_idx
-                self.screen_col = col_idx + 1  # +1 to skip the '#'
+    LABEL_PATTERN = re.compile(r'#(\w+)')
 
-        if self.screen_row == -1:
-            raise Exception(f"Label '{key}' was not found in the sheet")
+    def __init__(self, sheet: list[Chrome]):
+        self.sheet = sheet
+        self.label_positions = self._find_all_label_positions()
+
+    def _find_all_label_positions(self) -> dict[str, tuple[int, int]]:
+        """Find all label positions in one pass through the sheet."""
+        positions = {}
+        for row_idx, chrome in enumerate(self.sheet):
+            for match in self.LABEL_PATTERN.finditer(chrome.txt):
+                key = match.group(1)
+                if key in positions:
+                    raise ValueError(f"Label '{key}' appears multiple times in sheet")
+                positions[key] = (row_idx, match.start() + 1)  # +1 to skip '#'
+        return positions
+
+    def get_label_position(self, key: str) -> tuple[int, int]:
+        """Get the row and column for a given label key."""
+        if key not in self.label_positions:
+            raise ValueError(f"Label '{key}' not found in sheet")
+        return self.label_positions[key]
+
+    def process_sheet_for_assembly(self) -> list[Chrome]:
+        """Convert the sheet to assembly-ready format with dots for labels."""
+        processed_sheet = []
+
+        for line in self.sheet:
+            chars = list(line.txt)
+            in_label = False
+
+            for i, char in enumerate(chars):
+                if char == '#':
+                    in_label = True
+                    chars[i] = '.'  # Replace the # marker with a dot
+                elif char in (' ', '|'):
+                    in_label = False
+
+                if in_label and char not in ('#', ' '):
+                    chars[i] = '.'
+
+            processed = "".join(chars)
+            processed_sheet.append(Chrome(
+                txt=line.txt,
+                txt_processed=processed,
+                asm_bytes=ascii_to_atari_hex(processed)
+            ))
+
+        return processed_sheet
+
+    def render_populated_sheet(self, label_values: dict[str, str]) -> list[str]:
+        """Render the sheet with actual label values filled in."""
+        output = []
+
+        for line in self.sheet:
+            rendered = list(line.txt)
+            idx = 0
+
+            while idx < len(line.txt):
+                if line.txt[idx] == '#':
+                    # Extract the full key (all word characters after #)
+                    match = self.LABEL_PATTERN.match(line.txt, idx)
+                    if not match:
+                        idx += 1
+                        continue
+
+                    key = match.group(1)
+                    if key not in label_values:
+                        raise ValueError(f"Unknown label key '{key}'")
+
+                    value = label_values[key]
+                    key_end = match.end()
+
+                    # Find end of field (next non-space character)
+                    end_idx = key_end
+                    while end_idx < len(rendered) and rendered[end_idx] == ' ':
+                        end_idx += 1
+
+                    field_width = end_idx - idx
+                    fitted_value = value[:field_width].ljust(field_width)
+
+                    for i, char in enumerate(fitted_value):
+                        rendered[idx + i] = char
+
+                    idx = end_idx
+                    continue
+
+                idx += 1
+
+            output.append(";; FULL >" + "".join(rendered) + "<")
+
+        return output
+
 
 def get_sheet() -> list[Chrome]:
-    sheet = [
-        Chrome(" ┌────────────┤!FIVE DICE ├───────────┐ "),
+    """Define the ASCII-art sheet layout."""
+    return [
+        Chrome(" ┌────────────┤!FIVE DICE&├───────────┐ "),
         Chrome(" |#L1C        #S1C |#L3K        #S3K  | "),
         Chrome(" |#L2C        #S2C |#L4K        #S4K  | "),
         Chrome(" |#L3C        #S3C |#LFH        #SFH  | "),
@@ -77,11 +162,13 @@ def get_sheet() -> list[Chrome]:
         Chrome(" | ♥♣♦♠  | #GTT         #SGT  | ♥♣♦♠  | "),
         Chrome(" └───────┴────────────────────┴───────┘ "),
     ]
-    return sheet
+
 
 def get_labels() -> list[ScreenLabel]:
+    """Define all labels with their display text."""
     num = '00000'
-    out: list[ScreenLabel] = [
+    return [
+        # Left column labels
         ScreenLabel('L1C', 'Aces'),
         ScreenLabel('S1C', num),
         ScreenLabel('L2C', 'Twos'),
@@ -101,6 +188,7 @@ def get_labels() -> list[ScreenLabel]:
         ScreenLabel('LUT', 'Upper Total'),
         ScreenLabel('SUT', num),
 
+        # Right column labels
         ScreenLabel('L3K', '3 of a Kind'),
         ScreenLabel('S3K', num),
         ScreenLabel('L4K', '4 of a Kind'),
@@ -120,175 +208,140 @@ def get_labels() -> list[ScreenLabel]:
         ScreenLabel('LLT', 'Lower Total'),
         ScreenLabel('SLT', num),
 
+        # Bottom labels
         ScreenLabel('GTT', 'Grand Total'),
         ScreenLabel('SGT', num),
     ]
-    return out;
+
 
 def ascii_to_atari_hex(ascii: str) -> list[str]:
-    atari: list[str] = []
+    """Convert ASCII string to ATASCII hex bytes."""
+    result = []
     for char in ascii:
         if char not in ATASCII_MAP:
-            raise ValueError(f"character '{char}' is not ATASCII")
+            raise ValueError(f"Character '{char}' is not ATASCII")
+        result.append(f'${ATASCII_MAP[char]:02X}')
+    return result
 
-        idx = ATASCII_MAP[char]
-        atari.append('$' + f"{idx:02X}")
-
-    return atari
-
-def get_sheet_for_screen() -> list[Chrome]:
-    sheet = get_sheet()
-
-    for line in sheet:
-        txt = line.txt
-
-        inchar: bool = False
-        out = []
-        for char in line.txt:
-            if char == ' ':
-                inchar = False
-
-            if char == '|':
-                inchar = False
-
-            if char == '#':
-                inchar = True
-
-            if inchar == False:
-                pass
-                # out = out + char;
-            if inchar == True:
-                char = '.'
-                # out = out + "."
-
-            out.append(char)
-
-        line.txt_processed = "".join(out)
-        line.asm_bytes = ascii_to_atari_hex(out)
-
-    return sheet
 
 def convert_line_to_m65(asm_bytes: list[str]) -> str:
-    txt = ", ".join(asm_bytes)
-    return " .BYTE " + txt
+    """Convert a list of byte strings to a .BYTE directive line."""
+    return " .BYTE " + ", ".join(asm_bytes)
 
 
-def convert_sheet_do_m65(sheet: list[Chrome]) -> list[str]:
-    out = []
+class AssemblyGenerator:
+    """Generates assembly code from the parsed sheet and labels."""
 
-    for line in sheet:
-        out.append(";; >" + line.txt_processed + "<")
+    def __init__(self, sheet_parser: SheetParser, labels: list[ScreenLabel]):
+        self.sheet_parser = sheet_parser
+        self.labels = labels
+        self.processed_sheet = sheet_parser.process_sheet_for_assembly()
 
-    for line in sheet:
-        txt = ", ".join(line.asm_bytes)
-        out.append(" .BYTE " + txt)
+        # Run the sanity check BEFORE doing anything else
+        self._validate_labels()
 
-    return out
+        # Set label positions
+        for label in self.labels:
+            row, col = sheet_parser.get_label_position(label.key)
+            label.screen_row = row
+            label.screen_col = col
 
+    def _validate_labels(self) -> None:
+        sheet_keys = set(self.sheet_parser.label_positions)
+        label_keys = {label.key for label in self.labels}
 
-def render_populated_sheet_preview() -> list[str]:
-    label_lookup = {label.key: label.ascii for label in labels}
-    out: list[str] = []
+        missing = sheet_keys - label_keys
+        extra = label_keys - sheet_keys
 
-    for line in get_sheet():
-        rendered = list(line.txt)
-        idx = 0
+        if missing:
+            raise ValueError(f"Sheet has labels with no values: {sorted(missing)}")
+        if extra:
+            raise ValueError(f"Labels defined but not used in sheet: {sorted(extra)}")
 
-        while idx < len(line.txt):
-            if line.txt[idx] == '#':
-                key = line.txt[idx + 1:idx + 4]
-                if key not in label_lookup:
-                    raise Exception(f"Unknown label key '{key}' in sheet preview")
+        if len(label_keys) != len(self.labels):
+            raise ValueError("Duplicate labels in label definitions")
 
-                value = label_lookup[key]
-                end_idx = idx + 4
+    def _make_key_full(self, key: str) -> str:
+        """Generate the full label identifier for assembly."""
+        return f"LABEL_{key}_F"
 
-                while end_idx < len(rendered) and rendered[end_idx] == ' ':
-                    end_idx += 1
+    def build_message_section(self) -> list[str]:
+        """Build the MESSAGE section with full screen preview."""
+        lines = []
+        label_values = {label.key: label.ascii for label in self.labels}
 
-                field_width = end_idx - idx
-                fitted_value = value[:field_width].ljust(field_width)
+        lines.append(';; FULLY POPULATED SCREEN PREVIEW')
+        lines.extend(self.sheet_parser.render_populated_sheet(label_values))
+        lines.append('')
+        lines.append('MESSAGE')
 
-                for value_idx, char in enumerate(fitted_value):
-                    rendered[idx + value_idx] = char
+        for chrome in self.processed_sheet:
+            lines.append(";; >" + chrome.txt_processed + "<")
+            lines.append(convert_line_to_m65(chrome.asm_bytes))
 
-                idx = end_idx
-                continue
+        lines.append('MESSAGE_END')
+        lines.append('MESSAGE_LEN = MESSAGE_END - MESSAGE')
+        lines.append('')
 
-            idx += 1
+        return lines
 
-        out.append(";; FULL >" + "".join(rendered) + "<")
+    def build_label_full_section(self) -> list[str]:
+        """Build the full label lookup section."""
+        lines = ['LABEL_LOOKUP_FULL']
 
-    return out
+        for label in self.labels:
+            lines.append(f"{self._make_key_full(label.key)}")
+            lines.append(f' .BYTE ${label.length:02X} ; Length')
+            lines.append(f' .BYTE ${label.screen_row:02X} ; row')
+            lines.append(f' .BYTE ${label.screen_col:02X} ; col')
+            lines.append(f'; Rendered Text: {label.ascii}')
+            lines.append(convert_line_to_m65(label.asm_bytes))
 
-sheet2 = convert_sheet_do_m65(get_sheet_for_screen())
-labels = get_labels()
+        return lines
 
-def make_key_full(key: str) -> str:
-    return f"LABEL_{key}_F"
+    def build_label_pointer_sections(self) -> tuple[list[str], list[str], int]:
+        """Build high and low byte pointer tables."""
+        high_lines = ['LABEL_LOOKUP_HIGH']
+        low_lines = ['LABEL_LOOKUP_LOW']
 
+        for label in self.labels:
+            full_key = self._make_key_full(label.key)
+            high_lines.append(f"LABEL_{label.key}_H .BYTE >{full_key}")
+            low_lines.append(f"LABEL_{label.key}_L .BYTE <{full_key}")
 
-def build_message_section() -> list[str]:
-    out: list[str] = []
+        return high_lines, low_lines, len(self.labels)
 
-    out.append(';; FULLY POPULATED SCREEN PREVIEW')
-    out.extend(render_populated_sheet_preview())
-    out.append('')
-    out.append('MESSAGE')
-    out.extend(sheet2)
-    out.append('MESSAGE_END')
-    out.append('MESSAGE_LEN = MESSAGE_END - MESSAGE')
-    out.append('')
+    def generate(self) -> str:
+        """Generate the complete assembly output."""
+        sections = []
 
-    return out
+        sections.extend(self.build_message_section())
+        sections.extend(self.build_label_full_section())
 
+        high_section, low_section, num_labels = self.build_label_pointer_sections()
+        sections.extend(high_section)
+        sections.extend(low_section)
 
-def build_label_full_section() -> list[str]:
-    out: list[str] = []
+        num_labels = f"NUM_LABELS .BYTE ${num_labels:02X} ; Number of labels ({num_labels})'"
+        sections.append(num_labels)
 
-    out.append('LABEL_LOOKUP_FULL')
-    for label in labels:
-        out.append(f"{make_key_full(label.key)}")
-        out.append(' .BYTE $' + f"{label.length:02X} ; Length")
-        out.append(' .BYTE $' + f"{label.screen_row:02X} ; row")
-        out.append(' .BYTE $' + f"{label.screen_col:02X} ; col")
-        out.append('; Rendered Text: ' + label.ascii)
-        out.append(convert_line_to_m65(label.asm_bytes))
-
-    return out
-
-
-def build_label_pointer_sections() -> tuple[list[str], list[str]]:
-    high_lines: list[str] = ['LABEL_LOOKUP_HIGH']
-    low_lines: list[str] = ['LABEL_LOOKUP_LOW']
-
-    for label in labels:
-        high_lines.append(f"LABEL_{label.key}_H .BYTE >{make_key_full(label.key)}")
-        low_lines.append(f"LABEL_{label.key}_L .BYTE <{make_key_full(label.key)}")
-
-    return high_lines, low_lines
-
-
-def build_output() -> str:
-    out: list[str] = []
-
-    message_section = build_message_section()
-    label_full_section = build_label_full_section()
-    label_high_section, label_low_section = build_label_pointer_sections()
-
-    out.extend(message_section)
-    out.extend(label_full_section)
-    out.extend(label_high_section)
-    out.extend(label_low_section)
-
-    return '\n'.join(out) + '\n'
+        return '\n'.join(sections) + '\n'
 
 
 def main() -> None:
+    """Main entry point: parse sheet, set up labels, and generate assembly."""
+    sheet = get_sheet()
+    parser = SheetParser(sheet)
+    labels = get_labels()
+
+    generator = AssemblyGenerator(parser, labels)
+    output = generator.generate()
+
     with open(ASM_FILE_NAME, 'w', encoding='utf-8') as file:
-        file.write(build_output())
+        file.write(output)
+
+    print(f"Generated {ASM_FILE_NAME}")
 
 
 if __name__ == '__main__':
     main()
-
