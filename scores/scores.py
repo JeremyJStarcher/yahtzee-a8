@@ -30,29 +30,37 @@ class Chrome:
 @dataclass
 class ScreenLabel:
     key: str
-    value: str
+    ascii: str
 
-def get_sheet_old() -> list[Chrome]:
-    sheet = [
-        Chrome(" ┌────────────┤ FIVE DICE ├───────────┐ "),
-        Chrome(" |ACES       #S1C#  |3 OF KIND  #S3K# | "),
-        Chrome(" |TWOS       #S2C#  |4 OF KIND  #S4K# | "),
-        Chrome(" |THREES     #S3C#  |FULL HOUSE #SFH# | "),
-        Chrome(" |FOURS      #S4C#  |S STRAIGHT #SSS# | "),
-        Chrome(" |FIVES      #S5C#  |L STRAIGHT #SLS# | "),
-        Chrome(" |SIXES      #S6C#  |5 OF KIND  #S5K# | "),
-        Chrome(" |TOP SCORE  #STS#  |CHANCE     #SCH# | "),
-        Chrome(" |BONUS      #STB#  |5K BONUS   #S5B# | "),
-        Chrome(" |TOTAL      #SUT#  |TOTAL      #SLT# | "),
-        Chrome(" ├───────┬──────────┴─────────┬───────┤ "),
-        Chrome(" | ♥♣♦♠  | Grand Total  #GT## | ␛↑␛↓␛←␛→  | "),
-        Chrome(" └───────┴────────────────────┴───────┘ "),
-    ]
-    return sheet
+    asm_bytes: Optional[list[str]] = None
+    length: int = 0
+    screen_row: int = -1
+    screen_col: int = -1
+
+    def __init__(self,key:str, ascii:str):
+        self.key = key
+        self.ascii = ascii
+        self.asm_bytes = ascii_to_atari_hex(ascii)
+        self.length = len(ascii)
+
+        # Get sheet and find the row and column where the label appears
+        # We use '#' to show the start of a label.
+        sheet = get_sheet()
+        for row_idx, chrome in enumerate(sheet):
+            col_idx = chrome.txt.find('#' + key)
+            if col_idx != -1:
+
+                if self.screen_row != -1:
+                    raise Exception(f"Label '{key}' appears more than once in the sheet")
+
+                self.screen_row = row_idx
+                self.screen_col = col_idx + 1  # +1 to skip the '#'
+
+        print(self)
 
 def get_sheet() -> list[Chrome]:
     sheet = [
-        Chrome(" ┌────────────┤!FIVE DICE!├───────────┐ "),
+        Chrome(" ┌────────────┤␛◀FIVE DICE␛▶├───────────┐ "),
         Chrome(" |#L1C        #S1C  |#L3K       #S3K  | "),
         Chrome(" |#L2C        #S2C  |#L4K       #S4K  | "),
         Chrome(" |#L3C        #S3C  |#LFH       #SFH  | "),
@@ -63,7 +71,7 @@ def get_sheet() -> list[Chrome]:
         Chrome(" |#LTB        #STB  |#L5B       #S5B  | "),
         Chrome(" |#LUT        #SUT  |#LLT       #SLT  | "),
         Chrome(" ├───────┬──────────┴─────────┬───────┤ "),
-        Chrome(" | ♥♣♦♠  | #GTT      #  #SGT  | ␛↑␛↓␛←␛→  | "),
+        Chrome(" | ♥♣♦♠  | #GTT         #SGT  | ␛↑␛↓␛←␛→  | "),
         Chrome(" └───────┴────────────────────┴───────┘ "),
     ]
     return sheet
@@ -71,7 +79,7 @@ def get_sheet() -> list[Chrome]:
 def get_labels() -> list[ScreenLabel]:
     num = '00000'
     out: list[ScreenLabel] = [
-        ScreenLabel('L1C', 'Aces'), 
+        ScreenLabel('L1C', 'Aces'),
         ScreenLabel('S1C', num),
         ScreenLabel('L2C', 'Twos'),
         ScreenLabel('S2C', num),
@@ -89,7 +97,7 @@ def get_labels() -> list[ScreenLabel]:
         ScreenLabel('STB', num),
         ScreenLabel('LUT', 'Upper Total'),
         ScreenLabel('SUT', num),
- 
+
         ScreenLabel('L3K', '3 of a Kind'),
         ScreenLabel('S3K', num),
         ScreenLabel('L4K', '4 of a Kind'),
@@ -137,7 +145,7 @@ def get_sheet_for_screen() -> list[Chrome]:
         for char in line.txt:
             if char == ' ':
                 inchar = False
-            
+
             if char == '|':
                 inchar = False
 
@@ -158,6 +166,11 @@ def get_sheet_for_screen() -> list[Chrome]:
 
     return sheet
 
+def convert_line_to_m65(asm_bytes: list[str]) -> str:
+    txt = ", ".join(asm_bytes)
+    return " .BYTE " + txt
+
+
 def convert_sheet_do_m65(sheet: list[Chrome]) -> list[str]:
     out = []
 
@@ -168,12 +181,13 @@ def convert_sheet_do_m65(sheet: list[Chrome]) -> list[str]:
         txt = ", ".join(line.asm_bytes)
         out.append(" .BYTE " + txt)
 
-    return out;
+    return out
 
-sheet = get_sheet_for_screen()
-sheet2 = convert_sheet_do_m65(sheet)
-
+sheet2 = convert_sheet_do_m65(get_sheet_for_screen())
 labels = get_labels()
+
+def make_key_full(key: str) -> str:
+    return f"LABEL_{label.key}_F"
 
 with open(ASM_FILE_NAME, 'w') as file:
     file.write('MESSAGE\n')
@@ -181,4 +195,22 @@ with open(ASM_FILE_NAME, 'w') as file:
     file.write('\n')
     file.write('MESSAGE_END\n')
     file.write('MESSAGE_LEN = MESSAGE_END - MESSAGE\n\n')
+
+    file.write('LABEL_LOOKUP_FULL\n')
+    for label in labels:
+        file.write(f"{make_key_full(label.key)}\n")
+        file.write(' .BYTE $' + f"{label.length:02X} ; Length\n")
+        file.write(' .BYTE $' + f"{label.screen_row:02X} ; row\n")
+        file.write(' .BYTE $' + f"{label.screen_col:02X} ; col\n")
+        file.write("; Rendered Text: " + label.ascii + "\n")
+
+        file.write(convert_line_to_m65(label.asm_bytes) + "\n")
+
+    file.write('LABEL_LOOKUP_HIGH\n')
+    for label in labels:
+        file.write(f"LABEL_{label.key}_H .BYTE >{make_key_full(label.key)}\n")
+
+    file.write('LABEL_LOOKUP_LOW\n')
+    for label in labels:
+        file.write(f"LABEL_{label.key}_L .BYTE <{make_key_full(label.key)}\n")
 

@@ -1,5 +1,5 @@
 MESSAGE
-;; > ┌────────────┤!FIVE DICE!├───────────┐ <
+;; > ┌────────────┤␛◀FIVE DICE␛▶├───────────┐ <
 ;; > |....        ....  |....       ....  | <
 ;; > |....        ....  |....       ....  | <
 ;; > |....        ....  |....       ....  | <
@@ -10,9 +10,9 @@ MESSAGE
 ;; > |....        ....  |....       ....  | <
 ;; > |....        ....  |....       ....  | <
 ;; > ├───────┬──────────┴─────────┬───────┤ <
-;; > | ♥♣♦♠  | ....      .  ....  | ␛↑␛↓␛←␛→  | <
+;; > | ♥♣♦♠  | ....         ....  | ␛↑␛↓␛←␛→  | <
 ;; > └───────┴────────────────────┴───────┘ <
- .BYTE $20, $11, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $04, $21, $46, $49, $56, $45, $20, $44, $49, $43, $45, $21, $01, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $05, $20
+ .BYTE $20, $11, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $04, $1B, $7E, $46, $49, $56, $45, $20, $44, $49, $43, $45, $1B, $7F, $01, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $05, $20
  .BYTE $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20
  .BYTE $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20
  .BYTE $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20
@@ -23,8 +23,315 @@ MESSAGE
  .BYTE $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20
  .BYTE $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20
  .BYTE $20, $01, $12, $12, $12, $12, $12, $12, $12, $17, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $18, $12, $12, $12, $12, $12, $12, $12, $12, $12, $17, $12, $12, $12, $12, $12, $12, $12, $04, $20
- .BYTE $20, $7C, $20, $00, $10, $60, $7B, $20, $20, $7C, $20, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $2E, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20, $1B, $1C, $1B, $1D, $1B, $1E, $1B, $1F, $20, $20, $7C, $20
+ .BYTE $20, $7C, $20, $00, $10, $60, $7B, $20, $20, $7C, $20, $2E, $2E, $2E, $2E, $20, $20, $20, $20, $20, $20, $20, $20, $20, $2E, $2E, $2E, $2E, $20, $20, $7C, $20, $1B, $1C, $1B, $1D, $1B, $1E, $1B, $1F, $20, $20, $7C, $20
  .BYTE $20, $1A, $12, $12, $12, $12, $12, $12, $12, $18, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $12, $18, $12, $12, $12, $12, $12, $12, $12, $03, $20
 MESSAGE_END
 MESSAGE_LEN = MESSAGE_END - MESSAGE
 
+LABEL_LOOKUP_FULL
+LABEL_L1C_F
+ .BYTE $04 ; Length
+ .BYTE $01 ; row
+ .BYTE $03 ; col
+; Rendered Text: Aces
+ .BYTE $41, $63, $65, $73
+LABEL_S1C_F
+ .BYTE $05 ; Length
+ .BYTE $01 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L2C_F
+ .BYTE $04 ; Length
+ .BYTE $02 ; row
+ .BYTE $03 ; col
+; Rendered Text: Twos
+ .BYTE $54, $77, $6F, $73
+LABEL_S2C_F
+ .BYTE $05 ; Length
+ .BYTE $02 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L3C_F
+ .BYTE $06 ; Length
+ .BYTE $03 ; row
+ .BYTE $03 ; col
+; Rendered Text: Threes
+ .BYTE $54, $68, $72, $65, $65, $73
+LABEL_S3C_F
+ .BYTE $05 ; Length
+ .BYTE $03 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L4C_F
+ .BYTE $05 ; Length
+ .BYTE $04 ; row
+ .BYTE $03 ; col
+; Rendered Text: Fours
+ .BYTE $46, $6F, $75, $72, $73
+LABEL_S4C_F
+ .BYTE $05 ; Length
+ .BYTE $04 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L5C_F
+ .BYTE $05 ; Length
+ .BYTE $05 ; row
+ .BYTE $03 ; col
+; Rendered Text: Fives
+ .BYTE $46, $69, $76, $65, $73
+LABEL_S5C_F
+ .BYTE $05 ; Length
+ .BYTE $05 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L6C_F
+ .BYTE $05 ; Length
+ .BYTE $06 ; row
+ .BYTE $03 ; col
+; Rendered Text: Sixes
+ .BYTE $53, $69, $78, $65, $73
+LABEL_S6C_F
+ .BYTE $05 ; Length
+ .BYTE $06 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LTS_F
+ .BYTE $09 ; Length
+ .BYTE $07 ; row
+ .BYTE $03 ; col
+; Rendered Text: Top Score
+ .BYTE $54, $6F, $70, $20, $53, $63, $6F, $72, $65
+LABEL_STS_F
+ .BYTE $05 ; Length
+ .BYTE $07 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LTB_F
+ .BYTE $0B ; Length
+ .BYTE $08 ; row
+ .BYTE $03 ; col
+; Rendered Text: Upper Bonus
+ .BYTE $55, $70, $70, $65, $72, $20, $42, $6F, $6E, $75, $73
+LABEL_STB_F
+ .BYTE $05 ; Length
+ .BYTE $08 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LUT_F
+ .BYTE $0B ; Length
+ .BYTE $09 ; row
+ .BYTE $03 ; col
+; Rendered Text: Upper Total
+ .BYTE $55, $70, $70, $65, $72, $20, $54, $6F, $74, $61, $6C
+LABEL_SUT_F
+ .BYTE $05 ; Length
+ .BYTE $09 ; row
+ .BYTE $0F ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L3K_F
+ .BYTE $0B ; Length
+ .BYTE $01 ; row
+ .BYTE $16 ; col
+; Rendered Text: 3 of a Kind
+ .BYTE $33, $20, $6F, $66, $20, $61, $20, $4B, $69, $6E, $64
+LABEL_S3K_F
+ .BYTE $05 ; Length
+ .BYTE $01 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L4K_F
+ .BYTE $0B ; Length
+ .BYTE $02 ; row
+ .BYTE $16 ; col
+; Rendered Text: 4 of a Kind
+ .BYTE $34, $20, $6F, $66, $20, $61, $20, $4B, $69, $6E, $64
+LABEL_S4K_F
+ .BYTE $05 ; Length
+ .BYTE $02 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LFH_F
+ .BYTE $0A ; Length
+ .BYTE $03 ; row
+ .BYTE $16 ; col
+; Rendered Text: Full House
+ .BYTE $46, $75, $6C, $6C, $20, $48, $6F, $75, $73, $65
+LABEL_SFH_F
+ .BYTE $05 ; Length
+ .BYTE $03 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LSS_F
+ .BYTE $0E ; Length
+ .BYTE $04 ; row
+ .BYTE $16 ; col
+; Rendered Text: Small Straight
+ .BYTE $53, $6D, $61, $6C, $6C, $20, $53, $74, $72, $61, $69, $67, $68, $74
+LABEL_SSS_F
+ .BYTE $05 ; Length
+ .BYTE $04 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LLS_F
+ .BYTE $0E ; Length
+ .BYTE $05 ; row
+ .BYTE $16 ; col
+; Rendered Text: Large Straight
+ .BYTE $4C, $61, $72, $67, $65, $20, $53, $74, $72, $61, $69, $67, $68, $74
+LABEL_SLS_F
+ .BYTE $05 ; Length
+ .BYTE $05 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L5K_F
+ .BYTE $0B ; Length
+ .BYTE $06 ; row
+ .BYTE $16 ; col
+; Rendered Text: 5 of a Kind
+ .BYTE $35, $20, $6F, $66, $20, $61, $20, $4B, $69, $6E, $64
+LABEL_S5K_F
+ .BYTE $05 ; Length
+ .BYTE $06 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LCH_F
+ .BYTE $06 ; Length
+ .BYTE $07 ; row
+ .BYTE $16 ; col
+; Rendered Text: Chance
+ .BYTE $43, $68, $61, $6E, $63, $65
+LABEL_SCH_F
+ .BYTE $05 ; Length
+ .BYTE $07 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_L5B_F
+ .BYTE $0C ; Length
+ .BYTE $08 ; row
+ .BYTE $16 ; col
+; Rendered Text: 5 Kind Bonus
+ .BYTE $35, $20, $4B, $69, $6E, $64, $20, $42, $6F, $6E, $75, $73
+LABEL_S5B_F
+ .BYTE $05 ; Length
+ .BYTE $08 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LLT_F
+ .BYTE $0B ; Length
+ .BYTE $09 ; row
+ .BYTE $16 ; col
+; Rendered Text: Lower Total
+ .BYTE $4C, $6F, $77, $65, $72, $20, $54, $6F, $74, $61, $6C
+LABEL_SLT_F
+ .BYTE $05 ; Length
+ .BYTE $09 ; row
+ .BYTE $21 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_GTT_F
+ .BYTE $0B ; Length
+ .BYTE $0B ; row
+ .BYTE $0C ; col
+; Rendered Text: Grand Total
+ .BYTE $47, $72, $61, $6E, $64, $20, $54, $6F, $74, $61, $6C
+LABEL_SGT_F
+ .BYTE $05 ; Length
+ .BYTE $0B ; row
+ .BYTE $19 ; col
+; Rendered Text: 00000
+ .BYTE $30, $30, $30, $30, $30
+LABEL_LOOKUP_HIGH
+LABEL_L1C_H .BYTE >LABEL_L1C_F
+LABEL_S1C_H .BYTE >LABEL_S1C_F
+LABEL_L2C_H .BYTE >LABEL_L2C_F
+LABEL_S2C_H .BYTE >LABEL_S2C_F
+LABEL_L3C_H .BYTE >LABEL_L3C_F
+LABEL_S3C_H .BYTE >LABEL_S3C_F
+LABEL_L4C_H .BYTE >LABEL_L4C_F
+LABEL_S4C_H .BYTE >LABEL_S4C_F
+LABEL_L5C_H .BYTE >LABEL_L5C_F
+LABEL_S5C_H .BYTE >LABEL_S5C_F
+LABEL_L6C_H .BYTE >LABEL_L6C_F
+LABEL_S6C_H .BYTE >LABEL_S6C_F
+LABEL_LTS_H .BYTE >LABEL_LTS_F
+LABEL_STS_H .BYTE >LABEL_STS_F
+LABEL_LTB_H .BYTE >LABEL_LTB_F
+LABEL_STB_H .BYTE >LABEL_STB_F
+LABEL_LUT_H .BYTE >LABEL_LUT_F
+LABEL_SUT_H .BYTE >LABEL_SUT_F
+LABEL_L3K_H .BYTE >LABEL_L3K_F
+LABEL_S3K_H .BYTE >LABEL_S3K_F
+LABEL_L4K_H .BYTE >LABEL_L4K_F
+LABEL_S4K_H .BYTE >LABEL_S4K_F
+LABEL_LFH_H .BYTE >LABEL_LFH_F
+LABEL_SFH_H .BYTE >LABEL_SFH_F
+LABEL_LSS_H .BYTE >LABEL_LSS_F
+LABEL_SSS_H .BYTE >LABEL_SSS_F
+LABEL_LLS_H .BYTE >LABEL_LLS_F
+LABEL_SLS_H .BYTE >LABEL_SLS_F
+LABEL_L5K_H .BYTE >LABEL_L5K_F
+LABEL_S5K_H .BYTE >LABEL_S5K_F
+LABEL_LCH_H .BYTE >LABEL_LCH_F
+LABEL_SCH_H .BYTE >LABEL_SCH_F
+LABEL_L5B_H .BYTE >LABEL_L5B_F
+LABEL_S5B_H .BYTE >LABEL_S5B_F
+LABEL_LLT_H .BYTE >LABEL_LLT_F
+LABEL_SLT_H .BYTE >LABEL_SLT_F
+LABEL_GTT_H .BYTE >LABEL_GTT_F
+LABEL_SGT_H .BYTE >LABEL_SGT_F
+LABEL_LOOKUP_LOW
+LABEL_L1C_L .BYTE <LABEL_L1C_F
+LABEL_S1C_L .BYTE <LABEL_S1C_F
+LABEL_L2C_L .BYTE <LABEL_L2C_F
+LABEL_S2C_L .BYTE <LABEL_S2C_F
+LABEL_L3C_L .BYTE <LABEL_L3C_F
+LABEL_S3C_L .BYTE <LABEL_S3C_F
+LABEL_L4C_L .BYTE <LABEL_L4C_F
+LABEL_S4C_L .BYTE <LABEL_S4C_F
+LABEL_L5C_L .BYTE <LABEL_L5C_F
+LABEL_S5C_L .BYTE <LABEL_S5C_F
+LABEL_L6C_L .BYTE <LABEL_L6C_F
+LABEL_S6C_L .BYTE <LABEL_S6C_F
+LABEL_LTS_L .BYTE <LABEL_LTS_F
+LABEL_STS_L .BYTE <LABEL_STS_F
+LABEL_LTB_L .BYTE <LABEL_LTB_F
+LABEL_STB_L .BYTE <LABEL_STB_F
+LABEL_LUT_L .BYTE <LABEL_LUT_F
+LABEL_SUT_L .BYTE <LABEL_SUT_F
+LABEL_L3K_L .BYTE <LABEL_L3K_F
+LABEL_S3K_L .BYTE <LABEL_S3K_F
+LABEL_L4K_L .BYTE <LABEL_L4K_F
+LABEL_S4K_L .BYTE <LABEL_S4K_F
+LABEL_LFH_L .BYTE <LABEL_LFH_F
+LABEL_SFH_L .BYTE <LABEL_SFH_F
+LABEL_LSS_L .BYTE <LABEL_LSS_F
+LABEL_SSS_L .BYTE <LABEL_SSS_F
+LABEL_LLS_L .BYTE <LABEL_LLS_F
+LABEL_SLS_L .BYTE <LABEL_SLS_F
+LABEL_L5K_L .BYTE <LABEL_L5K_F
+LABEL_S5K_L .BYTE <LABEL_S5K_F
+LABEL_LCH_L .BYTE <LABEL_LCH_F
+LABEL_SCH_L .BYTE <LABEL_SCH_F
+LABEL_L5B_L .BYTE <LABEL_L5B_F
+LABEL_S5B_L .BYTE <LABEL_S5B_F
+LABEL_LLT_L .BYTE <LABEL_LLT_F
+LABEL_SLT_L .BYTE <LABEL_SLT_F
+LABEL_GTT_L .BYTE <LABEL_GTT_F
+LABEL_SGT_L .BYTE <LABEL_SGT_F
