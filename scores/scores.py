@@ -39,16 +39,15 @@ class Chrome:
 class LabelText:
     """Represents a label definition with its position on screen."""
     key: str
-    ascii: str
+    unicode: str
     asm_bytes: list[str] = field(default_factory=list)
     length: int = 0
     screen_row: int = -1
     screen_col: int = -1
 
     def __post_init__(self):
-        self.asm_bytes = ascii_to_atari_hex(self.ascii)
-        self.length = len(self.ascii)
-
+        self.asm_bytes = ascii_to_atari_hex(self.unicode)
+        self.length = len(self.unicode)
 
 @dataclass
 class ScoreText:
@@ -63,6 +62,40 @@ class TextCollection:
     screenScores: list[ScoreText] = field(default_factory=list)
     screenFrame: LabelText = None
 
+@dataclass
+class LabelPosition:
+    """Represents a label's position on screen with its name, row, and column."""
+    name: str
+    row: int
+    col: int
+
+class LabelExtractor:
+    """Extracts labels from ASCII art and returns their positions."""
+
+    LABEL_PATTERN = re.compile(r'#(\w+)')
+
+    def __init__(self, atariUnicodeArt_lines: list[str]):
+        self.atariUnicodeArt_lines = atariUnicodeArt_lines
+
+    def extract_labels(self) -> list[LabelPosition]:
+        """
+        Extract all labels from the ASCII art lines.
+        Returns a list of LabelPosition objects containing name, row, and column.
+        """
+        labels = []
+
+        for row_idx, line in enumerate(self.atariUnicodeArt_lines):
+            for match in self.LABEL_PATTERN.finditer(line):
+                label_name = match.group(1)
+                col_idx = match.start()
+
+                labels.append(LabelPosition(
+                    name=label_name,
+                    row=row_idx,
+                    col=col_idx
+                ))
+
+        return labels
 
 
 def getScreenAsciiArt() -> list[str]:
@@ -84,15 +117,114 @@ def getScreenAsciiArt() -> list[str]:
 
   return lines
 
+def replaceTemplate(orig, newt, idx):
+    a = list(orig)
+    t = list(newt)
+
+    length = min(len(newt), len(orig))
+
+    for i in range(length):
+        if i + idx >= len(orig):
+            break
+        a[i + idx] = t[i]
+
+    return "".join(a)
+
+def getLabelText() -> TextCollection:
+    """Define all labels with their display text."""
+
+    label_collections = TextCollection()
+
+    def add_it(it: LabelText | ScoreText):
+        if isinstance(it, LabelText):
+            label_collections.screenLabels.append(it)
+        elif isinstance(it, ScoreText):
+            label_collections.screenScores.append(it)
+        else:
+            raise ValueError(f"Unknown label type: {type(it)}")
+
+    # Left column labels
+    add_it(LabelText('L1C', 'Aces'))        # Left column labels
+
+    add_it(ScoreText('S1C'))
+    add_it(LabelText('L2C', 'Twos'))
+    add_it(ScoreText('S2C'))
+    add_it(LabelText('L3C', 'Threes'))
+    add_it(ScoreText('S3C'))
+    add_it(LabelText('L4C', 'Fours'))
+    add_it(ScoreText('S4C'))
+    add_it(LabelText('L5C', 'Fives'))
+    add_it(ScoreText('S5C'))
+    add_it(LabelText('L6C', 'Sixes'))
+    add_it(ScoreText('S6C'))
+    add_it(LabelText('LTS', 'Top Score'))
+    add_it(ScoreText('STS'))
+    add_it(LabelText('LTB', 'Upper Bonus'))
+    add_it(ScoreText('STB'))
+    add_it(LabelText('LUT', 'Upper Total'))
+    add_it(ScoreText('SUT'))
+
+    # Right column labels
+    add_it(LabelText('L3K', '3 of a Kind'))
+    add_it(ScoreText('S3K'))
+    add_it(LabelText('L4K', '4 of a Kind'))
+    add_it(ScoreText('S4K'))
+    add_it(LabelText('LFH', 'Full House'))
+    add_it(ScoreText('SFH'))
+    add_it(LabelText('LSS', 'S Straight'))
+    add_it(ScoreText('SSS'))
+    add_it(LabelText('LLS', 'L Straight'))
+    add_it(ScoreText('SLS'))
+    add_it(LabelText('L5K', '5 of a Kind'))
+    add_it(ScoreText('S5K'))
+    add_it(LabelText('LCH', 'Chance'))
+    add_it(ScoreText('SCH'))
+    add_it(LabelText('L5B', '5K Bonus'))
+    add_it(ScoreText('S5B'))
+    add_it(LabelText('LLT', 'Lower Total'))
+    add_it(ScoreText('SLT'))
+
+    # Bottom labels
+    add_it(LabelText('GTT', 'Grand Total'))
+    add_it(ScoreText('SGT'))
+
+    return label_collections
+
+
 def getScreenFrame() -> LabelText:
-    
-    ascii_art_lines = getScreenAsciiArt()
-    ascii_art = "".join(ascii_art_lines)
+    atariUnicodeArt_lines = getScreenAsciiArt()
 
-    # labels = getLabels(ascii_art)
-    # print(labels)
+    ex = LabelExtractor(atariUnicodeArt_lines=atariUnicodeArt_lines)
+    labelCollection = ex.extract_labels()
 
-    label = LabelText("MAIN", ascii_art)
+    labelTextInfo = getLabelText()
+
+    combinedList = labelTextInfo.screenLabels + labelTextInfo.screenScores
+
+    for li, label in enumerate(labelCollection):
+
+        record = next((z for z in combinedList if z.key == label.name), None)
+
+        if record:
+            record.screen_col = label.col
+            record.screen_row = label.row
+
+        for ai, txt in enumerate(atariUnicodeArt_lines):
+            if label.row == ai:
+                replacement = "." * (len(record.key) +1)
+
+                # if isinstance(record, LabelText):
+                #     replacement = record.unicode
+
+                atariUnicodeArt_lines[ai] = replaceTemplate(txt, replacement, label.col)
+
+
+    print("#####################")
+    print(labelTextInfo)
+
+
+    atariUnicodeArt = "".join(atariUnicodeArt_lines)
+    label = LabelText("MAIN", atariUnicodeArt)
     label.screen_col = 0
     label.screen_row = 0
 
@@ -277,65 +409,6 @@ def main():
 #         return output
 
 
-# def get_labels() -> TextCollection:
-#     """Define all labels with their display text."""
-
-#     label_collections = TextCollection()
-
-#     def add_it(it: LabelText | ScoreText):
-#         if isinstance(it, LabelText):
-#             label_collections.screenLabels.append(it)
-#         elif isinstance(it, ScoreText):
-#             label_collections.screenScores.append(it)
-#         else:
-#             raise ValueError(f"Unknown label type: {type(it)}")
-
-#     # Left column labels
-#     add_it(LabelText('L1C', 'Aces'))        # Left column labels
-
-#     add_it(ScoreText('S1C'))
-#     add_it(LabelText('L2C', 'Twos'))
-#     add_it(ScoreText('S2C'))
-#     add_it(LabelText('L3C', 'Threes'))
-#     add_it(ScoreText('S3C'))
-#     add_it(LabelText('L4C', 'Fours'))
-#     add_it(ScoreText('S4C'))
-#     add_it(LabelText('L5C', 'Fives'))
-#     add_it(ScoreText('S5C'))
-#     add_it(LabelText('L6C', 'Sixes'))
-#     add_it(ScoreText('S6C'))
-#     add_it(LabelText('LTS', 'Top Score'))
-#     add_it(ScoreText('STS'))
-#     add_it(LabelText('LTB', 'Upper Bonus'))
-#     add_it(ScoreText('STB'))
-#     add_it(LabelText('LUT', 'Upper Total'))
-#     add_it(ScoreText('SUT'))
-
-#     # Right column labels
-#     add_it(LabelText('L3K', '3 of a Kind'))
-#     add_it(ScoreText('S3K'))
-#     add_it(LabelText('L4K', '4 of a Kind'))
-#     add_it(ScoreText('S4K'))
-#     add_it(LabelText('LFH', 'Full House'))
-#     add_it(ScoreText('SFH'))
-#     add_it(LabelText('LSS', 'S Straight'))
-#     add_it(ScoreText('SSS'))
-#     add_it(LabelText('LLS', 'L Straight'))
-#     add_it(ScoreText('SLS'))
-#     add_it(LabelText('L5K', '5 of a Kind'))
-#     add_it(ScoreText('S5K'))
-#     add_it(LabelText('LCH', 'Chance'))
-#     add_it(ScoreText('SCH'))
-#     add_it(LabelText('L5B', '5K Bonus'))
-#     add_it(ScoreText('S5B'))
-#     add_it(LabelText('LLT', 'Lower Total'))
-#     add_it(ScoreText('SLT'))
-
-#     # Bottom labels
-#     add_it(LabelText('GTT', 'Grand Total'))
-#     add_it(ScoreText('SGT'))
-
-#     return label_collections
 
 
 # def convert_line_to_m65(asm_bytes: list[str]) -> str:
