@@ -21,9 +21,12 @@
 ; ------------------------------------------------
 ; Main program load address
 ; ------------------------------------------------
-
+        *=$00CB
+STRPTR  .WORD
+        
 ; Free 0-page address (USED BY BASIC)
 ; $CB - $D1
+
 
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
@@ -134,6 +137,7 @@ CROW    = 0     ; CUSOR ROW POSITION
         STA 86
 
         ; Print the message.
+        LDY #TITLE_MAIN
         JSR PRINT_MESSAGE
 
         ; Optional: close IOCB #2.
@@ -190,58 +194,27 @@ OPEN_SCREEN
 ; ================================================================
 
 PRINT_MESSAGE
+
         LDX #IOCB2
 
         LDA #IO_PUTCHR
         STA ICCOM,X
 
         ; Address of the text buffer to print.
-        LDA #<MESSAGE
+        LDA TITLE_TXT_LSB_TABLE,Y
         STA ICBAL,X
-        LDA #>MESSAGE
+        LDA TITLE_TXT_MSB_TABLE,Y
         STA ICBAH,X
 
         ; Length of the text buffer.
-        ;
-        ; MESSAGE_LEN is computed by the assembler:
-        ;
-        ;   MESSAGE_END - MESSAGE
-        ;
-        ; That avoids hand-counting characters.
-        LDA #<MESSAGE_LEN
+        LDA TITLE_LEN_LSB_TABLE,Y
         STA ICBLL,X
-        LDA #>MESSAGE_LEN
+        LDA TITLE_LEN_MSB_TABLE,Y
         STA ICBLH,X
 
         JSR CIOV
         RTS
 
-PRINT_STR
-        LDX #IOCB2
-
-        LDA #IO_PUTCHR
-        STA ICCOM,X
-
-        ; Address of the text buffer to print.
-        LDA #<MESSAGE
-        STA ICBAL,X
-        LDA #>MESSAGE
-        STA ICBAH,X
-
-        ; Length of the text buffer.
-        ;
-        ; MESSAGE_LEN is computed by the assembler:
-        ;
-        ;   MESSAGE_END - MESSAGE
-        ;
-        ; That avoids hand-counting characters.
-        LDA #<MESSAGE_LEN
-        STA ICBLL,X
-        LDA #>MESSAGE_LEN
-        STA ICBLH,X
-
-        JSR CIOV
-        RTS
 
 ; ================================================================
 ; CLOSE_SCREEN
