@@ -1,0 +1,44 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; REGION_RAM
+RAM_SCORE_MSB_TABLE
+  .BYTE ; 0 - L1C
+  .BYTE ; 1 - L2C
+  .BYTE ; 2 - L3C
+  .BYTE ; 3 - L4C
+  .BYTE ; 4 - L5C
+  .BYTE ; 5 - L6C
+  .BYTE ; 6 - LTS
+  .BYTE ; 7 - LTB
+  .BYTE ; 8 - LUT
+  .BYTE ; 9 - L3K
+  .BYTE ; 10 - L4K
+  .BYTE ; 11 - LFH
+  .BYTE ; 12 - LSS
+  .BYTE ; 13 - LLS
+  .BYTE ; 14 - L5K
+  .BYTE ; 15 - LCH
+  .BYTE ; 16 - L5B
+  .BYTE ; 17 - LLT
+  .BYTE ; 18 - GTT
+  .BYTE ; 19 - MAIN
+RAM_SCORE_LSB_TABLE
+  .BYTE ; 0 - L1C
+  .BYTE ; 1 - L2C
+  .BYTE ; 2 - L3C
+  .BYTE ; 3 - L4C
+  .BYTE ; 4 - L5C
+  .BYTE ; 5 - L6C
+  .BYTE ; 6 - LTS
+  .BYTE ; 7 - LTB
+  .BYTE ; 8 - LUT
+  .BYTE ; 9 - L3K
+  .BYTE ; 10 - L4K
+  .BYTE ; 11 - LFH
+  .BYTE ; 12 - LSS
+  .BYTE ; 13 - LLS
+  .BYTE ; 14 - L5K
+  .BYTE ; 15 - LCH
+  .BYTE ; 16 - L5B
+  .BYTE ; 17 - LLT
+  .BYTE ; 18 - GTT
+  .BYTE ; 19 - MAIN

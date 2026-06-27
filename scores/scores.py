@@ -10,7 +10,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-ASM_FILE_NAME = Path(__file__).with_name("strings.m65")
+ROM_ASM_FILE_NAME = Path(__file__).with_name("strings.m65")
+RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
 
 ATASCII = [
     '♥','├','🮇','┘','┤','┐','╱','╲','◢','▗','◣','▝','▘','🮂','▂','▖',
@@ -111,7 +112,7 @@ def getScreenAsciiArt() -> list[str]:
     " |#LTB        #STB |#L5B        #S5B  | ",
     " |#LUT        #SUT |#LLT        #SLT  | ",
     " ├───────┬─────────┴──────────┬───────┤ ",
-    " | ♥♣♦♠  | #GTT         #SGT  | ♥♣♦♠  | ",
+    " | ♥♣♦♠  | #GTT         #SGT  |  ♠♦♣♥ | ",
     " └───────┴────────────────────┴───────┘ ",
   ]
 
@@ -205,6 +206,9 @@ def getScreenFrame() -> TextCollection:
 
         record = next((z for z in combinedList if z.key == label.name), None)
 
+        if record is None:
+            raise ValueError(f"Unknown screen placeholder #{label.name}")
+
         if record:
             record.screen_col = label.screen_col
             record.screen_row = label.screen_row
@@ -216,13 +220,11 @@ def getScreenFrame() -> TextCollection:
                 # if isinstance(record, LabelText):
                 #     replacement = record.unicode
 
-                if record is None:
-                  raise ValueError(f"Unknown screen placeholder #{label.name}")
-
-                if label.screen_row < 0 or label.screen_col < 0:
-                  raise ValueError(f"Label {label.key} was never placed")
-
                 atariUnicodeArt_lines[ai] = replaceTemplate(txt, replacement, label.screen_col)
+
+    for record in combinedList:
+        if record.screen_row < 0 or record.screen_col < 0:
+            raise ValueError(f"{record.key} was defined but never placed")
 
     atariUnicodeArt = "".join(atariUnicodeArt_lines)
     label = LabelText("MAIN", atariUnicodeArt)
@@ -247,6 +249,28 @@ def ascii_to_atari_hex(ascii: str) -> list[str]:
             raise ValueError(f"Character '{char}' is not ATASCII")
         result.append(byte_as_hex(ATASCII_MAP[char]))
     return result
+
+
+def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
+    out = []
+
+    out.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    out.append(f"; REGION_{prefix}")
+
+    len_lsb = [f"{prefix}_SCORE_LSB_TABLE"]
+    len_msb = [f"{prefix}_SCORE_MSB_TABLE"]
+
+
+    for i, label in enumerate(labels):
+
+        len_lsb.append(f"  .BYTE ; {i} - {label.key}")
+        len_msb.append(f"  .BYTE ; {i} - {label.key}")
+
+    return (
+        out +
+        len_msb +
+        len_lsb
+      )
 
 def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
     out = []
@@ -308,11 +332,15 @@ def main():
     print("Hello to main")
     textCollection = getScreenFrame()
 
-    with open(ASM_FILE_NAME, 'w', encoding='utf-8') as file:
+    with open(ROM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
 
         allLabels = textCollection.screenLabels + [textCollection.screenFrame]
 
         out = createLabelTextRegion("TITLE", allLabels)
+        file.write("\n".join(out))
+
+    with open(RAM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
+        out = createRamRegion("RAM", allLabels)
         file.write("\n".join(out))
 
 

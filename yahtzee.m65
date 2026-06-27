@@ -31,6 +31,10 @@ STRPTR  .WORD
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
 
+        *=$4000
+.INCLUDE scores/ram.m65
+
+
         *=$2400
 .INCLUDE scores/strings.m65
 
@@ -43,6 +47,12 @@ EOL     = $9B          ; Atari end-of-line character.
                        ; This is not ASCII CR/LF.
                        ; Atari text lines usually end with $9B.
 
+
+LMARGN = $52           ; Left margin
+ROWCRS = $54           ; cursor row
+COLCRS = $55           ; Cursor column (two bytes)
+CRSINH = $02F0         ; 0 = show, anything else = hide
+
 ; ------------------------------------------------
 ; CIO command numbers
 ; ------------------------------------------------
@@ -50,10 +60,8 @@ EOL     = $9B          ; Atari end-of-line character.
 ; You place a command in an IOCB, then call CIOV.
 ; ------------------------------------------------
 
-IO_OPEN    = $03          ; CIO command: OPEN a device/file
 IO_OWRIT   = $08          ; OPEN mode: output/write
 IO_PUTCHR  = $0B          ; CIO command: PUT characters
-IO_CLOSE   = $0C          ; CIO command: CLOSE device/file
 
 ; ------------------------------------------------
 ; IOCB selection
@@ -121,20 +129,19 @@ START
 
         ; Set left margin
         LDA #0
-        STA $52
+        STA LMARGN
+
+        LDA #1
+        STA CRSINH ; HIDE CURSOR
 
         ; Print the message.
         LDY #TITLE_MAIN
 NEXT_LABEL
-        TYA
-        PHA
+        STY STRPTR            ; Temporarily save Y in Zero Page (much cleaner than PHA/PLA)
         JSR PRINT_MESSAGE
-        PLA
-        TAY
+        LDY STRPTR            ; Temporarily save Y in Zero Page (much cleaner than PHA/PLA)
         DEY
-        CMP #$FF
-        BEQ DONE_PRINT_LABEL
-        BNE NEXT_LABEL
+        BPL NEXT_LABEL        ; Branches if the value is between 0-127
 DONE_PRINT_LABEL
 
 
@@ -211,12 +218,12 @@ PRINT_MESSAGE
 
         ; Set cursor position
         LDA TITLE_ROW_TABLE,Y
-        STA 84;
+        STA ROWCRS
 
         LDA TITLE_COL_LSB_TABLE, Y
-        STA 85;
+        STA COLCRS
         LDA TITLE_COL_MSB_TABLE, Y
-        STA 86
+        STA COLCRS+1
 
         JSR CIOV
         RTS
