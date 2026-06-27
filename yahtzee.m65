@@ -23,7 +23,7 @@
 ; ------------------------------------------------
         *=$00CB
 STRPTR  .WORD
-        
+
 ; Free 0-page address (USED BY BASIC)
 ; $CB - $D1
 
@@ -125,7 +125,18 @@ START
 
         ; Print the message.
         LDY #TITLE_MAIN
+NEXT_LABEL
+        TYA
+        PHA
         JSR PRINT_MESSAGE
+        PLA
+        TAY
+        DEY
+        CMP #$FF
+        BEQ DONE_PRINT_LABEL
+        BNE NEXT_LABEL
+DONE_PRINT_LABEL
+
 
         ; Optional: close IOCB #2.
         ; For a tiny demo this is not strictly required,
