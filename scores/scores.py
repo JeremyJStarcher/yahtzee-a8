@@ -66,8 +66,8 @@ class TextCollection:
 class LabelPosition:
     """Represents a label's position on screen with its name, row, and column."""
     name: str
-    row: int
-    col: int
+    screen_row: int
+    screen_col: int
 
 class LabelExtractor:
     """Extracts labels from ASCII art and returns their positions."""
@@ -91,8 +91,8 @@ class LabelExtractor:
 
                 labels.append(LabelPosition(
                     name=label_name,
-                    row=row_idx,
-                    col=col_idx
+                    screen_row=row_idx,
+                    screen_col=col_idx
                 ))
 
         return labels
@@ -206,17 +206,23 @@ def getScreenFrame() -> TextCollection:
         record = next((z for z in combinedList if z.key == label.name), None)
 
         if record:
-            record.screen_col = label.col
-            record.screen_row = label.row
+            record.screen_col = label.screen_col
+            record.screen_row = label.screen_row
 
         for ai, txt in enumerate(atariUnicodeArt_lines):
-            if label.row == ai:
+            if label.screen_row == ai:
                 replacement = "." * (len(record.key) +1)
 
                 # if isinstance(record, LabelText):
                 #     replacement = record.unicode
 
-                atariUnicodeArt_lines[ai] = replaceTemplate(txt, replacement, label.col)
+                if record is None:
+                  raise ValueError(f"Unknown screen placeholder #{label.name}")
+
+                if label.screen_row < 0 or label.screen_col < 0:
+                  raise ValueError(f"Label {label.key} was never placed")
+
+                atariUnicodeArt_lines[ai] = replaceTemplate(txt, replacement, label.screen_col)
 
     atariUnicodeArt = "".join(atariUnicodeArt_lines)
     label = LabelText("MAIN", atariUnicodeArt)
