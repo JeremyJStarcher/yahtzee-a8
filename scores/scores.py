@@ -67,26 +67,32 @@ class TextCollection:
 
 def getScreenAsciiArt() -> list[str]:
   lines = [
-" ┌────────────┤!FIVE DICE&├───────────┐ ",
-" |#L1C        #S1C |#L3K        #S3K  | ",
-" |#L2C        #S2C |#L4K        #S4K  | ",
-" |#L3C        #S3C |#LFH        #SFH  | ",
-" |#L4C        #S4C |#LSS        #SSS  | ",
-" |#L5C        #S5C |#LLS        #SLS  | ",
-" |#L6C        #S6C |#L5K        #S5K  | ",
-" |#LTS        #STS |#LCH        #SCH  | ",
-" |#LTB        #STB |#L5B        #S5B  | ",
-" |#LUT        #SUT |#LLT        #SLT  | ",
-" ├───────┬─────────┴──────────┬───────┤ ",
-" | ♥♣♦♠  | #GTT         #SGT  | ♥♣♦♠  | ",
-" └───────┴────────────────────┴───────┘ ",
+    " ┌────────────┤!FIVE DICE!├───────────┐ ",
+    " |#L1C        #S1C |#L3K        #S3K  | ",
+    " |#L2C        #S2C |#L4K        #S4K  | ",
+    " |#L3C        #S3C |#LFH        #SFH  | ",
+    " |#L4C        #S4C |#LSS        #SSS  | ",
+    " |#L5C        #S5C |#LLS        #SLS  | ",
+    " |#L6C        #S6C |#L5K        #S5K  | ",
+    " |#LTS        #STS |#LCH        #SCH  | ",
+    " |#LTB        #STB |#L5B        #S5B  | ",
+    " |#LUT        #SUT |#LLT        #SLT  | ",
+    " ├───────┬─────────┴──────────┬───────┤ ",
+    " | ♥♣♦♠  | #GTT         #SGT  | ♥♣♦♠  | ",
+    " └───────┴────────────────────┴───────┘ ",
   ]
 
   return lines
 
 def getScreenFrame() -> LabelText:
-    txt = "".join(getScreenAsciiArt())
-    label = LabelText("MAIN", txt)
+    
+    ascii_art_lines = getScreenAsciiArt()
+    ascii_art = "".join(ascii_art_lines)
+
+    # labels = getLabels(ascii_art)
+    # print(labels)
+
+    label = LabelText("MAIN", ascii_art)
     label.screen_col = 0
     label.screen_row = 0
 

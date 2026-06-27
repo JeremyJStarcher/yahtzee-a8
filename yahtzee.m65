@@ -119,22 +119,9 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 START
         JSR OPEN_SCREEN
 
-CCOL    = 0     ; CURSOR COLUMN PRINT POSITION
-CROW    = 0     ; CUSOR ROW POSITION
-
         ; Set left margin
         LDA #0
         STA $52
-
-        ; Set col
-        LDA #CROW;
-        STA 84;
-
-        ; Set column
-        LDA # < CCOL
-        STA 85;
-        LDA # > CCOL
-        STA 86
 
         ; Print the message.
         LDY #TITLE_MAIN
@@ -194,7 +181,6 @@ OPEN_SCREEN
 ; ================================================================
 
 PRINT_MESSAGE
-
         LDX #IOCB2
 
         LDA #IO_PUTCHR
@@ -211,6 +197,15 @@ PRINT_MESSAGE
         STA ICBLL,X
         LDA TITLE_LEN_MSB_TABLE,Y
         STA ICBLH,X
+
+        ; Set cursor position
+        LDA TITLE_ROW_TABLE,Y
+        STA 84;
+
+        LDA TITLE_COL_LSB_TABLE, Y
+        STA 85;
+        LDA TITLE_COL_MSB_TABLE, Y
+        STA 86
 
         JSR CIOV
         RTS
