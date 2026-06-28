@@ -47,7 +47,7 @@ class LabelText:
     screen_col: int = -1
 
     def __post_init__(self):
-        self.asm_bytes = ascii_to_atari_hex(self.unicode)
+        self.asm_bytes = unicode_to_atari_hex(self.unicode)
         self.length = len(self.unicode)
 
 @dataclass
@@ -71,7 +71,7 @@ class LabelPosition:
     screen_col: int
 
 class LabelExtractor:
-    """Extracts labels from ASCII art and returns their positions."""
+    """Extracts labels from Unicode art and returns their positions."""
 
     LABEL_PATTERN = re.compile(r'#(\w+)')
 
@@ -80,7 +80,7 @@ class LabelExtractor:
 
     def extract_labels(self) -> list[LabelPosition]:
         """
-        Extract all labels from the ASCII art lines.
+        Extract all labels from the Unicode art lines.
         Returns a list of LabelPosition objects containing name, row, and column.
         """
         labels = []
@@ -99,7 +99,7 @@ class LabelExtractor:
         return labels
 
 
-def getScreenAsciiArt() -> list[str]:
+def getScreenUnicodeArt() -> list[str]:
   lines = [
     " ┌────────────┤!FIVE DICE!├───────────┐ ",
     " |#L1C        #S1C |#L3K        #S3K  | ",
@@ -193,7 +193,7 @@ def getLabelText() -> TextCollection:
 
 
 def getScreenFrame() -> TextCollection:
-    atariUnicodeArt_lines = getScreenAsciiArt()
+    atariUnicodeArt_lines = getScreenUnicodeArt()
 
     ex = LabelExtractor(atariUnicodeArt_lines=atariUnicodeArt_lines)
     labelCollection = ex.extract_labels()
@@ -241,10 +241,10 @@ def byte_as_hex(byte: int) -> str:
 
     return f"${byte:02X}"
 
-def ascii_to_atari_hex(ascii: str) -> list[str]:
-    """Convert ASCII string to ATSCII hex bytes."""
+def unicode_to_atari_hex(unicode: str) -> list[str]:
+    """Convert UNICODE string to ATSCII hex bytes."""
     result = []
-    for char in ascii:
+    for char in unicode:
         if char not in ATASCII_MAP:
             raise ValueError(f"Character '{char}' is not ATASCII")
         result.append(byte_as_hex(ATASCII_MAP[char]))
