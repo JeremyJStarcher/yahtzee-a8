@@ -21,11 +21,13 @@
 
 .MACRO PUSHALL
         php           ; Push status register
+        STA SAVEA     ; Save the 'A' register while storing the others
         pha           ; Push A
         txa           ; X -> A
 	pha           ; Push X value in A
 	tya           ; Y -> A
 	pha           ; PUSH Y value in A
+        LDA SAVEA     ; And get our original 'A' back
 .ENDM
 
 .MACRO POPALL
@@ -79,6 +81,7 @@ SKIPTEXT?
         *=$00CB
 STRPTR  .WORD 0
 ENDPTR  .WORD 0
+SAVEA   .BYTE 0  ; Save 'A' during PUSHALL
 
 
 ; Free 0-page address (USED BY BASIC)
@@ -90,6 +93,9 @@ ENDPTR  .WORD 0
 
         *=$4000
 .INCLUDE scores/ram.m65
+PRNBUF .DS 5
+
+
 
 
         *=$2400
@@ -189,6 +195,22 @@ START
         JSR OPEN_SCREEN
 
         PPRINTLN "HELLO!"
+
+        LDA #$04
+        JSR P_NIBBLE_OUT
+        LDA #$07
+        JSR P_NIBBLE_OUT
+        LDA #$0A
+        JSR P_NIBBLE_OUT
+        LDA #$0C
+        JSR P_NIBBLE_OUT
+        LDA #$00
+        JSR P_NIBBLE_OUT
+
+        PPRINTLN ""
+
+        LDA #$A5
+        JSR P_BYTEOUT
 
         ; Set left margin
         LDA #0
@@ -353,6 +375,62 @@ MEMFILL_WRITE:
         JMP MEMFILL_LOOP
 
 MEMFILL_DONE:
+        RTS
+
+
+;; These functions were written as debugging tools, not regular
+;; library calls, hence they are somewhat paranoid about preserving
+;; registers.  This lets us just drop them anywhere and not have worry
+;; about program logic changing.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; A   - LOWER NIBBLE VALUE TO PRINT TO PRINTER
+;
+; Return: none
+; We chose the method that uses a lookup table for the hex digits
+; instead of calculating to make this code truly portable across
+; all systems, regardess of what character encoding they use.
+; ASCII/Atari ASCII/Anything else
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+P_NIBBLE_OUT
+        PUSHALL
+
+        TAX
+        LDA HEXCHARS,X
+        STA PRNBUF + 0
+
+        LDX #P_IOCB3
+        LDA #IO_PUTCHR
+        STA ICCOM,X
+
+        LDA #<PRNBUF
+        STA ICBAL,X
+        LDA #>PRNBUF
+        STA ICBAH,X
+
+        LDA #1 ; Just one byte to print
+        STA ICBLL,X
+        LDA #0
+        STA ICBLH,X
+
+        JSR CIOV
+        POPALL
+        RTS
+
+HEXCHARS .BYTE '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+
+P_BYTEOUT
+        PHA        ; Save the byte to retrieve at the end
+        PHA        ; save the byte
+        LSR A      ; Shift the high nibble to the low nibble
+        LSR A      ;
+        LSR A      ;
+        LSR A      ;
+        JSR P_NIBBLE_OUT ;
+        PLA        ; Restore the saved byte
+        AND #$0F   ; Now get the lower nibble
+        JSR P_NIBBLE_OUT ; And print
+        PLA        ; retrieve the byte
         RTS
 
 ; ================================================================
