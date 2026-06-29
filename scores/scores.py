@@ -252,10 +252,11 @@ def unicode_to_atari_hex(unicode: str) -> list[str]:
 
 
 def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
-    out = []
+    header = []
+    footer = []
 
-    out.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
-    out.append(f"; REGION_{prefix}")
+    header.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    header.append(f"START_REGION_{prefix}")
 
     len_lsb = [f"{prefix}_SCORE_LSB_TABLE"]
     len_msb = [f"{prefix}_SCORE_MSB_TABLE"]
@@ -263,20 +264,26 @@ def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
 
     for i, label in enumerate(labels):
 
-        len_lsb.append(f"  .BYTE ; {i} - {label.key}")
-        len_msb.append(f"  .BYTE ; {i} - {label.key}")
+        len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .DS 1")
+        len_msb.append(f"{prefix}_SCORE_MSB_{label.key}  .DS 1")
+
+
+    footer.append(f"END_REGION_{prefix}")
+    footer.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+
 
     return (
-        out +
+        header +
         len_msb +
-        len_lsb
+        len_lsb +
+        footer
       )
 
 def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
-    out = []
+    header = []
 
-    out.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
-    out.append(f"; REGION_{prefix}")
+    header.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    header.append(f"; REGION_{prefix}")
 
 
     equates = [
@@ -316,7 +323,7 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
         txt_msb.append(f"  .BYTE >{txtlabel}; {i} - {label.key}")
 
     return (
-        out +
+        header +
         equates +
         len_msb +
         len_lsb +
@@ -331,16 +338,15 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
 def main():
     print("Hello to main")
     textCollection = getScreenFrame()
+    allLabels = textCollection.screenLabels + [textCollection.screenFrame]
 
     with open(ROM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
-
-        allLabels = textCollection.screenLabels + [textCollection.screenFrame]
 
         out = createLabelTextRegion("TITLE", allLabels)
         file.write("\n".join(out))
 
     with open(RAM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
-        out = createRamRegion("RAM", allLabels)
+        out = createRamRegion("RAM", textCollection.screenScores)
         file.write("\n".join(out))
 
 
