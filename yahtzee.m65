@@ -40,6 +40,20 @@
 .ENDM
 
 
+; PRINTPTR <address> - prints the address in tihe pointer.
+.MACRO PRINTPTR
+        PUSHALL
+
+        LDY #$01
+        LDA %$1,Y
+        JSR P_BYTEOUT
+        DEY
+        LDA %$1,Y
+        JSR P_BYTEOUT
+
+        POPALL
+.ENDM
+
 ;; Yes, these macros are brutal and dirty... but they are meant for debugging, so that's OK.
 ;; I'm not worried about them being bloated as long as they are easy to use.
 .MACRO PPRINTLN
@@ -194,23 +208,15 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 START
         JSR OPEN_SCREEN
 
-        PPRINTLN "HELLO!"
+        LDA # <START
+        STA STRPTR +0
+        LDA # >START
+        STA STRPTR +1
 
-        LDA #$04
-        JSR P_NIBBLE_OUT
-        LDA #$07
-        JSR P_NIBBLE_OUT
-        LDA #$0A
-        JSR P_NIBBLE_OUT
-        LDA #$0C
-        JSR P_NIBBLE_OUT
-        LDA #$00
-        JSR P_NIBBLE_OUT
+        PPRINTLN "POINTER: "
+        PRINTPTR STRPTR
 
         PPRINTLN ""
-
-        LDA #$A5
-        JSR P_BYTEOUT
 
         ; Set left margin
         LDA #0
