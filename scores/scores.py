@@ -264,8 +264,8 @@ def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
 
     for i, label in enumerate(labels):
 
-        len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .DS 1")
-        len_msb.append(f"{prefix}_SCORE_MSB_{label.key}  .DS 1")
+        len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .BYTE 1")
+        len_msb.append(f"{prefix}_SCORE_MSB_{label.key}  .BYTE 1")
 
 
     footer.append(f"END_REGION_{prefix}")

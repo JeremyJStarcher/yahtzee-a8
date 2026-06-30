@@ -208,15 +208,7 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 START
         JSR OPEN_SCREEN
 
-        LDA # <START
-        STA STRPTR +0
-        LDA # >START
-        STA STRPTR +1
-
-        PPRINTLN "POINTER: "
-        PRINTPTR STRPTR
-
-        PPRINTLN ""
+        JSR CLRRAM
 
         ; Set left margin
         LDA #0
@@ -339,9 +331,17 @@ CLOSE_SCREEN
         RTS
 
 
+
+CLRMSG
+        PPRINT "POINTER: "
+        PRINTPTR STRPTR
+        PPRINT " "
+        PRINTPTR ENDPTR
+        PPRINTLN ""
+        RTS
+
 CLRRAM
         PHA
-
         LDA # <START_REGION_RAM
         STA STRPTR
         LDA # >START_REGION_RAM
@@ -351,8 +351,6 @@ CLRRAM
         STA ENDPTR
         LDA # >END_REGION_RAM
         STA ENDPTR + 1
-
-
         PLA
 
 
@@ -361,16 +359,19 @@ MEMFILL:
         LDY #$00        ; Y stays 0 for (STRPTR),Y addressing
 
 MEMFILL_LOOP:
+
         ; ---------- Check for end (exclusive) ----------
         LDA STRPTR
         CMP ENDPTR
         BNE MEMFILL_WRITE   ; Low bytes differ → not at end yet
+
         LDA STRPTR+1
         CMP ENDPTR+1
         BEQ MEMFILL_DONE    ; High bytes also equal → STRPTR == ENDPTR, stop
 
 MEMFILL_WRITE:
         ; ---------- Write the fill byte ----------
+        ; -- No need to print now JSR CLRMSG
         TXA             ; Retrieve fill byte from X
         STA (STRPTR),Y
 
