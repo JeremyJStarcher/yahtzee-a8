@@ -3,5 +3,5 @@
 #mkdir /tmp/old-prn
 
 cat $1
-(sleep 10; rm -f $1) &
+(sleep 40; rm -f $1) &
 

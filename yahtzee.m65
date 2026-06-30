@@ -219,11 +219,14 @@ START
 
         ; Print the message.
         LDY #TITLE_MAIN
-NEXT_LABEL
         JSR DISPLAY_MESSAGE
-        DEY
-        BPL NEXT_LABEL        ; Branches if the value is between 0-127
-DONE_PRINT_LABEL
+
+;        LDY #TITLE_MAIN
+;NEXT_LABEL
+;        JSR DISPLAY_MESSAGE
+;        ;DEY
+;        ;BPL NEXT_LABEL        ; Branches if the value is between 0-127
+;DONE_PRINT_LABEL
 
 
         ; Optional: close IOCB #2.

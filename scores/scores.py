@@ -13,6 +13,14 @@ from typing import Optional
 ROM_ASM_FILE_NAME = Path(__file__).with_name("strings.m65")
 RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
 
+# The actual screen width of the Atari.  We handle margins ourselves.
+SCREEN_WIDTH = 40
+
+ATASCII_ESCAPE = '␛'
+ATASCII_REQUIRES_ESCAPE = [
+    '␛','↑','↓','←','→','🢰','◀','▶'
+]
+
 ATASCII = [
     '♥','├','🮇','┘','┤','┐','╱','╲','◢','▗','◣','▝','▘','🮂','▂','▖',
     '♣','┌','─','┼','•','▄','▎','┬','┴','▌','└','␛','↑','↓','←','→',
@@ -24,6 +32,8 @@ ATASCII = [
     'p','q','r','s','t','u','v','w','x','y','z','♠','|','🢰','◀','▶',
 ]
 
+SCREEN_PLACE_HOLDER = '▂'
+
 ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
 
 
@@ -34,6 +44,20 @@ class Chrome:
     txt_processed: str = ''
     asm_bytes: list[str] = field(default_factory=list)
 
+
+@dataclass
+class DieContainer:
+    """Represents a label definition with its position on screen."""
+    key: str
+    unicode: str
+    asm_bytes: list[str] = field(default_factory=list)
+    length: int = 0
+    screen_row: int = -1
+    screen_col: int = -1
+
+    def __post_init__(self):
+        self.asm_bytes = unicode_to_atari_hex(self.unicode)
+        self.length = len(self.asm_bytes)
 
 
 @dataclass
@@ -48,7 +72,7 @@ class LabelText:
 
     def __post_init__(self):
         self.asm_bytes = unicode_to_atari_hex(self.unicode)
-        self.length = len(self.unicode)
+        self.length = len(self.asm_bytes)
 
 @dataclass
 class ScoreText:
@@ -61,6 +85,7 @@ class ScoreText:
 class TextCollection:
     screenLabels: list[LabelText] = field(default_factory=list)
     screenScores: list[ScoreText] = field(default_factory=list)
+    dieContainer: list[DieContainer] = field(default_factory=list)
     screenFrame: LabelText = None
 
 @dataclass
@@ -98,7 +123,6 @@ class LabelExtractor:
 
         return labels
 
-
 def getScreenUnicodeArt() -> list[str]:
   lines = [
     " ┌────────────┤!FIVE DICE!├───────────┐ ",
@@ -112,8 +136,19 @@ def getScreenUnicodeArt() -> list[str]:
     " |#LTB        #STB |#L5B        #S5B  | ",
     " |#LUT        #SUT |#LLT        #SLT  | ",
     " ├───────┬─────────┴──────────┬───────┤ ",
-    " | ♥♣♦♠  | #GTT         #SGT  |  ♠♦♣♥ | ",
+    " | ↑↓←→  | #GTT         #SGT  |  ♠🢰◀▶ | ",
     " └───────┴────────────────────┴───────┘ ",
+    "   #DIE1  #DIE2  #DIE3  #DIE4  #DIE5    ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "                                        ",
+    "  ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂",
   ]
 
   return lines
@@ -136,11 +171,13 @@ def getLabelText() -> TextCollection:
 
     label_collections = TextCollection()
 
-    def add_it(it: LabelText | ScoreText):
+    def add_it(it: LabelText | ScoreText | DieContainer):
         if isinstance(it, LabelText):
             label_collections.screenLabels.append(it)
         elif isinstance(it, ScoreText):
             label_collections.screenScores.append(it)
+        elif isinstance(it, DieContainer):
+            label_collections.dieContainer.append(it)
         else:
             raise ValueError(f"Unknown label type: {type(it)}")
 
@@ -189,18 +226,55 @@ def getLabelText() -> TextCollection:
     add_it(LabelText('GTT', 'Grand Total'))
     add_it(ScoreText('SGT'))
 
+
+    add_it(DieContainer('DIE1', '  1  '))
+    add_it(DieContainer('DIE2', '  2  '))
+    add_it(DieContainer('DIE3', '  3  '))
+    add_it(DieContainer('DIE4', '  4  '))
+    add_it(DieContainer('DIE5', '  5  '))
+
     return label_collections
+
+def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
+    bigDie = [
+        "┌─────┐",
+        "|    •|",
+        "|     |",
+        "|• • •|",
+        "|     |",
+        "|•    |",
+        "└─────┘",
+    ]
+
+    smallDie = [
+        "┌───┐",
+        "|•••|",
+        "|•••|",
+        "|•••|",
+        "└───┘",
+    ]
+
+    thisDie = smallDie
+    HEADER_OFFSET = 1
+
+    for li, line in enumerate(thisDie):
+        for ci, c in enumerate(line):
+
+            pos = ((li + die.screen_row + HEADER_OFFSET) * SCREEN_WIDTH) + (ci + die.screen_col)
+            # ERROR HERE
+            unicode_art = unicode_art[:pos] + c + unicode_art[pos + 1:]
+
+    return unicode_art
 
 
 def getScreenFrame() -> TextCollection:
-    atariUnicodeArt_lines = getScreenUnicodeArt()
+    unicode_art_lines = getScreenUnicodeArt()
 
-    ex = LabelExtractor(atariUnicodeArt_lines=atariUnicodeArt_lines)
+    ex = LabelExtractor(atariUnicodeArt_lines=unicode_art_lines)
     labelCollection = ex.extract_labels()
-
     labelTextInfo = getLabelText()
 
-    combinedList = labelTextInfo.screenLabels + labelTextInfo.screenScores
+    combinedList = labelTextInfo.screenLabels + labelTextInfo.screenScores + labelTextInfo.dieContainer
 
     for li, label in enumerate(labelCollection):
 
@@ -213,25 +287,34 @@ def getScreenFrame() -> TextCollection:
             record.screen_col = label.screen_col
             record.screen_row = label.screen_row
 
-        for ai, txt in enumerate(atariUnicodeArt_lines):
+        for ai, txt in enumerate(unicode_art_lines):
             if label.screen_row == ai:
-                replacement = "." * (len(record.key) +1)
+                replacement = SCREEN_PLACE_HOLDER * (len(record.key) +1)
 
-                # if isinstance(record, LabelText):
-                #     replacement = record.unicode
+                if isinstance(record, LabelText) or isinstance(record, DieContainer):
+                     replacement = record.unicode
 
-                atariUnicodeArt_lines[ai] = replaceTemplate(txt, replacement, label.screen_col)
+                unicode_art_lines[ai] = replaceTemplate(txt, replacement, label.screen_col)
 
     for record in combinedList:
         if record.screen_row < 0 or record.screen_col < 0:
             raise ValueError(f"{record.key} was defined but never placed")
 
-    atariUnicodeArt = "".join(atariUnicodeArt_lines)
+
+    atariUnicodeArt = "".join(unicode_art_lines)
+
+    for die in labelTextInfo.dieContainer:
+        atariUnicodeArt = add_dice_boxes(die, atariUnicodeArt)
+
     label = LabelText("MAIN", atariUnicodeArt)
     label.screen_col = 0
     label.screen_row = 0
 
-    ret: TextCollection = TextCollection(screenFrame=label, screenLabels=labelTextInfo.screenLabels, screenScores=labelTextInfo.screenScores)
+    ret: TextCollection = TextCollection(
+        screenFrame=label,
+        screenLabels=labelTextInfo.screenLabels,
+        screenScores=labelTextInfo.screenScores,
+        dieContainer=labelTextInfo.dieContainer)
 
     return ret
 
@@ -247,6 +330,10 @@ def unicode_to_atari_hex(unicode: str) -> list[str]:
     for char in unicode:
         if char not in ATASCII_MAP:
             raise ValueError(f"Character '{char}' is not ATASCII")
+
+        if char in ATASCII_REQUIRES_ESCAPE:
+            result.append(byte_as_hex(ATASCII_MAP[ATASCII_ESCAPE]))
+
         result.append(byte_as_hex(ATASCII_MAP[char]))
     return result
 
@@ -338,7 +425,7 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
 def main():
     print("Hello to main")
     textCollection = getScreenFrame()
-    allLabels = textCollection.screenLabels + [textCollection.screenFrame]
+    allLabels = textCollection.screenLabels + [textCollection.screenFrame] + textCollection.dieContainer
 
     with open(ROM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
 
