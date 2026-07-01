@@ -260,11 +260,25 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
 
     thisDie = smallDie
     HEADER_OFFSET = 1
+    pips_digits = ['0', '1', '2', '3', '4', '5', '6']
+
+
+    for d in pips_digits:
+        die.pips.append(DiePip())
 
     for li, line in enumerate(thisDie):
         for ci, c in enumerate(line):
 
-            pos = ((li + die.screen_row + HEADER_OFFSET) * SCREEN_WIDTH) + (ci + die.screen_col)
+            row = li + die.screen_row + HEADER_OFFSET
+            col = ci + die.screen_col
+
+            if c in pips_digits:
+                die.pips[int(c)] = DiePip(
+                    screen_col=col,
+                    screen_row=row
+                )
+
+            pos = (row * SCREEN_WIDTH) + col
             # ERROR HERE
             unicode_art = unicode_art[:pos] + c + unicode_art[pos + 1:]
 
