@@ -1386,3 +1386,127 @@ TITLE_DIE4_TEXT
  .BYTE $35
  .BYTE $20
  .BYTE $20
+; The location of each pip on each die
+PIP_ROW_TABLE
+DIE_0_ROW
+  .BYTE 15$; Die 0- Pip 0
+  .BYTE 15$; Die 0- Pip 1
+  .BYTE 16$; Die 0- Pip 2
+  .BYTE 16$; Die 0- Pip 3
+  .BYTE 16$; Die 0- Pip 4
+  .BYTE 17$; Die 0- Pip 5
+  .BYTE 17$; Die 0- Pip 6
+DIE_1_ROW
+  .BYTE 15$; Die 1- Pip 0
+  .BYTE 15$; Die 1- Pip 1
+  .BYTE 16$; Die 1- Pip 2
+  .BYTE 16$; Die 1- Pip 3
+  .BYTE 16$; Die 1- Pip 4
+  .BYTE 17$; Die 1- Pip 5
+  .BYTE 17$; Die 1- Pip 6
+DIE_2_ROW
+  .BYTE 15$; Die 2- Pip 0
+  .BYTE 15$; Die 2- Pip 1
+  .BYTE 16$; Die 2- Pip 2
+  .BYTE 16$; Die 2- Pip 3
+  .BYTE 16$; Die 2- Pip 4
+  .BYTE 17$; Die 2- Pip 5
+  .BYTE 17$; Die 2- Pip 6
+DIE_3_ROW
+  .BYTE 15$; Die 3- Pip 0
+  .BYTE 15$; Die 3- Pip 1
+  .BYTE 16$; Die 3- Pip 2
+  .BYTE 16$; Die 3- Pip 3
+  .BYTE 16$; Die 3- Pip 4
+  .BYTE 17$; Die 3- Pip 5
+  .BYTE 17$; Die 3- Pip 6
+DIE_4_ROW
+  .BYTE 15$; Die 4- Pip 0
+  .BYTE 15$; Die 4- Pip 1
+  .BYTE 16$; Die 4- Pip 2
+  .BYTE 16$; Die 4- Pip 3
+  .BYTE 16$; Die 4- Pip 4
+  .BYTE 17$; Die 4- Pip 5
+  .BYTE 17$; Die 4- Pip 6
+PIP_COL_LSB_TABLE
+DIE_0_COL_LSB
+  .BYTE <4;$; Die 0- Pip 0
+  .BYTE <6;$; Die 0- Pip 1
+  .BYTE <4;$; Die 0- Pip 2
+  .BYTE <5;$; Die 0- Pip 3
+  .BYTE <6;$; Die 0- Pip 4
+  .BYTE <4;$; Die 0- Pip 5
+  .BYTE <6;$; Die 0- Pip 6
+DIE_1_COL_LSB
+  .BYTE <11;$; Die 1- Pip 0
+  .BYTE <13;$; Die 1- Pip 1
+  .BYTE <11;$; Die 1- Pip 2
+  .BYTE <12;$; Die 1- Pip 3
+  .BYTE <13;$; Die 1- Pip 4
+  .BYTE <11;$; Die 1- Pip 5
+  .BYTE <13;$; Die 1- Pip 6
+DIE_2_COL_LSB
+  .BYTE <18;$; Die 2- Pip 0
+  .BYTE <20;$; Die 2- Pip 1
+  .BYTE <18;$; Die 2- Pip 2
+  .BYTE <19;$; Die 2- Pip 3
+  .BYTE <20;$; Die 2- Pip 4
+  .BYTE <18;$; Die 2- Pip 5
+  .BYTE <20;$; Die 2- Pip 6
+DIE_3_COL_LSB
+  .BYTE <25;$; Die 3- Pip 0
+  .BYTE <27;$; Die 3- Pip 1
+  .BYTE <25;$; Die 3- Pip 2
+  .BYTE <26;$; Die 3- Pip 3
+  .BYTE <27;$; Die 3- Pip 4
+  .BYTE <25;$; Die 3- Pip 5
+  .BYTE <27;$; Die 3- Pip 6
+DIE_4_COL_LSB
+  .BYTE <32;$; Die 4- Pip 0
+  .BYTE <34;$; Die 4- Pip 1
+  .BYTE <32;$; Die 4- Pip 2
+  .BYTE <33;$; Die 4- Pip 3
+  .BYTE <34;$; Die 4- Pip 4
+  .BYTE <32;$; Die 4- Pip 5
+  .BYTE <34;$; Die 4- Pip 6
+PIP_COL_MSB_TABLE
+DIE_0_COL_MSB
+  .BYTE >4;$; Die 0- Pip 0
+  .BYTE >6;$; Die 0- Pip 1
+  .BYTE >4;$; Die 0- Pip 2
+  .BYTE >5;$; Die 0- Pip 3
+  .BYTE >6;$; Die 0- Pip 4
+  .BYTE >4;$; Die 0- Pip 5
+  .BYTE >6;$; Die 0- Pip 6
+DIE_1_COL_MSB
+  .BYTE >11;$; Die 1- Pip 0
+  .BYTE >13;$; Die 1- Pip 1
+  .BYTE >11;$; Die 1- Pip 2
+  .BYTE >12;$; Die 1- Pip 3
+  .BYTE >13;$; Die 1- Pip 4
+  .BYTE >11;$; Die 1- Pip 5
+  .BYTE >13;$; Die 1- Pip 6
+DIE_2_COL_MSB
+  .BYTE >18;$; Die 2- Pip 0
+  .BYTE >20;$; Die 2- Pip 1
+  .BYTE >18;$; Die 2- Pip 2
+  .BYTE >19;$; Die 2- Pip 3
+  .BYTE >20;$; Die 2- Pip 4
+  .BYTE >18;$; Die 2- Pip 5
+  .BYTE >20;$; Die 2- Pip 6
+DIE_3_COL_MSB
+  .BYTE >25;$; Die 3- Pip 0
+  .BYTE >27;$; Die 3- Pip 1
+  .BYTE >25;$; Die 3- Pip 2
+  .BYTE >26;$; Die 3- Pip 3
+  .BYTE >27;$; Die 3- Pip 4
+  .BYTE >25;$; Die 3- Pip 5
+  .BYTE >27;$; Die 3- Pip 6
+DIE_4_COL_MSB
+  .BYTE >32;$; Die 4- Pip 0
+  .BYTE >34;$; Die 4- Pip 1
+  .BYTE >32;$; Die 4- Pip 2
+  .BYTE >33;$; Die 4- Pip 3
+  .BYTE >34;$; Die 4- Pip 4
+  .BYTE >32;$; Die 4- Pip 5
+  .BYTE >34;$; Die 4- Pip 6

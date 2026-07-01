@@ -36,14 +36,6 @@ SCREEN_PLACE_HOLDER = '▂'
 
 ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
 
-
-@dataclass
-class Chrome:
-    """Represents a line in the screen layout."""
-    txt: str
-    txt_processed: str = ''
-    asm_bytes: list[str] = field(default_factory=list)
-
 @dataclass
 class DiePip:
     screen_row: int = -1
@@ -279,7 +271,6 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
                 )
 
             pos = (row * SCREEN_WIDTH) + col
-            # ERROR HERE
             unicode_art = unicode_art[:pos] + c + unicode_art[pos + 1:]
 
     return unicode_art
@@ -384,6 +375,34 @@ def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
         footer
       )
 
+def createPipRegion(diceContainers: list[DieContainer]) -> list[str]:
+
+    pip_header: list[str] = []
+    pos_col_lsb: list[str] = []
+    pos_col_msb: list[str] = []
+    pos_row: list[str] = []
+
+    pip_header.append("; The location of each pip on each die")
+
+    pos_col_lsb.append("PIP_COL_LSB_TABLE")
+    pos_col_msb.append("PIP_COL_MSB_TABLE")
+    pos_row.append("PIP_ROW_TABLE")
+
+    for di, die in enumerate(diceContainers):
+
+        pos_row.append(f"DIE_{di}_ROW")
+        pos_col_lsb.append(f"DIE_{di}_COL_LSB")
+        pos_col_msb.append(f"DIE_{di}_COL_MSB")
+
+
+        for pi, pip in enumerate(die.pips):
+            cmt: str = f"; Die {di}- Pip {pi}"
+            pos_row.append(f"  .BYTE {pip.screen_row}${cmt}")
+            pos_col_lsb.append(f"  .BYTE <{pip.screen_col};${cmt}")
+            pos_col_msb.append(f"  .BYTE >{pip.screen_col};${cmt}")
+
+    return pip_header + pos_row + pos_col_lsb + pos_col_msb
+
 def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
     header = []
 
@@ -401,9 +420,9 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
     len_msb = [f"{prefix}_LEN_MSB_TABLE"]
 
 
-    len_row = [f"{prefix}_ROW_TABLE"]
-    len_col_lsb = [f"{prefix}_COL_LSB_TABLE"]
-    len_col_msb = [f"{prefix}_COL_MSB_TABLE"]
+    pos_row = [f"{prefix}_ROW_TABLE"]
+    pos_col_lsb = [f"{prefix}_COL_LSB_TABLE"]
+    pos_col_msb = [f"{prefix}_COL_MSB_TABLE"]
 
     outtxt = [f"{prefix}_TEXT"]
     txt_lsb = [f"{prefix}_TXT_LSB_TABLE"]
@@ -415,10 +434,9 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
         len_lsb.append(f"  .BYTE <{label.length}; {i} - {label.key}")
         len_msb.append(f"  .BYTE >{label.length}; {i} - {label.key}")
 
-
-        len_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
-        len_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
-        len_col_msb.append(f"  .BYTE >{label.screen_col}; {i} - {label.key}")
+        pos_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
+        pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
+        pos_col_msb.append(f"  .BYTE >{label.screen_col}; {i} - {label.key}")
 
         txtlabel = f"{prefix}_{label.key}_TEXT"
 
@@ -432,9 +450,9 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
         equates +
         len_msb +
         len_lsb +
-        len_row +
-        len_col_lsb +
-        len_col_msb +
+        pos_row +
+        pos_col_lsb +
+        pos_col_msb +
         txt_lsb +
         txt_msb +
         outtxt
@@ -448,6 +466,8 @@ def main():
     with open(ROM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
 
         out = createLabelTextRegion("TITLE", allLabels)
+        out.extend(createPipRegion(textCollection.dieContainer))
+
         file.write("\n".join(out))
 
     with open(RAM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
