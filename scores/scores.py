@@ -44,6 +44,10 @@ class Chrome:
     txt_processed: str = ''
     asm_bytes: list[str] = field(default_factory=list)
 
+@dataclass
+class DiePip:
+    screen_row: int = -1
+    screen_col: int = -1
 
 @dataclass
 class DieContainer:
@@ -54,11 +58,11 @@ class DieContainer:
     length: int = 0
     screen_row: int = -1
     screen_col: int = -1
+    pips: list[DiePip] = field(default_factory=list)
 
     def __post_init__(self):
         self.asm_bytes = unicode_to_atari_hex(self.unicode)
         self.length = len(self.asm_bytes)
-
 
 @dataclass
 class LabelText:
@@ -138,17 +142,17 @@ def getScreenUnicodeArt() -> list[str]:
     " ├───────┬─────────┴──────────┬───────┤ ",
     " | ↑↓←→  | #GTT         #SGT  |  ♠🢰◀▶ | ",
     " └───────┴────────────────────┴───────┘ ",
-    "   #DIE1  #DIE2  #DIE3  #DIE4  #DIE5    ",
+    "   #DIE0  #DIE1  #DIE2  #DIE3  #DIE4    ",
     "                                        ",
     "                                        ",
     "                                        ",
     "                                        ",
     "                                        ",
-    "                                        ",
-    "                                        ",
-    "                                        ",
-    "                                        ",
-    "  ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂",
+    " LINE4                                  ",
+    " LINE3                                  ",
+    " LINE2                                  ",
+    " LINE1                                  ",
+    " ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂",
   ]
 
   return lines
@@ -227,30 +231,30 @@ def getLabelText() -> TextCollection:
     add_it(ScoreText('SGT'))
 
 
-    add_it(DieContainer('DIE1', '  1  '))
-    add_it(DieContainer('DIE2', '  2  '))
-    add_it(DieContainer('DIE3', '  3  '))
-    add_it(DieContainer('DIE4', '  4  '))
-    add_it(DieContainer('DIE5', '  5  '))
+    add_it(DieContainer('DIE0', '  1  '))
+    add_it(DieContainer('DIE1', '  2  '))
+    add_it(DieContainer('DIE2', '  3  '))
+    add_it(DieContainer('DIE3', '  4  '))
+    add_it(DieContainer('DIE4', '  5  '))
 
     return label_collections
 
 def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
     bigDie = [
         "┌─────┐",
-        "|    •|",
+        "|0   1|",
         "|     |",
-        "|• • •|",
+        "|2 3 4|",
         "|     |",
-        "|•    |",
+        "|5   6|",
         "└─────┘",
     ]
 
     smallDie = [
         "┌───┐",
-        "|•••|",
-        "|•••|",
-        "|•••|",
+        "|0 1|",
+        "|234|",
+        "|5 6|",
         "└───┘",
     ]
 
