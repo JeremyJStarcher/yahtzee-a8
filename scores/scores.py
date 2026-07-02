@@ -16,6 +16,9 @@ RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
 # The actual screen width of the Atari.  We handle margins ourselves.
 SCREEN_WIDTH = 40
 
+NUMBER_OF_PIPS = 7
+
+
 ATASCII_ESCAPE = '␛'
 ATASCII_REQUIRES_ESCAPE = [
     '␛','↑','↓','←','→','🢰','◀','▶'
@@ -258,7 +261,8 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
 
     thisDie = smallDie
     HEADER_OFFSET = 1
-    pips_digits = ['0', '1', '2', '3', '4', '5', '6']
+
+    pips_digits = [str(i) for i in range(NUMBER_OF_PIPS)]
 
 
     for d in pips_digits:
@@ -425,7 +429,7 @@ def createDiceRegion(diceContainers: list[DieContainer]) -> list[str]:
     die_header.append("; the value of each die")
     die_header.append("DICE_VALUES")
     for i, die in enumerate(diceContainers):
-        die_header.append(f"DICE_{i}_VALUE  .BYTE 1; die {i}")
+        die_header.append(f"DICE_{i}_VALUE  .BYTE {i}; die {i}")
     die_header.append("DICE_VALUES_END")
     return die_header
 
@@ -444,7 +448,6 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
 
     len_lsb = [f"{prefix}_LEN_LSB_TABLE"]
     len_msb = [f"{prefix}_LEN_MSB_TABLE"]
-
 
     pos_row = [f"{prefix}_ROW_TABLE"]
     pos_col_lsb = [f"{prefix}_COL_LSB_TABLE"]

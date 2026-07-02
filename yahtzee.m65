@@ -118,7 +118,7 @@ ENDPTR          .WORD 0
 SAVEA           .BYTE 0  ; Save 'A' during PUSHALL
 ; A pointer to which set of pips we are rendering
 PIP_PTR         .DS 2
-
+PIP_MASK        .DS 1
 
 ; Free 0-page address (USED BY BASIC)
 ; $CB - $D1
@@ -126,18 +126,20 @@ PIP_PTR         .DS 2
 
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
+.INCLUDE scores/binary.asm
 
         *=$4000
 .INCLUDE scores/ram.m65
 PRNBUF          .DS 5
-SCNBUF          .DS 5
+SCRBUF          .DS 5
 
 
 
 ; The current die being operated on.
-CURRENT_DIE     .DS 1
-CURRENT_PIP     .DS 1
-CURRENT_PIP_PATTERN .BYTE 1
+CURRENT_DIE             .DS 1
+CURRENT_PIP_ON_SCREEN   .DS 1
+CURRENT_PIP_ON_DIE      .DS 1
+CURRENT_PIP_PATTERN     .BYTE 1
 
 
         MAKE_OUTPUT_CONTROL SCR
@@ -230,6 +232,8 @@ ICAX2   = $034B        ; Auxiliary byte 2
 
 CIOV    = $E456        ; Jump here with X pointing to an IOCB
 
+
+NUMBER_OF_PIPS = 7
 
 ; ================================================================
 ; PROGRAM ENTRY POINT
@@ -330,7 +334,6 @@ OPEN_SCREEN
 
 
 DISPLAY2
-        PPRINTLN "DISPLAY2"
         PUSHALL        ; Save all registers
 
         LDX #E_IOCB2
@@ -339,37 +342,24 @@ DISPLAY2
         STA ICCOM,X
 
         ; Address of the text buffer to print.
-        PPRINT "PTR: "
-        PRINTPTR SCR_PTR_L
         LDA SCR_PTR_L
         STA ICBAL,X
         LDA SCR_PTR_H
         STA ICBAH,X
-        PPRINTLN ""
 
         ; Length of the text buffer.
-        PPRINT "LEN: "
-        PRINTPTR SCR_LEN_L
-
         LDA SCR_LEN_L
         STA ICBLL,X
         LDA SCR_LEN_H
         STA ICBLH,X
-        PPRINTLN ""
 
         ; Set cursor position
         LDA SCR_ROW
         STA ROWCRS
-        PPRINT "ROW: "
-        JSR P_BYTEOUT
-        PPRINTLN ""
-
         LDA SCR_COL_L
         STA COLCRS
         LDA SCR_COL_H
         STA COLCRS+1
-        PPRINT "COL: "
-        PRINTPTR SCR_COL_L
 
         JSR CIOV
         POPALL         ; Restore all registers
@@ -435,16 +425,6 @@ DISPLAY_MESSAGE
 CLOSE_SCREEN
         CLOSE E_IO_CHANNEL
         CLOSE P_IO_CHANNEL
-        RTS
-
-
-
-CLRMSG
-        PPRINT "POINTER: "
-        PRINTPTR STRPTR
-        PPRINT " "
-        PRINTPTR ENDPTR
-        PPRINTLN ""
         RTS
 
 CLRDICE
@@ -514,13 +494,13 @@ MEMFILL_DONE:
 ;        "|5 6|",
 ;        "└───┘",
 
-DIE_PATTERN_0 = 0
-DIE_PATTERN_1 = 1 << 3
-DIE_PATTERN_2 = 2 << 1 | 1 << 5
-DIE_PATTERN_3 = 2 << 1 | 1 << 5 | 1 << 3
-DIE_PATTERN_4 = 2 << 0 | 1 << 5 | 1 << 1 | 1 << 6
-DIE_PATTERN_5 = 2 << 0 | 1 << 5 | 1 << 1 | 1 << 6 | 1 << 3
-DIE_PATTERN_6 = 2 << 0 | 1 << 2 | 1 << 5 | 1 << 1 | 1 << 4 | 1 << 6
+DIE_PATTERN_0 = B00000000
+DIE_PATTERN_1 = B00010000
+DIE_PATTERN_2 = B01000100
+DIE_PATTERN_3 = B01010100
+DIE_PATTERN_4 = B11000110
+DIE_PATTERN_5 = B11010110
+DIE_PATTERN_6 = B11101110
 
 PIP_PATTERNS
         .BYTE DIE_PATTERN_0
@@ -547,6 +527,22 @@ STA $FFFF
 ;;;; jjs
 
 SHOW_PIPS
+
+LDY #$00
+STY DICE_0_VALUE
+INY
+STY DICE_1_VALUE
+INY
+STY DICE_2_VALUE
+INY
+STY DICE_3_VALUE
+LDY #$06
+STY DICE_4_VALUE
+INY
+
+
+
+
 ;; Set up work
         LDY #$00
         STY CURRENT_DIE
@@ -559,14 +555,19 @@ SHOW_PIPS
         STA PIP_PTR +1
 
         LDA #$00
-        STA CURRENT_PIP
+        STA CURRENT_PIP_ON_SCREEN
+
+        LDX #5
+SPIPL2
+        LDY #NUMBER_OF_PIPS
+SPIPL
+        STY CURRENT_PIP_ON_DIE
         JSR SHOWPIP
-        JSR SHOWPIP
-        JSR SHOWPIP
-        JSR SHOWPIP
-        JSR SHOWPIP
-        JSR SHOWPIP
-        JSR SHOWPIP
+        DEY
+        BNE SPIPL
+        INC CURRENT_DIE
+        DEX
+        BNE SPIPL2
         RTS
 
 SHOWPIP
@@ -574,9 +575,9 @@ SHOWPIP
 
         PREP_DISPLAY
 
-        LDA #<SCNBUF
+        LDA #<SCRBUF
         STA SCR_PTR_L
-        LDA #>SCNBUF
+        LDA #>SCRBUF
         STA SCR_PTR_H
 
         LDA #$01
@@ -584,12 +585,7 @@ SHOWPIP
         LDA #$00
         STA SCR_LEN_H
 
-;  .BYTE 17; ; Die 4- Pip 5 row
-;  .BYTE <32; ; Die 4- Pip 5 clst
-;  .BYTE >32; ; Die 4- Pip 5 cmsb
-;  .BYTE $FF; PADDING
-
-        LDY CURRENT_PIP
+        LDY CURRENT_PIP_ON_SCREEN
 
         LDA (PIP_PTR),Y
         STA SCR_ROW
@@ -602,17 +598,40 @@ SHOWPIP
         LDA (PIP_PTR),Y
         STA SCR_COL_H
         INY
-        STY CURRENT_PIP
+        STY CURRENT_PIP_ON_SCREEN
 
+
+        ; Get the pattern for the current dice value
+        LDX CURRENT_DIE
+        LDA DICE_VALUES,X
+        TAX
+        LDA PIP_PATTERNS,X
+        STA PIP_MASK
+
+        LDY CURRENT_PIP_ON_DIE
+        LDA #$01                ; first position
+SHIFT
+        ASL                     ; Shift it into position
+        DEY
+        BEQ NO_SHIFT
+        JMP SHIFT
+NO_SHIFT
+        BIT PIP_MASK
+
+        JNE PIP_SHOW_FILLED
+
+        LDY #32
+        JMP PIPSHOW_DISPLAY
+
+PIP_SHOW_FILLED
         LDY #'*'
-        STY SCNBUF+0
-        JSR DISPLAY2
 
+PIPSHOW_DISPLAY
+        STY SCRBUF+0
+        JSR DISPLAY2
 
         POPALL         ; Restore all registers
         RTS
-
-
 
 ;; These functions were written as debugging tools, not regular
 ;; library calls, hence they are somewhat paranoid about preserving
