@@ -127,6 +127,7 @@ PIP_MASK        .DS 1
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
 .INCLUDE scores/binary.asm
+.INCLUDE hardware/atari_keys.m65
 
         *=$4000
 .INCLUDE scores/ram.m65
@@ -146,6 +147,7 @@ CURRENT_PIP_PATTERN     .BYTE 1
 
         *=$2400
 .INCLUDE scores/strings.m65
+.INCLUDE gameloop.m65
 
 
 ; ================================================================
@@ -266,16 +268,12 @@ START
 
         JSR SHOW_PIPS
 
+        JSR GAMELOOP
 
         ; Optional: close IOCB #2.
         ; For a tiny demo this is not strictly required,
         ; but it is a good habit for larger programs.
         JSR CLOSE_SCREEN
-
-        ; Stop here forever.
-        ; This prevents the CPU from running into data bytes.
-FOREVER
-        JMP FOREVER
 
 
 ; ================================================================
@@ -497,19 +495,16 @@ STA $FFFF
 
 SHOW_PIPS
 
-LDY #$00
-STY DICE_0_VALUE
-INY
-STY DICE_1_VALUE
-INY
-STY DICE_2_VALUE
-INY
-STY DICE_3_VALUE
-LDY #$06
-STY DICE_4_VALUE
-INY
-
-
+        JSR GetRandom
+        STA DICE_0_VALUE
+        JSR GetRandom
+        STA DICE_1_VALUE
+        JSR GetRandom
+        STA DICE_2_VALUE
+        JSR GetRandom
+        STA DICE_3_VALUE
+        JSR GetRandom
+        STA DICE_4_VALUE
 
 
 ;; Set up work
@@ -587,7 +582,7 @@ SHIFT
 NO_SHIFT
         BIT PIP_MASK
 
-        JNE PIP_SHOW_FILLED
+        BNE PIP_SHOW_FILLED
 
         LDY #32
         JMP PIPSHOW_DISPLAY
@@ -656,6 +651,69 @@ P_BYTEOUT
         JSR P_NIBBLE_OUT ; And print
         PLA        ; retrieve the byte
         RTS
+
+; ****************************************************************
+; This is the 8-bit random number generator subroutine that uses
+; the Galois linear feedback shift register (LFSR) approach.
+; This generates and returns a number between 0-255.
+; Have two of these to avoid dependencies between powerups and
+; mutations.
+; ****************************************************************
+
+RandomPU        .BYTE 95
+RandomMut       .BYTE 74
+RandomFlip      .BYTE 0
+
+LL
+        PPRINT "ROLLED A "
+        JSR P_BYTEOUT
+        PPRINTLN " "
+        RTS
+
+GetRandom
+        INC RandomFlip
+        LDA RandomFlip
+        LSR
+        BCS GetRandom1
+
+        JSR GetRandomPU
+        JMP GetRandom2
+
+GetRandom1
+        JSR GetRandomMut
+GetRandom2
+        AND #B00000111
+        CMP #$06        ; The number of faces
+        BCS GetRandom
+
+        CMP #$00
+        BEQ GetRandom
+        JSR LL
+        RTS
+
+GetRandomPU             ; this is for powerups
+lda RandomPU            ; load the accumulator with a seed
+    	lsr             ; logical shift right
+    	bcc SkipEor1    ; branch on carry clear
+    	eor #$D4        ; exclusive OR (i.e. XOR) function
+
+SkipEor1
+
+   	sta RandomPU      ; store the random number in variable
+   	rts               ; return from subroutine
+
+GetRandomMut              ; this is for mutation flag
+
+   	lda RandomMut   ; load the accumulator with a seed
+    	lsr             ; logical shift right
+    	bcc SkipEor2      ; branch on carry clear
+    	eor #$A9          ; exclusive OR (i.e. XOR) function
+                          ; $A9 generates inverse sequence
+
+SkipEor2
+
+   	sta RandomMut     ; store the random number in variable
+   	rts               ; return from subroutine
 
 ; ================================================================
 ; AUTO-RUN SEGMENT
