@@ -89,13 +89,35 @@ SKIPTEXT?
         POPALL
 .ENDM
 
+.MACRO MAKE_OUTPUT_CONTROL
+%$1_IOCB        .BYTE E_IOCB2
+%$1_ROW         .BYTE 1
+%$1_COL_L       .BYTE 1
+%$1_COL_H       .BYTE 1
+%$1_LEN_L       .BYTE 1
+%$1_LEN_H       .BYTE 1
+%$1_PTR_L       .BYTE 1
+%$1_PTR_H       .BYTE 1
+.ENDM
+
+.MACRO         PREP_DISPLAY
+        LDX #E_IOCB2
+.ENDM
+
+.MACRO FINALIZE_DISPLAY
+        JSR CIOV
+.ENDM
+
+
 ; ------------------------------------------------
 ; Main program load address
 ; ------------------------------------------------
         *=$00CB
-STRPTR  .WORD 0
-ENDPTR  .WORD 0
-SAVEA   .BYTE 0  ; Save 'A' during PUSHALL
+STRPTR          .WORD 0
+ENDPTR          .WORD 0
+SAVEA           .BYTE 0  ; Save 'A' during PUSHALL
+; A pointer to which set of pips we are rendering
+PIP_PTR         .DS 2
 
 
 ; Free 0-page address (USED BY BASIC)
@@ -107,10 +129,18 @@ SAVEA   .BYTE 0  ; Save 'A' during PUSHALL
 
         *=$4000
 .INCLUDE scores/ram.m65
-PRNBUF .DS 5
+PRNBUF          .DS 5
+SCNBUF          .DS 5
 
 
 
+; The current die being operated on.
+CURRENT_DIE     .DS 1
+CURRENT_PIP     .DS 1
+CURRENT_PIP_PATTERN .BYTE 1
+
+
+        MAKE_OUTPUT_CONTROL SCR
 
         *=$2400
 .INCLUDE scores/strings.m65
@@ -230,6 +260,9 @@ START
 ;DONE_PRINT_LABEL
 
 
+        JSR SHOW_PIPS
+
+
         ; Optional: close IOCB #2.
         ; For a tiny demo this is not strictly required,
         ; but it is a good habit for larger programs.
@@ -285,10 +318,19 @@ OPEN_SCREEN
 ; ================================================================
 
 
+; Y = The index of the message to print
+;DISPLAY_MESSAGE
+        PUSHALL        ; Save all registers
+
+;        LDX #E_IOCB2
+;        SET_PRINT_ADDRESS TITLE_TXT_LSB_TABLE TITLE_TXT_MSB_TABLE
+;;        SET_PRINT_LENGTH_PTR TITLE_LEN_LSB_TABLE TITLE_LEN_MSB_TABLE
+;        SET_PRINT_POSITION_PTR TITLE_ROW_TABLE TITLE_COL_LSB_TABLE TITLE_COL_MSB_TABLE
+;        FINALIZE_DISPLAY
 
 
-
-DISPLAY_MESSAGE
+DISPLAY2
+        PPRINTLN "DISPLAY2"
         PUSHALL        ; Save all registers
 
         LDX #E_IOCB2
@@ -297,10 +339,69 @@ DISPLAY_MESSAGE
         STA ICCOM,X
 
         ; Address of the text buffer to print.
+        PPRINT "PTR: "
+        PRINTPTR SCR_PTR_L
+        LDA SCR_PTR_L
+        STA ICBAL,X
+        LDA SCR_PTR_H
+        STA ICBAH,X
+        PPRINTLN ""
+
+        ; Length of the text buffer.
+        PPRINT "LEN: "
+        PRINTPTR SCR_LEN_L
+
+        LDA SCR_LEN_L
+        STA ICBLL,X
+        LDA SCR_LEN_H
+        STA ICBLH,X
+        PPRINTLN ""
+
+        ; Set cursor position
+        LDA SCR_ROW
+        STA ROWCRS
+        PPRINT "ROW: "
+        JSR P_BYTEOUT
+        PPRINTLN ""
+
+        LDA SCR_COL_L
+        STA COLCRS
+        LDA SCR_COL_H
+        STA COLCRS+1
+        PPRINT "COL: "
+        PRINTPTR SCR_COL_L
+
+        JSR CIOV
+        POPALL         ; Restore all registers
+        RTS
+
+
+
+DISPLAY_MESSAGE
+         PUSHALL        ; Save all registers
+
+        LDX #E_IOCB2
+
+        LDA #IO_PUTCHR
+        STA ICCOM,X
+
+;SCR_ROW
+;SCR_COL_L
+;SCR_COL_H
+;SCR_LEN_L
+;SCR_LEN_H
+;SCR_PTR_L
+;SCR_PTR_H
+
+
+
+        ; Address of the text buffer to print.
         LDA TITLE_TXT_LSB_TABLE,Y
         STA ICBAL,X
         LDA TITLE_TXT_MSB_TABLE,Y
         STA ICBAH,X
+
+
 
         ; Length of the text buffer.
         LDA TITLE_LEN_LSB_TABLE,Y
@@ -318,6 +419,8 @@ DISPLAY_MESSAGE
         STA COLCRS+1
 
         JSR CIOV
+
+
         POPALL         ; Restore all registers
         RTS
 
@@ -392,7 +495,7 @@ MEMFILL_LOOP:
 
 MEMFILL_WRITE:
         ; ---------- Write the fill byte ----------
-        ; -- No need to print now JSR CLRMSG
+        ; -- Debugging JSR CLRMSG
         TXA             ; Retrieve fill byte from X
         STA (STRPTR),Y
 
@@ -404,6 +507,111 @@ MEMFILL_WRITE:
 
 MEMFILL_DONE:
         RTS
+
+;        "┌───┐",
+;        "|0 1|",
+;        "|234|",
+;        "|5 6|",
+;        "└───┘",
+
+DIE_PATTERN_0 = 0
+DIE_PATTERN_1 = 1 << 3
+DIE_PATTERN_2 = 2 << 1 | 1 << 5
+DIE_PATTERN_3 = 2 << 1 | 1 << 5 | 1 << 3
+DIE_PATTERN_4 = 2 << 0 | 1 << 5 | 1 << 1 | 1 << 6
+DIE_PATTERN_5 = 2 << 0 | 1 << 5 | 1 << 1 | 1 << 6 | 1 << 3
+DIE_PATTERN_6 = 2 << 0 | 1 << 2 | 1 << 5 | 1 << 1 | 1 << 4 | 1 << 6
+
+PIP_PATTERNS
+        .BYTE DIE_PATTERN_0
+        .BYTE DIE_PATTERN_1
+        .BYTE DIE_PATTERN_2
+        .BYTE DIE_PATTERN_3
+        .BYTE DIE_PATTERN_4
+        .BYTE DIE_PATTERN_5
+        .BYTE DIE_PATTERN_6
+
+;PIP_COUNT = DIE_1_COL_MSB - DIE_0_COL_MSB
+
+
+
+; LDA #DIE_PATTERN_0
+
+
+;LDX #
+STA $FFFF
+
+
+; CURRENT_DIE = the die position to display
+
+;;;; jjs
+
+SHOW_PIPS
+;; Set up work
+        LDY #$00
+        STY CURRENT_DIE
+        LDA PIP_PATTERNS,Y
+        STA CURRENT_PIP_PATTERN
+
+        LDA PIP_PTR_LSB,Y
+        STA PIP_PTR
+        LDA PIP_PTR_MSB,Y
+        STA PIP_PTR +1
+
+        LDA #$00
+        STA CURRENT_PIP
+        JSR SHOWPIP
+        JSR SHOWPIP
+        JSR SHOWPIP
+        JSR SHOWPIP
+        JSR SHOWPIP
+        JSR SHOWPIP
+        JSR SHOWPIP
+        RTS
+
+SHOWPIP
+        PUSHALL        ; Save all registers
+
+        PREP_DISPLAY
+
+        LDA #<SCNBUF
+        STA SCR_PTR_L
+        LDA #>SCNBUF
+        STA SCR_PTR_H
+
+        LDA #$01
+        STA SCR_LEN_L
+        LDA #$00
+        STA SCR_LEN_H
+
+;  .BYTE 17; ; Die 4- Pip 5 row
+;  .BYTE <32; ; Die 4- Pip 5 clst
+;  .BYTE >32; ; Die 4- Pip 5 cmsb
+;  .BYTE $FF; PADDING
+
+        LDY CURRENT_PIP
+
+        LDA (PIP_PTR),Y
+        STA SCR_ROW
+
+        ; Next byte
+        INY
+        LDA (PIP_PTR),Y
+        STA SCR_COL_L
+        INY
+        LDA (PIP_PTR),Y
+        STA SCR_COL_H
+        INY
+        STY CURRENT_PIP
+
+        LDY #'*'
+        STY SCNBUF+0
+        JSR DISPLAY2
+
+
+        POPALL         ; Restore all registers
+        RTS
+
 
 
 ;; These functions were written as debugging tools, not regular

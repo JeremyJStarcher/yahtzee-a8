@@ -52,9 +52,15 @@ class DieContainer:
     screen_col: int = -1
     pips: list[DiePip] = field(default_factory=list)
 
+    pip_fill_asm_bytes: list[str] = field(default_factory=list)
+    pip_empty_asm_bytes: list[str] = field(default_factory=list)
+
     def __post_init__(self):
         self.asm_bytes = unicode_to_atari_hex(self.unicode)
         self.length = len(self.asm_bytes)
+        pip_fill_asm_bytes = unicode_to_atari_hex("o")
+        pip_fill_asm_bytes = unicode_to_atari_hex("-")
+
 
 @dataclass
 class LabelText:
@@ -264,14 +270,16 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
             row = li + die.screen_row + HEADER_OFFSET
             col = ci + die.screen_col
 
+            display = c
             if c in pips_digits:
                 die.pips[int(c)] = DiePip(
                     screen_col=col,
                     screen_row=row
                 )
+                display = '.'
 
             pos = (row * SCREEN_WIDTH) + col
-            unicode_art = unicode_art[:pos] + c + unicode_art[pos + 1:]
+            unicode_art = unicode_art[:pos] + display + unicode_art[pos + 1:]
 
     return unicode_art
 
@@ -357,7 +365,6 @@ def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
     len_lsb = [f"{prefix}_SCORE_LSB_TABLE"]
     len_msb = [f"{prefix}_SCORE_MSB_TABLE"]
 
-
     for i, label in enumerate(labels):
 
         len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .BYTE 1")
@@ -375,40 +382,50 @@ def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
         footer
       )
 
+
 def createPipRegion(diceContainers: list[DieContainer]) -> list[str]:
 
     pip_header: list[str] = []
-    pos_col_lsb: list[str] = []
-    pos_col_msb: list[str] = []
-    pos_row: list[str] = []
+#    pos_col_lsb: list[str] = []
+#    pos_col_msb: list[str] = []
+#    pos_row: list[str] = []
 
     pip_header.append("; The location of each pip on each die")
 
-    pos_col_lsb.append("PIP_COL_LSB_TABLE")
-    pos_col_msb.append("PIP_COL_MSB_TABLE")
-    pos_row.append("PIP_ROW_TABLE")
+    pip_list: list[str] = []
+    pip_ptr_lsb: list[str] = []
+    pip_ptr_msb: list[str] = []
+
+    pip_ptr_lsb.append("PIP_PTR_LSB")
+    pip_ptr_msb.append("PIP_PTR_MSB")
 
     for di, die in enumerate(diceContainers):
+        die_label = f"DIE_{di}_PIPS"
 
-        pos_row.append(f"DIE_{di}_ROW")
-        pos_col_lsb.append(f"DIE_{di}_COL_LSB")
-        pos_col_msb.append(f"DIE_{di}_COL_MSB")
+        pip_ptr_lsb.append(f" .BYTE <{die_label}")
+        pip_ptr_msb.append(f" .BYTE >{die_label}")
 
+        pip_list.append(die_label)
 
         for pi, pip in enumerate(die.pips):
             cmt: str = f"; Die {di}- Pip {pi}"
-            pos_row.append(f"  .BYTE {pip.screen_row}${cmt}")
-            pos_col_lsb.append(f"  .BYTE <{pip.screen_col};${cmt}")
-            pos_col_msb.append(f"  .BYTE >{pip.screen_col};${cmt}")
+            pip_list.append(f"  .BYTE {pip.screen_row}; {cmt} row")
+            pip_list.append(f"  .BYTE <{pip.screen_col}; {cmt} clst")
+            pip_list.append(f"  .BYTE >{pip.screen_col}; {cmt} cmsb")
 
-    return pip_header + pos_row + pos_col_lsb + pos_col_msb
+    return (
+        pip_header +
+        pip_list +
+        pip_ptr_lsb +
+        pip_ptr_msb
+    )
 
 def createDiceRegion(diceContainers: list[DieContainer]) -> list[str]:
     die_header: list[str] = []
     die_header.append("; the value of each die")
     die_header.append("DICE_VALUES")
     for i, die in enumerate(diceContainers):
-        die_header.append(f"  .DS 1; die {i}")
+        die_header.append(f"DICE_{i}_VALUE  .BYTE 1; die {i}")
     die_header.append("DICE_VALUES_END")
     return die_header
 
@@ -418,7 +435,6 @@ def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
 
     header.append(f";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
     header.append(f"; REGION_{prefix}")
-
 
     equates = [
         "; Equates in case we ever need to access a specific label by its ID.",
@@ -477,7 +493,6 @@ def main():
 
         out = createLabelTextRegion("TITLE", allLabels)
         out.extend(createPipRegion(textCollection.dieContainer))
-
         file.write("\n".join(out))
 
     with open(RAM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:

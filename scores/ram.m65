@@ -44,9 +44,9 @@ END_REGION_RAM
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; the value of each die
 DICE_VALUES
-  .DS 1; die 0
-  .DS 1; die 1
-  .DS 1; die 2
-  .DS 1; die 3
-  .DS 1; die 4
+DICE_0_VALUE  .BYTE 1; die 0
+DICE_1_VALUE  .BYTE 1; die 1
+DICE_2_VALUE  .BYTE 1; die 2
+DICE_3_VALUE  .BYTE 1; die 3
+DICE_4_VALUE  .BYTE 1; die 4
 DICE_VALUES_END
