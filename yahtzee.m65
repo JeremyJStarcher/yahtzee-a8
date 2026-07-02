@@ -209,6 +209,7 @@ START
         JSR OPEN_SCREEN
 
         JSR CLRRAM
+        JSR CLRDICE
 
         ; Set left margin
         LDA #0
@@ -342,6 +343,22 @@ CLRMSG
         PRINTPTR ENDPTR
         PPRINTLN ""
         RTS
+
+CLRDICE
+        PHA
+        LDA # <DICE_VALUES
+        STA STRPTR
+        LDA # >DICE_VALUES
+        STA STRPTR + 1
+
+        LDA # <DICE_VALUES_END
+        STA ENDPTR
+        LDA # >DICE_VALUES_END
+        STA ENDPTR + 1
+        PLA
+
+        LDA #$00        ; The value set RAM to
+        JMP MEMFILL     ; Clear the ram
 
 CLRRAM
         PHA

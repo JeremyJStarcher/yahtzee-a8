@@ -403,6 +403,16 @@ def createPipRegion(diceContainers: list[DieContainer]) -> list[str]:
 
     return pip_header + pos_row + pos_col_lsb + pos_col_msb
 
+def createDiceRegion(diceContainers: list[DieContainer]) -> list[str]:
+    die_header: list[str] = []
+    die_header.append("; the value of each die")
+    die_header.append("DICE_VALUES")
+    for i, die in enumerate(diceContainers):
+        die_header.append(f"  .DS 1; die {i}")
+    die_header.append("DICE_VALUES_END")
+    return die_header
+
+
 def createLabelTextRegion(prefix: str, labels: list[LabelText]) -> list[str]:
     header = []
 
@@ -472,8 +482,8 @@ def main():
 
     with open(RAM_ASM_FILE_NAME, 'w', encoding='utf-8') as file:
         out = createRamRegion("RAM", textCollection.screenScores)
+        out.extend(createDiceRegion(textCollection.dieContainer))
         file.write("\n".join(out))
-
 
 if __name__ == '__main__':
     main()
