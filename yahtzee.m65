@@ -322,17 +322,6 @@ OPEN_SCREEN
 ; ================================================================
 
 
-; Y = The index of the message to print
-;DISPLAY_MESSAGE
-        PUSHALL        ; Save all registers
-
-;        LDX #E_IOCB2
-;        SET_PRINT_ADDRESS TITLE_TXT_LSB_TABLE TITLE_TXT_MSB_TABLE
-;;        SET_PRINT_LENGTH_PTR TITLE_LEN_LSB_TABLE TITLE_LEN_MSB_TABLE
-;        SET_PRINT_POSITION_PTR TITLE_ROW_TABLE TITLE_COL_LSB_TABLE TITLE_COL_MSB_TABLE
-;        FINALIZE_DISPLAY
-
-
 DISPLAY2
         PUSHALL        ; Save all registers
 
@@ -365,55 +354,35 @@ DISPLAY2
         POPALL         ; Restore all registers
         RTS
 
-
-
+; Y = The index of the message to print
 DISPLAY_MESSAGE
          PUSHALL        ; Save all registers
 
-        LDX #E_IOCB2
-
-        LDA #IO_PUTCHR
-        STA ICCOM,X
-
-;SCR_ROW
-;SCR_COL_L
-;SCR_COL_H
-;SCR_LEN_L
-;SCR_LEN_H
-;SCR_PTR_L
-;SCR_PTR_H
-
-
-
         ; Address of the text buffer to print.
         LDA TITLE_TXT_LSB_TABLE,Y
-        STA ICBAL,X
+        STA SCR_PTR_L
         LDA TITLE_TXT_MSB_TABLE,Y
-        STA ICBAH,X
-
-
+        STA SCR_PTR_H
 
         ; Length of the text buffer.
         LDA TITLE_LEN_LSB_TABLE,Y
-        STA ICBLL,X
+        STA SCR_LEN_L
         LDA TITLE_LEN_MSB_TABLE,Y
-        STA ICBLH,X
+        STA SCR_LEN_H
 
         ; Set cursor position
         LDA TITLE_ROW_TABLE,Y
-        STA ROWCRS
+        STA SCR_ROW
 
         LDA TITLE_COL_LSB_TABLE, Y
-        STA COLCRS
+        STA SCR_COL_L
         LDA TITLE_COL_MSB_TABLE, Y
-        STA COLCRS+1
+        STA SCR_COL_H
 
-        JSR CIOV
-
+        JSR DISPLAY2
 
         POPALL         ; Restore all registers
         RTS
-
 
 ; ================================================================
 ; CLOSE_SCREEN
