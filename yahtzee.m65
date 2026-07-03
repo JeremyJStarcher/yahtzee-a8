@@ -313,6 +313,17 @@ SPIPL
         BNE SPIPL2
         RTS
 
+
+SHFTPIP
+        .BYTE B00000001
+        .BYTE B00000010
+        .BYTE B00000100
+        .BYTE B00001000
+        .BYTE B00010000
+        .BYTE B00100000
+        .BYTE B01000000
+        .BYTE B10000000
+
 SHOWPIP
         PUSHALL        ; Save all registers
 
@@ -351,15 +362,8 @@ SHOWPIP
         STA PIP_MASK
 
         LDY CURRENT_PIP_ON_DIE
-        LDA #$01                ; first position
-SHIFT
-        ASL                     ; Shift it into position
-        DEY
-        BEQ NO_SHIFT
-        JMP SHIFT
-NO_SHIFT
+        LDA SHFTPIP,Y
         BIT PIP_MASK
-
         BNE PIP_SHOW_FILLED
 
         LDY #32
