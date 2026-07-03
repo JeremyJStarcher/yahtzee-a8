@@ -1,0 +1,245 @@
+
+; ================================================================
+; OS / CIO CONSTANTS
+; ================================================================
+
+EOL     = $9B          ; Atari end-of-line character.
+                       ; This is not ASCII CR/LF.
+                       ; Atari text lines usually end with $9B.
+
+
+LMARGN = $52           ; Left margin
+ROWCRS = $54           ; cursor row
+COLCRS = $55           ; Cursor column (two bytes)
+CRSINH = $02F0         ; 0 = show, anything else = hide
+
+; ------------------------------------------------
+; CIO command numbers
+; ------------------------------------------------
+; CIO = Central Input/Output.
+; You place a command in an IOCB, then call CIOV.
+; ------------------------------------------------
+
+IO_OWRIT   = $08          ; OPEN mode: output/write
+IO_PUTCHR  = $0B          ; CIO command: PUT characters
+
+; ------------------------------------------------
+; IOCB selection
+; ------------------------------------------------
+; Atari has multiple IOCBs.
+;
+; IOCB #0 starts at $0340
+; IOCB #1 starts at $0350
+; IOCB #2 starts at $0360
+; etc.
+;
+; CIO expects X to contain the IOCB offset:
+;
+;   IOCB #0 = $00
+;   IOCB #1 = $10
+;   IOCB #2 = $20
+;
+; This program uses IOCB #2, so X = $20.
+; ------------------------------------------------
+
+E_IOCB2   = $20
+E_IO_CHANNEL = 2
+
+P_IOCB3   = $30
+P_IO_CHANNEL = 3
+
+
+; ------------------------------------------------
+; IOCB field addresses
+; ------------------------------------------------
+; These are the base addresses for IOCB #0.
+; Adding X selects IOCB #1, #2, #3, etc.
+;
+; Example:
+;
+;   LDX #E_IOCB2
+;   STA ICCOM,X
+;
+; stores into the command field for IOCB #2.
+; ------------------------------------------------
+
+
+ICBAL   = $0344        ; Buffer address, low byte
+ICBAH   = $0345        ; Buffer address, high byte
+
+ICBLL   = $0348        ; Buffer length, low byte
+ICBLH   = $0349        ; Buffer length, high byte
+
+ICAX1   = $034A        ; Auxiliary byte 1
+                       ; For OPEN, this usually holds the mode.
+                       ; OWRIT means open for output.
+
+ICAX2   = $034B        ; Auxiliary byte 2
+                       ; Often zero for simple OPEN calls.
+
+; ------------------------------------------------
+; CIO entry point in the Atari OS ROM
+; ------------------------------------------------
+
+CIOV    = $E456        ; Jump here with X pointing to an IOCB
+
+
+
+; ================================================================
+; DISPLAY_MESSAGE
+;
+; Writes MESSAGE to the screen editor device.
+;
+; CIO recipe for PUTCHR:
+;
+;   X      = IOCB number offset
+;   ICCOM = IO_PUTCHR
+;   ICBAL = low byte of buffer address
+;   ICBAH = high byte of buffer address
+;   ICBLL = low byte of buffer length
+;   ICBLH = high byte of buffer length
+;   JSR CIOV
+;
+; ================================================================
+
+
+HW_DISPLAY
+        PUSHALL        ; Save all registers
+
+        LDX #E_IOCB2
+
+        LDA #IO_PUTCHR
+        STA ICCOM,X
+
+        ; Address of the text buffer to print.
+        LDA SCR_PTR_L
+        STA ICBAL,X
+        LDA SCR_PTR_H
+        STA ICBAH,X
+
+        ; Length of the text buffer.
+        LDA SCR_LEN_L
+        STA ICBLL,X
+        LDA SCR_LEN_H
+        STA ICBLH,X
+
+        ; Set cursor position
+        LDA SCR_ROW
+        STA ROWCRS
+        LDA SCR_COL_L
+        STA COLCRS
+        LDA SCR_COL_H
+        STA COLCRS+1
+
+        JSR CIOV
+        POPALL         ; Restore all registers
+        RTS
+
+
+
+
+; ================================================================
+; INIT_PROGRAM
+;
+; Opens the Atari screen editor device:
+;
+;   E:
+;
+; The screen editor is the normal text screen device.
+;
+; CIO recipe for OPEN:
+;
+;   X      = IOCB number offset
+;   ICCOM = OPEN
+;   ICBAL = low byte of device-name string address
+;   ICBAH = high byte of device-name string address
+;   ICAX1 = open mode
+;   ICAX2 = usually zero
+;   JSR CIOV
+;
+; ================================================================
+
+INIT_PROGRAM
+        OPEN  E_IO_CHANNEL,IO_OWRIT,0,"E:"
+        OPEN  P_IO_CHANNEL,IO_OWRIT,0,"P:"
+        RTS
+
+
+; ================================================================
+; FINISH_PROGRAM
+;
+; Closes IOCBs
+; Good housekeeping for programs that return to DOS or BASIC.
+; ================================================================
+
+FINISH_PROGRAM
+        CLOSE E_IO_CHANNEL
+        CLOSE P_IO_CHANNEL
+        RTS
+
+
+
+.MACRO PPRINT
+        PUSHALL
+
+        JMP SKIPTEXT?
+
+TESTMESSAGE? .BYTE %$1
+TESTMESSAGEL? .WORD *-TESTMESSAGE?
+
+SKIPTEXT?
+        LDX #P_IOCB3
+        LDA #IO_PUTCHR
+        STA ICCOM,X
+
+        LDA #<TESTMESSAGE?
+        STA ICBAL,X
+        LDA #>TESTMESSAGE?
+        STA ICBAH,X
+
+        LDA TESTMESSAGEL?
+        STA ICBLL,X
+        LDA TESTMESSAGEL? + 1
+        STA ICBLH,X
+
+        JSR CIOV
+        POPALL
+.ENDM
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; A   - LOWER NIBBLE VALUE TO PRINT TO PRINTER
+;
+; Return: none
+; We chose the method that uses a lookup table for the hex digits
+; instead of calculating to make this code truly portable across
+; all systems, regardess of what character encoding they use.
+; ASCII/Atari ASCII/Anything else
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+P_NIBBLE_OUT
+        PUSHALL
+
+        TAX
+        LDA HEXCHARS,X
+        STA PRNBUF + 0
+
+        LDX #P_IOCB3
+        LDA #IO_PUTCHR
+        STA ICCOM,X
+
+        LDA #<PRNBUF
+        STA ICBAL,X
+        LDA #>PRNBUF
+        STA ICBAH,X
+
+        LDA #1 ; Just one byte to print
+        STA ICBLL,X
+        LDA #0
+        STA ICBLH,X
+
+        JSR CIOV
+        POPALL
+        RTS
+
+HEXCHARS .BYTE '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+
