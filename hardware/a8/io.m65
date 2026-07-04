@@ -162,6 +162,13 @@ HW_DISPLAY
 INIT_PROGRAM
         OPEN  E_IO_CHANNEL,IO_OWRIT,0,"E:"
         OPEN  P_IO_CHANNEL,IO_OWRIT,0,"P:"
+
+        ; Set left margin
+        LDA #0
+        STA LMARGN
+
+        LDA #1
+        STA CRSINH ; HIDE CURSOR
         RTS
 
 

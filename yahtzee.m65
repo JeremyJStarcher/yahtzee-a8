@@ -128,33 +128,7 @@ START
 
         JSR CLRRAM
         JSR CLRDICE
-
-        ; Set left margin
-        LDA #0
-        STA LMARGN
-
-        LDA #1
-        STA CRSINH ; HIDE CURSOR
-
-        ; Print the message.
-        LDY #TITLE_MAIN
-        JSR DISPLAY_MESSAGE
-
-        LDY #TITLE_MAIN
-NEXT_LABEL
-        JSR DISPLAY_MESSAGE
-        DEY
-        BPL NEXT_LABEL        ; Branches if the value is between 0-127
-
-        LDY #TITLE_DIE4
-NEXT_LABELD
-        JSR DISPLAY_MESSAGE
-        DEY
-        TYA
-        CMP #TITLE_DIE0
-        BCS NEXT_LABELD        ; CS (Not less than)
-
-
+        JSR ShowMainBody
 
         JSR SHOW_PIPS
 
@@ -165,8 +139,29 @@ NEXT_LABELD
         ; but it is a good habit for larger programs.
         JMP FINISH_PROGRAM
 
+
+.PROC ShowMainBody
+        LDY #TITLE_MAIN
+?LOOP
+        JSR DISPLAY_MESSAGE
+        DEY
+        BPL ?LOOP        ; Branches if the value is between 0-127
+.ENDP
+
+.PROC ShowDiceLabels
+        LDY #TITLE_DIE4
+?LOOP
+        JSR DISPLAY_MESSAGE
+        DEY
+        TYA
+        CPY #TITLE_DIE0
+        BCS ?LOOP        ; CS (Not less than)
+.ENDP
+        RTS
+
+
 ; Y = The index of the message to print
-DISPLAY_MESSAGE
+.PROC DISPLAY_MESSAGE
          PUSHALL        ; Save all registers
 
         ; Address of the text buffer to print.
@@ -194,8 +189,9 @@ DISPLAY_MESSAGE
 
         POPALL         ; Restore all registers
         RTS
+.ENDP
 
-CLRDICE
+.PROC CLRDICE
         PHA
         LDA # <DICE_VALUES
         STA STRPTR
@@ -211,7 +207,10 @@ CLRDICE
         LDA #$00        ; The value set RAM to
         JMP MEMFILL     ; Clear the ram
 
-CLRRAM
+        LDA #$00        ; The value set RAM to
+.ENDP
+
+.PROC CLRRAM
         PHA
         LDA # <START_REGION_RAM
         STA STRPTR
@@ -225,23 +224,24 @@ CLRRAM
         PLA
 
         LDA #$00        ; The value set RAM to
+.ENDP
 
-MEMFILL:
+.PROC MEMFILL:
         TAX             ; Save fill byte in X (A is clobbered by comparisons)
         LDY #$00        ; Y stays 0 for (STRPTR),Y addressing
 
-MEMFILL_LOOP:
+?LOOP:
 
         ; ---------- Check for end (exclusive) ----------
         LDA STRPTR
         CMP ENDPTR
-        BNE MEMFILL_WRITE   ; Low bytes differ → not at end yet
+        BNE ?MEMFILL_WRITE   ; Low bytes differ → not at end yet
 
         LDA STRPTR+1
         CMP ENDPTR+1
-        BEQ MEMFILL_DONE    ; High bytes also equal → STRPTR == ENDPTR, stop
+        BEQ ?MEMFILL_DONE    ; High bytes also equal → STRPTR == ENDPTR, stop
 
-MEMFILL_WRITE:
+?MEMFILL_WRITE:
         ; ---------- Write the fill byte ----------
         ; -- Debugging JSR CLRMSG
         TXA             ; Retrieve fill byte from X
@@ -249,12 +249,13 @@ MEMFILL_WRITE:
 
         ; ---------- Increment 16‑bit pointer ----------
         INC STRPTR
-        BNE MEMFILL_LOOP    ; No low‑byte rollover → loop
+        BNE ?LOOP    ; No low‑byte rollover → loop
         INC STRPTR+1     ; Rollover from $FF to $00 → bump high byte
-        JMP MEMFILL_LOOP
+        JMP ?LOOP
 
-MEMFILL_DONE:
+?MEMFILL_DONE:
         RTS
+.ENDP
 
 ;        "┌───┐",
 ;        "|0 1|",
@@ -279,7 +280,7 @@ PIP_PATTERNS
         .BYTE DIE_PATTERN_5
         .BYTE DIE_PATTERN_6
 
-SHOW_PIPS
+.PROC SHOW_PIPS
         JSR GetRandom
         STA DICE_0_VALUE
         JSR GetRandom
@@ -307,18 +308,18 @@ SHOW_PIPS
         STA CURRENT_PIP_ON_SCREEN
 
         LDX #5
-SPIPL2
+?NEXT_DIE
         LDY #NUMBER_OF_PIPS
-SPIPL
+?NEXT_PIP
         STY CURRENT_PIP_ON_DIE
         JSR SHOWPIP
         DEY
-        BNE SPIPL
+        BNE ?NEXT_PIP
         INC CURRENT_DIE
         DEX
-        BNE SPIPL2
+        BNE ?NEXT_DIE
         RTS
-
+.ENDP
 
 SHFTPIP
         .BYTE %00000001
@@ -330,7 +331,7 @@ SHFTPIP
         .BYTE %01000000
         .BYTE %10000000
 
-SHOWPIP
+.PROC SHOWPIP
         PUSHALL        ; Save all registers
 
         PREP_DISPLAY
@@ -370,20 +371,22 @@ SHOWPIP
         LDY CURRENT_PIP_ON_DIE
         LDA SHFTPIP,Y
         BIT PIP_MASK
-        BNE PIP_SHOW_FILLED
+        BNE ?PIP_SHOW_FILLED
 
         LDY #32
-        JMP PIPSHOW_DISPLAY
+        JMP ?PIPSHOW_DISPLAY
 
-PIP_SHOW_FILLED
+?PIP_SHOW_FILLED
         LDY #'*'
 
-PIPSHOW_DISPLAY
+?PIPSHOW_DISPLAY
         STY SCRBUF+0
         JSR HW_DISPLAY
 
         POPALL         ; Restore all registers
         RTS
+.ENDP
+
 
 ;; These functions were written as debugging tools, not regular
 ;; library calls, hence they are somewhat paranoid about preserving
@@ -391,7 +394,7 @@ PIPSHOW_DISPLAY
 ;; about program logic changing.
 
 
-P_BYTEOUT
+.PROC P_BYTEOUT
         PHA        ; Save the byte to retrieve at the end
         PHA        ; save the byte
         LSR A      ; Shift the high nibble to the low nibble
@@ -404,6 +407,7 @@ P_BYTEOUT
         JSR P_NIBBLE_OUT ; And print
         PLA        ; retrieve the byte
         RTS
+.ENDP
 
 ; ****************************************************************
 ; This is the 8-bit random number generator subroutine that uses
@@ -413,57 +417,53 @@ P_BYTEOUT
 ; mutations.
 ; ****************************************************************
 
+; Todo -- move these into RAM
 RandomPU        .BYTE 95
 RandomMut       .BYTE 74
 RandomFlip      .BYTE 0
 
-LL
-        PPRINT "ROLLED A "
-        JSR P_BYTEOUT
-        PPRINTLN " "
-        RTS
 
 GetRandom
         INC RandomFlip
         LDA RandomFlip
         LSR
-        BCS GetRandom1
+        BCS ?GenRandom1
 
-        JSR GetRandomPU
-        JMP GetRandom2
+        JSR ?GetRandomPU
+        JMP ?GenRandom2
 
-GetRandom1
-        JSR GetRandomMut
-GetRandom2
+?GenRandom1
+        JSR ?GetRandomMut
+?GenRandom2
         AND #%00000111
         CMP #$06        ; The number of faces
         BCS GetRandom
 
         CMP #$00
         BEQ GetRandom
-        JSR LL
         RTS
 
-GetRandomPU             ; this is for powerups
-lda RandomPU            ; load the accumulator with a seed
-    	lsr             ; logical shift right
-    	bcc SkipEor1    ; branch on carry clear
-    	eor #$D4        ; exclusive OR (i.e. XOR) function
 
-SkipEor1
+?GetRandomPU             ; this is for powerups
+        lda RandomPU    ; load the accumulator with a seed
+    	lsr             ; logical shift right
+        bcc ?SkipEor1    ; branch on carry clear
+        eor #$D4        ; exclusive OR (i.e. XOR) function
+
+?SkipEor1
 
    	sta RandomPU      ; store the random number in variable
    	rts               ; return from subroutine
 
-GetRandomMut              ; this is for mutation flag
+?GetRandomMut              ; this is for mutation flag
 
    	lda RandomMut   ; load the accumulator with a seed
     	lsr             ; logical shift right
-    	bcc SkipEor2      ; branch on carry clear
+        bcc ?SkipEor2      ; branch on carry clear
     	eor #$A9          ; exclusive OR (i.e. XOR) function
                           ; $A9 generates inverse sequence
 
-SkipEor2
+?SkipEor2
 
    	sta RandomMut     ; store the random number in variable
    	rts               ; return from subroutine
