@@ -15,7 +15,6 @@ RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
 
 # The actual screen width of the Atari.  We handle margins ourselves.
 SCREEN_WIDTH = 40
-
 NUMBER_OF_PIPS = 7
 
 
@@ -35,6 +34,8 @@ ATASCII = [
     'p','q','r','s','t','u','v','w','x','y','z','♠','|','🢰','◀','▶',
 ]
 
+HOTKEY_MARKER = '~'
+
 SCREEN_PLACE_HOLDER = '▂'
 
 ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
@@ -49,6 +50,7 @@ class DieContainer:
     """Represents a label definition with its position on screen."""
     key: str
     unicode: str
+    hot_key: str = ""
     asm_bytes: list[str] = field(default_factory=list)
     length: int = 0
     screen_row: int = -1
@@ -59,10 +61,17 @@ class DieContainer:
     pip_empty_asm_bytes: list[str] = field(default_factory=list)
 
     def __post_init__(self):
-        self.asm_bytes = unicode_to_atari_hex(self.unicode)
+        filtered_text, hotkey, hotkey_position = find_hotkeys_in_unicode(self.unicode)
+        self.hotkey = hotkey
+        self.hotkey_position = hotkey_position
+        self.unicode = filtered_text
+        print(filtered_text)
+
+        self.asm_bytes = unicode_to_atari_hex2(filtered_text, hotkey_position)
+
         self.length = len(self.asm_bytes)
-        pip_fill_asm_bytes = unicode_to_atari_hex("o")
-        pip_fill_asm_bytes = unicode_to_atari_hex("-")
+        pip_fill_asm_bytes = unicode_to_atari_hex2("o", -1)
+        pip_fill_asm_bytes = unicode_to_atari_hex2("-", -1)
 
 
 @dataclass
@@ -74,9 +83,15 @@ class LabelText:
     length: int = 0
     screen_row: int = -1
     screen_col: int = -1
+    hotkey_position: int = -1
+    hotkey: str = ""
 
     def __post_init__(self):
-        self.asm_bytes = unicode_to_atari_hex(self.unicode)
+        filtered_text, hotkey, hotkey_position = find_hotkeys_in_unicode(self.unicode)
+        self.hotkey = hotkey
+        self.hotkey_position = hotkey_position
+        self.asm_bytes = unicode_to_atari_hex2(filtered_text, hotkey_position)
+        self.unicode = filtered_text
         self.length = len(self.asm_bytes)
 
 @dataclass
@@ -168,6 +183,7 @@ def replaceTemplate(orig, newt, idx):
         if i + idx >= len(orig):
             break
         a[i + idx] = t[i]
+        a[i + idx] = '.'
 
     return "".join(a)
 
@@ -187,8 +203,7 @@ def getLabelText() -> TextCollection:
             raise ValueError(f"Unknown label type: {type(it)}")
 
     # Left column labels
-    add_it(LabelText('L1C', 'Aces'))        # Left column labels
-
+    add_it(LabelText('L1C', '~Aces'))        # Left column labels
     add_it(ScoreText('S1C'))
     add_it(LabelText('L2C', 'Twos'))
     add_it(ScoreText('S2C'))
@@ -232,11 +247,11 @@ def getLabelText() -> TextCollection:
     add_it(ScoreText('SGT'))
 
 
-    add_it(DieContainer('DIE0', '  1  '))
-    add_it(DieContainer('DIE1', '  2  '))
-    add_it(DieContainer('DIE2', '  3  '))
-    add_it(DieContainer('DIE3', '  4  '))
-    add_it(DieContainer('DIE4', '  5  '))
+    add_it(DieContainer('DIE0', '  ~1  '))
+    add_it(DieContainer('DIE1', '  ~2  '))
+    add_it(DieContainer('DIE2', '  ~3  '))
+    add_it(DieContainer('DIE3', '  ~4  '))
+    add_it(DieContainer('DIE4', '  ~5  '))
 
     return label_collections
 
@@ -264,7 +279,6 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
 
     pips_digits = [str(i) for i in range(NUMBER_OF_PIPS)]
 
-
     for d in pips_digits:
         die.pips.append(DiePip())
 
@@ -284,9 +298,7 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
 
             pos = (row * SCREEN_WIDTH) + col
             unicode_art = unicode_art[:pos] + display + unicode_art[pos + 1:]
-
     return unicode_art
-
 
 def getScreenFrame() -> TextCollection:
     unicode_art_lines = getScreenUnicodeArt()
@@ -327,6 +339,7 @@ def getScreenFrame() -> TextCollection:
     for die in labelTextInfo.dieContainer:
         atariUnicodeArt = add_dice_boxes(die, atariUnicodeArt)
 
+
     label = LabelText("MAIN", atariUnicodeArt)
     label.screen_col = 0
     label.screen_row = 0
@@ -345,19 +358,61 @@ def byte_as_hex(byte: int) -> str:
 
     return f"${byte:02X}"
 
-def unicode_to_atari_hex(unicode: str) -> list[str]:
+def filter_unicode(unicode: str) -> str:
+    # Filter out HOTKEY_MARKER characters from the text
+    filtered_text = ''.join(char for char in unicode if char != HOTKEY_MARKER)
+    return filtered_text
+
+def find_hotkeys_in_unicode(unicode: str) -> tuple[str, int]:
+    """
+    Filter HOTKEY_MARKER (~) characters from the text and return its position.
+
+    Args:
+        unicode: Input string containing at most one HOTKEY_MARKER character
+
+    Returns:
+        Tuple of (filtered_string, marker_position)
+        - filtered_string: The input with HOTKEY_MARKER removed
+        - hot_key: The string of the how key, or "" if none
+        - marker_position: Index where HOTKEY_MARKER was found, or -1 if none
+
+    Raises:
+        ValueError: If more than one HOTKEY_MARKER is found
+    """
+    # Find and record HOTKEY_MARKER positions
+    hotkey_positions = [i for i, char in enumerate(unicode) if char == HOTKEY_MARKER]
+
+    # Validate that there's at most one marker
+    if len(hotkey_positions) > 1:
+        print(unicode)
+        raise ValueError(f"Multiple HOTKEY_MARKERs found: {hotkey_positions}. Only one is allowed.")
+
+    # Filter out HOTKEY_MARKER characters from the text
+    filtered_text = filter_unicode(unicode)
+
+    # Return position or -1 if no marker found
+    marker_position = hotkey_positions[0] if hotkey_positions else -1
+
+    hot_key = "" if (marker_position == -1) else filtered_text[marker_position]
+
+    return filtered_text, hot_key, marker_position
+
+def unicode_to_atari_hex2(unicode: str, hotkey_position: int) -> list[str]:
+
     """Convert UNICODE string to ATSCII hex bytes."""
     result = []
-    for char in unicode:
+    for idx, char in enumerate(unicode):
         if char not in ATASCII_MAP:
             raise ValueError(f"Character '{char}' is not ATASCII")
+
+        modifier = 0x80 if idx == hotkey_position else 0x00
 
         if char in ATASCII_REQUIRES_ESCAPE:
             result.append(byte_as_hex(ATASCII_MAP[ATASCII_ESCAPE]))
 
-        result.append(byte_as_hex(ATASCII_MAP[char]))
-    return result
+        result.append(byte_as_hex(ATASCII_MAP[char]+ modifier))
 
+    return result
 
 def createRamRegion(prefix: str, labels: list[LabelText]) -> list[str]:
     header = []

@@ -142,12 +142,20 @@ START
         LDY #TITLE_MAIN
         JSR DISPLAY_MESSAGE
 
-;        LDY #TITLE_MAIN
-;NEXT_LABEL
-;        JSR DISPLAY_MESSAGE
-;        ;DEY
-;        ;BPL NEXT_LABEL        ; Branches if the value is between 0-127
-;DONE_PRINT_LABEL
+        LDY #TITLE_MAIN
+NEXT_LABEL
+        JSR DISPLAY_MESSAGE
+        DEY
+        BPL NEXT_LABEL        ; Branches if the value is between 0-127
+
+        LDY #TITLE_DIE4
+NEXT_LABELD
+        JSR DISPLAY_MESSAGE
+        DEY
+        TYA
+        CMP #TITLE_DIE0
+        BCS NEXT_LABELD        ; CS (Not less than)
+
 
 
         JSR SHOW_PIPS
