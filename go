@@ -1,8 +1,13 @@
 #!/bin/bash
+set -e
 
-rm yahtzee.65o
-rm scores/strings.m65
-rm a8*
+cd venv
+./runit
+cd ..
 
-./scores/scores.py && ../code/atasm -xd2.atr -g/tmp/file.lst  ./yahtzee.m65 && ../code/atari800 yahtzee.65o
+rm -f yahtzee.65o
+rm -f codegen/strings.m65
+rm -f a8*
+
+./codegen/scores.py && ../code/atasm -xd2.atr -g/tmp/file.lst  ./yahtzee.m65 && ../code/atari800 yahtzee.65o
 

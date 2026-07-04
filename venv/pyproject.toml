@@ -1,0 +1,26 @@
+[project]
+name = "your-project"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+# Essential rule sets: errors, pyflakes, imports, naming, pyupgrade, etc.
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
+# Let the formatter handle line lengths
+ignore = ["E501"]
+
+# ----- If using Pyrefly (recommended) -----
+[tool.pyrefly]
+python-version = "3.12"
+# Enable strict mode to catch everything
+strict = true
+
+# ----- If using mypy instead -----
+# [tool.mypy]
+# python_version = "3.12"
+# strict = true
+# warn_unused_ignores = true

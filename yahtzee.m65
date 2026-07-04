@@ -92,10 +92,10 @@ PIP_MASK        .DS 1
 
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
-.INCLUDE scores/binary.asm
+.INCLUDE codegen/binary.asm
 
         *=$4000
-.INCLUDE scores/ram.m65
+.INCLUDE codegen/ram.m65
 PRNBUF          .DS 5
 SCRBUF          .DS 5
 
@@ -114,8 +114,7 @@ CURRENT_PIP_PATTERN     .BYTE 1
 
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
-
-.INCLUDE scores/strings.m65
+.INCLUDE codegen/strings.m65
 .INCLUDE gameloop.m65
 
 

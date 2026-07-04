@@ -1,0 +1,5 @@
+set -e
+. ./.venv/bin/activate
+ruff format ../codegen/
+ruff check ../codegen --fix
+pyrefly check ../codegen
