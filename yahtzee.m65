@@ -92,7 +92,6 @@ PIP_MASK        .DS 1
 
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
-.INCLUDE codegen/binary.asm
 
         *=$4000
 .INCLUDE codegen/ram.m65
@@ -263,13 +262,13 @@ MEMFILL_DONE:
 ;        "|5 6|",
 ;        "└───┘",
 
-DIE_PATTERN_0 = B00000000
-DIE_PATTERN_1 = B00010000
-DIE_PATTERN_2 = B01000100
-DIE_PATTERN_3 = B01010100
-DIE_PATTERN_4 = B11000110
-DIE_PATTERN_5 = B11010110
-DIE_PATTERN_6 = B11101110
+DIE_PATTERN_0 = %00000000
+DIE_PATTERN_1 = %00010000
+DIE_PATTERN_2 = %01000100
+DIE_PATTERN_3 = %01010100
+DIE_PATTERN_4 = %11000110
+DIE_PATTERN_5 = %11010110
+DIE_PATTERN_6 = %11101110
 
 PIP_PATTERNS
         .BYTE DIE_PATTERN_0
@@ -322,14 +321,14 @@ SPIPL
 
 
 SHFTPIP
-        .BYTE B00000001
-        .BYTE B00000010
-        .BYTE B00000100
-        .BYTE B00001000
-        .BYTE B00010000
-        .BYTE B00100000
-        .BYTE B01000000
-        .BYTE B10000000
+        .BYTE %00000001
+        .BYTE %00000010
+        .BYTE %00000100
+        .BYTE %00001000
+        .BYTE %00010000
+        .BYTE %00100000
+        .BYTE %01000000
+        .BYTE %10000000
 
 SHOWPIP
         PUSHALL        ; Save all registers
@@ -436,7 +435,7 @@ GetRandom
 GetRandom1
         JSR GetRandomMut
 GetRandom2
-        AND #B00000111
+        AND #%00000111
         CMP #$06        ; The number of faces
         BCS GetRandom
 
