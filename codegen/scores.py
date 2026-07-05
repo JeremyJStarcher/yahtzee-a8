@@ -191,21 +191,21 @@ class TextProcessingMixin:
     LabelText and DieContainer classes.
     """
 
-    def _process_text(self, unicode: str) -> tuple[str, str, int, list[str], int]:
+    def _process_text(self, unicode: str) -> tuple[str, int, list[str], int]:
         """
-        Process unicode text to extract hotkeys and convert to ATASCII bytes.
+        Process unicode text to filter markers and convert to ATASCII bytes.
 
         Args:
             unicode: Input string that may contain HOTKEY_MARKER characters
 
         Returns:
-            Tuple of (filtered_text, hot_key, hotkey_position, asm_bytes, length)
+            Tuple of (filtered_text, marker_position, asm_bytes, length)
         """
-        filtered_text, hot_key, hotkey_position = find_hotkeys_in_unicode(unicode)
-        asm_bytes = unicode_to_atari_hex2(filtered_text, hotkey_position)
+        filtered_text, marker_position = find_hotkeys_in_unicode(unicode)
+        asm_bytes = unicode_to_atari_hex2(filtered_text, marker_position)
         length = len(asm_bytes)
 
-        return filtered_text, hot_key, hotkey_position, asm_bytes, length
+        return filtered_text, marker_position, asm_bytes, length
 
     def _initialize_from_text(self, unicode: str) -> None:
         """
@@ -218,16 +218,10 @@ class TextProcessingMixin:
         Args:
             unicode: Input string that may contain HOTKEY_MARKER characters
         """
-        filtered_text, hot_key, hotkey_position, asm_bytes, length = self._process_text(
-            unicode
-        )
+        filtered_text, marker_position, asm_bytes, length = self._process_text(unicode)
 
         # Set common attributes - subclasses may override specific ones after calling this
-        if hasattr(self, "hotkey"):
-            self.hotkey = hot_key
-        if hasattr(self, "hotkey_keycode"):
-            self.hotkey_keycode = ord(hot_key) if hot_key else -1
-        self.hotkey_position = hotkey_position
+        self.hotkey_position = marker_position
         self.unicode = filtered_text
         print(filtered_text)
 
@@ -260,7 +254,6 @@ class LabelText(ScreenElement, TextProcessingMixin):
 
     unicode: str = ""
     hotkey_position: int = -1
-    hotkey_keycode: int = -1
 
     def __post_init__(self):
         """Process the unicode text to extract hotkeys and generate assembly bytes."""
@@ -552,7 +545,7 @@ def filter_unicode(unicode: str) -> str:
     return filtered_text
 
 
-def find_hotkeys_in_unicode(unicode: str) -> tuple[str, str, int]:
+def find_hotkeys_in_unicode(unicode: str) -> tuple[str, int]:
     """
     Filter HOTKEY_MARKER (∼) characters from the text and return its position.
 
@@ -560,9 +553,8 @@ def find_hotkeys_in_unicode(unicode: str) -> tuple[str, str, int]:
         unicode: Input string containing at most one HOTKEY_MARKER character
 
     Returns:
-        Tuple of (filtered_string, hot_key, marker_position)
+        Tuple of (filtered_string, marker_position)
         - filtered_string: The input with HOTKEY_MARKER removed
-        - hot_key: The string of the hotkey, or "" if none
         - marker_position: Index where HOTKEY_MARKER was found, or -1 if none
 
     Raises:
@@ -584,9 +576,7 @@ def find_hotkeys_in_unicode(unicode: str) -> tuple[str, str, int]:
     # Return position or -1 if no marker found
     marker_position = hotkey_positions[0] if hotkey_positions else -1
 
-    hot_key = "" if (marker_position == -1) else filtered_text[marker_position]
-
-    return filtered_text, hot_key, marker_position
+    return filtered_text, marker_position
 
 
 def unicode_to_atari_hex2(unicode: str, hotkey_position: int) -> list[str]:
