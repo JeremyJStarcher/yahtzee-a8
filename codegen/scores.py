@@ -151,7 +151,7 @@ ATASCII = [
     "▶",
 ]
 
-HOTKEY_MARKER = "~"
+HIGHLIGHT_KEY_MARKER = "~"
 
 SCREEN_PLACE_HOLDER = "▂"
 
@@ -186,7 +186,7 @@ class TextProcessingMixin:
     """
     Mixin providing unicode text processing functionality.
 
-    Handles hotkey extraction, unicode filtering, and conversion
+    Handles highlight key position extraction, unicode filtering, and conversion
     to ATASCII assembly bytes. This eliminates duplication between
     LabelText and DieContainer classes.
     """
@@ -196,32 +196,34 @@ class TextProcessingMixin:
         Process unicode text to filter markers and convert to ATASCII bytes.
 
         Args:
-            unicode: Input string that may contain HOTKEY_MARKER characters
+            unicode: Input string that may contain HIGHLIGHT_KEY_MARKER characters
 
         Returns:
-            Tuple of (filtered_text, marker_position, asm_bytes, length)
+            Tuple of (filtered_text, highlight_key_idx, asm_bytes, length)
         """
-        filtered_text, marker_position = find_hotkeys_in_unicode(unicode)
-        asm_bytes = unicode_to_atari_hex2(filtered_text, marker_position)
+        filtered_text, highlight_key_idx = find_highlight_idx_in_unicode(unicode)
+        asm_bytes = unicode_to_atari_hex2(filtered_text, highlight_key_idx)
         length = len(asm_bytes)
 
-        return filtered_text, marker_position, asm_bytes, length
+        return filtered_text, highlight_key_idx, asm_bytes, length
 
     def _initialize_from_text(self, unicode: str) -> None:
         """
         Initialize instance variables from unicode text.
 
-        Processes the text to extract hotkeys and generate assembly bytes,
+        Processes the text to extract highlight_key_idx and generate assembly bytes,
         then sets all relevant instance attributes. Subclasses can call this
         in their __post_init__ to avoid code duplication.
 
         Args:
-            unicode: Input string that may contain HOTKEY_MARKER characters
+            unicode: Input string that may contain HIGHLIGHT_KEY_MARKER characters
         """
-        filtered_text, marker_position, asm_bytes, length = self._process_text(unicode)
+        filtered_text, highlight_key_idx, asm_bytes, length = self._process_text(
+            unicode
+        )
 
         # Set common attributes - subclasses may override specific ones after calling this
-        self.hotkey_position = marker_position
+        self.highlight_key_idx = highlight_key_idx
         self.unicode = filtered_text
         print(filtered_text)
 
@@ -253,10 +255,10 @@ class LabelText(ScreenElement, TextProcessingMixin):
     """
 
     unicode: str = ""
-    hotkey_position: int = -1
+    highlight_key_idx: int = -1
 
     def __post_init__(self):
-        """Process the unicode text to extract hotkeys and generate assembly bytes."""
+        """Process the unicode text to extract highlight_key_idx and generate assembly bytes."""
         self._initialize_from_text(self.unicode)
 
 
@@ -275,7 +277,7 @@ class DieContainer(ScreenElement, TextProcessingMixin):
     pip_empty_asm_bytes: list[str] = field(default_factory=list)
 
     def __post_init__(self):
-        """Process the unicode text to extract hotkeys and generate assembly bytes."""
+        """Process the unicode text to extract highlight_key_idx and generate assembly bytes."""
         self._initialize_from_text(self.unicode)
 
 
@@ -392,7 +394,7 @@ def get_label_text() -> TextCollection:
     # Left column labels
     add_it(LabelText(key="L1C", unicode="~Aces"))  # Left column labels
     add_it(ScoreText(key="S1C"))
-    add_it(LabelText(key="L2C", unicode="Twos"))
+    add_it(LabelText(key="L2C", unicode="T~wos"))
     add_it(ScoreText(key="S2C"))
     add_it(LabelText(key="L3C", unicode="Threes"))
     add_it(ScoreText(key="S3C"))
@@ -540,53 +542,55 @@ def byte_as_hex(byte: int) -> str:
 
 
 def filter_unicode(unicode: str) -> str:
-    # Filter out HOTKEY_MARKER characters from the text
-    filtered_text = "".join(char for char in unicode if char != HOTKEY_MARKER)
+    # Filter out HIGHLIGHT_KEY_MARKER characters from the text
+    filtered_text = "".join(char for char in unicode if char != HIGHLIGHT_KEY_MARKER)
     return filtered_text
 
 
-def find_hotkeys_in_unicode(unicode: str) -> tuple[str, int]:
+def find_highlight_idx_in_unicode(unicode: str) -> tuple[str, int]:
     """
-    Filter HOTKEY_MARKER (∼) characters from the text and return its position.
+    Filter HIGHLIGHT_KEY_MARKER (∼) characters from the text and return its position.
 
     Args:
-        unicode: Input string containing at most one HOTKEY_MARKER character
+        unicode: Input string containing at most one HIGHLIGHT_KEY_MARKER character
 
     Returns:
-        Tuple of (filtered_string, marker_position)
-        - filtered_string: The input with HOTKEY_MARKER removed
-        - marker_position: Index where HOTKEY_MARKER was found, or -1 if none
+        Tuple of (filtered_string, highlight_key_idx)
+        - filtered_string: The input with HIGHLIGHT_KEY_MARKER removed
+        - highlight_key_idx: Index where HIGHLIGHT_KEY_MARKER was found, or -1 if none
 
     Raises:
-        ValueError: If more than one HOTKEY_MARKER is found
+        ValueError: If more than one HIGHLIGHT_KEY_MARKER is found
     """
-    # Find and record HOTKEY_MARKER positions
-    hotkey_positions = [i for i, char in enumerate(unicode) if char == HOTKEY_MARKER]
+    # Find and record HIGHLIGHT_KEY_MARKER positions
+    highlight_key_positions = [
+        i for i, char in enumerate(unicode) if char == HIGHLIGHT_KEY_MARKER
+    ]
 
     # Validate that there's at most one marker
-    if len(hotkey_positions) > 1:
+    if len(highlight_key_positions) > 1:
         print(unicode)
         raise ValueError(
-            f"Multiple HOTKEY_MARKERs found: {hotkey_positions}. Only one is allowed."
+            f"Multiple HIGHLIGHT_KEY_MARKERs found: {highlight_key_positions}. Only one is allowed."
         )
 
-    # Filter out HOTKEY_MARKER characters from the text
+    # Filter out HIGHLIGHT_KEY_MARKER characters from the text
     filtered_text = filter_unicode(unicode)
 
     # Return position or -1 if no marker found
-    marker_position = hotkey_positions[0] if hotkey_positions else -1
+    highlight_key_idx = highlight_key_positions[0] if highlight_key_positions else -1
 
-    return filtered_text, marker_position
+    return filtered_text, highlight_key_idx
 
 
-def unicode_to_atari_hex2(unicode: str, hotkey_position: int) -> list[str]:
+def unicode_to_atari_hex2(unicode: str, highlight_key_idx: int) -> list[str]:
     """Convert UNICODE string to ATSCII hex bytes."""
     result = []
     for idx, char in enumerate(unicode):
         if char not in ATASCII_MAP:
             raise ValueError(f"Character '{char}' is not ATASCII")
 
-        modifier = 0x80 if idx == hotkey_position else 0x00
+        modifier = 0x80 if idx == highlight_key_idx else 0x00
 
         if char in ATASCII_REQUIRES_ESCAPE:
             result.append(byte_as_hex(ATASCII_MAP[ATASCII_ESCAPE]))
