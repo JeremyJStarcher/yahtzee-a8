@@ -180,6 +180,7 @@ class ScreenElement:
     screen_col: int = -1
     length: int = 0
     asm_bytes: list[str] = field(default_factory=list)
+    keyboard_code: int = -1
 
 
 class TextProcessingMixin:
