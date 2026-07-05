@@ -207,6 +207,33 @@ class TextProcessingMixin:
 
         return filtered_text, hot_key, hotkey_position, asm_bytes, length
 
+    def _initialize_from_text(self, unicode: str) -> None:
+        """
+        Initialize instance variables from unicode text.
+
+        Processes the text to extract hotkeys and generate assembly bytes,
+        then sets all relevant instance attributes. Subclasses can call this
+        in their __post_init__ to avoid code duplication.
+
+        Args:
+            unicode: Input string that may contain HOTKEY_MARKER characters
+        """
+        filtered_text, hot_key, hotkey_position, asm_bytes, length = self._process_text(
+            unicode
+        )
+
+        # Set common attributes - subclasses may override specific ones after calling this
+        if hasattr(self, "hotkey"):
+            self.hotkey = hot_key
+        if hasattr(self, "hotkey_keycode"):
+            self.hotkey_keycode = ord(hot_key) if hot_key else -1
+        self.hotkey_position = hotkey_position
+        self.unicode = filtered_text
+        print(filtered_text)
+
+        self.asm_bytes = asm_bytes
+        self.length = length
+
 
 @dataclass
 class ScoreText(ScreenElement):
@@ -237,17 +264,7 @@ class LabelText(ScreenElement, TextProcessingMixin):
 
     def __post_init__(self):
         """Process the unicode text to extract hotkeys and generate assembly bytes."""
-        filtered_text, hot_key, hotkey_position, asm_bytes, length = self._process_text(
-            self.unicode
-        )
-
-        self.hotkey_keycode = ord(hot_key) if hot_key else -1
-        self.hotkey_position = hotkey_position
-        self.unicode = filtered_text
-        print(filtered_text)
-
-        self.asm_bytes = asm_bytes
-        self.length = length
+        self._initialize_from_text(self.unicode)
 
 
 @dataclass
@@ -266,17 +283,7 @@ class DieContainer(ScreenElement, TextProcessingMixin):
 
     def __post_init__(self):
         """Process the unicode text to extract hotkeys and generate assembly bytes."""
-        filtered_text, hot_key, hotkey_position, asm_bytes, length = self._process_text(
-            self.unicode
-        )
-
-        self.hotkey = hot_key
-        self.hotkey_position = hotkey_position
-        self.unicode = filtered_text
-        print(filtered_text)
-
-        self.asm_bytes = asm_bytes
-        self.length = length
+        self._initialize_from_text(self.unicode)
 
 
 @dataclass
