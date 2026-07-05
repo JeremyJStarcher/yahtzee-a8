@@ -56,12 +56,6 @@
 
 ;; Yes, these macros are brutal and dirty... but they are meant for debugging, so that's OK.
 ;; I'm not worried about them being bloated as long as they are easy to use.
-.MACRO PPRINTLN
-   PPRINT %$1
-   PPRINT EOL
-.ENDM
-
-
 
 .MACRO MAKE_OUTPUT_CONTROL
 %$1_IOCB        .BYTE E_IOCB2

@@ -161,7 +161,6 @@ HW_DISPLAY
 
 INIT_PROGRAM
         OPEN  E_IO_CHANNEL,IO_OWRIT,0,"E:"
-        OPEN  P_IO_CHANNEL,IO_OWRIT,0,"P:"
 
         ; Set left margin
         LDA #0
@@ -179,15 +178,23 @@ INIT_PROGRAM
 ; Good housekeeping for programs that return to DOS or BASIC.
 ; ================================================================
 
+
+
 FINISH_PROGRAM
         CLOSE E_IO_CHANNEL
-        CLOSE P_IO_CHANNEL
+        JSR CLOSE_LPT
         RTS
 
+.MACRO PPRINTLN
+   PPRINT %$1
+   PPRINT EOL
+   JSR CLOSE_LPT
+.ENDM
 
 
 .MACRO PPRINT
         PUSHALL
+        JSR OPEN_LPT
 
         JMP SKIPTEXT?
 
@@ -214,6 +221,28 @@ SKIPTEXT?
 .ENDM
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Why yes, we do open and close the printer with every line
+;;
+;; Using the Atari 800 Emulator, short output gets sent to STDOUT
+;; but longer output (or, perhaps, the print buffer being held open
+;; too long) gets sent to a temporary file of "a8*" (random name).
+;;
+;; We wanna see that output!
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+OPEN_LPT:
+        PUSHALL
+        OPEN P_IO_CHANNEL,IO_OWRIT,0,"P:"
+        POPALL
+        RTS
+
+CLOSE_LPT:
+        PUSHALL
+        CLOSE P_IO_CHANNEL
+        POPALL
+        RTS
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; A   - LOWER NIBBLE VALUE TO PRINT TO PRINTER
 ;
@@ -225,6 +254,7 @@ SKIPTEXT?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 P_NIBBLE_OUT
         PUSHALL
+        JSR OPEN_LPT
 
         TAX
         LDA HEXCHARS,X
