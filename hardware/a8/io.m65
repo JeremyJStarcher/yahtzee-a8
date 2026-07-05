@@ -84,7 +84,6 @@ ICAX2   = $034B        ; Auxiliary byte 2
 CIOV    = $E456        ; Jump here with X pointing to an IOCB
 
 
-
 ; ================================================================
 ; DISPLAY_MESSAGE
 ;
@@ -102,8 +101,7 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
 ;
 ; ================================================================
 
-
-HW_DISPLAY
+.PROC HW_DISPLAY
         PUSHALL        ; Save all registers
 
         LDX #E_IOCB2
@@ -134,7 +132,7 @@ HW_DISPLAY
         JSR CIOV
         POPALL         ; Restore all registers
         RTS
-
+.ENDP
 
 
 
@@ -159,7 +157,7 @@ HW_DISPLAY
 ;
 ; ================================================================
 
-INIT_PROGRAM
+.PROC INIT_PROGRAM
         OPEN  E_IO_CHANNEL,IO_OWRIT,0,"E:"
 
         ; Set left margin
@@ -169,7 +167,7 @@ INIT_PROGRAM
         LDA #1
         STA CRSINH ; HIDE CURSOR
         RTS
-
+.ENDP
 
 ; ================================================================
 ; FINISH_PROGRAM
@@ -178,12 +176,11 @@ INIT_PROGRAM
 ; Good housekeeping for programs that return to DOS or BASIC.
 ; ================================================================
 
-
-
-FINISH_PROGRAM
+.PROC FINISH_PROGRAM
         CLOSE E_IO_CHANNEL
         JSR CLOSE_LPT
         RTS
+.ENDP
 
 .MACRO PPRINTLN
    PPRINT %$1
@@ -230,18 +227,19 @@ SKIPTEXT?
 ;;
 ;; We wanna see that output!
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-OPEN_LPT:
+.PROC OPEN_LPT:
         PUSHALL
         OPEN P_IO_CHANNEL,IO_OWRIT,0,"P:"
         POPALL
         RTS
+.ENDP
 
-CLOSE_LPT:
+.PROC CLOSE_LPT:
         PUSHALL
         CLOSE P_IO_CHANNEL
         POPALL
         RTS
-
+.ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; A   - LOWER NIBBLE VALUE TO PRINT TO PRINTER
@@ -252,12 +250,12 @@ CLOSE_LPT:
 ; all systems, regardess of what character encoding they use.
 ; ASCII/Atari ASCII/Anything else
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-P_NIBBLE_OUT
+.PROC P_NIBBLE_OUT
         PUSHALL
         JSR OPEN_LPT
 
         TAX
-        LDA HEXCHARS,X
+        LDA ?HEXCHARS,X
         STA PRNBUF + 0
 
         LDX #P_IOCB3
@@ -278,5 +276,6 @@ P_NIBBLE_OUT
         POPALL
         RTS
 
-HEXCHARS .BYTE '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-
+?HEXCHARS:
+         .BYTE '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+.ENDP

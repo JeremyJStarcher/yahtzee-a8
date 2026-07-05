@@ -160,73 +160,129 @@ ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
 
 @dataclass
 class DiePip:
+    """Represents a single pip position on a die."""
+
     screen_row: int = -1
     screen_col: int = -1
 
 
 @dataclass
-class DieContainer:
-    """Represents a label definition with its position on screen."""
+class ScreenElement:
+    """
+    Base class for any element positioned on screen.
+
+    Provides common fields shared by all positioned elements like labels,
+    scores, and dice containers.
+    """
 
     key: str
-    unicode: str
-    hot_key: str = ""
-    asm_bytes: list[str] = field(default_factory=list)
-    length: int = 0
     screen_row: int = -1
     screen_col: int = -1
-    pips: list[DiePip] = field(default_factory=list)
+    length: int = 0
+    asm_bytes: list[str] = field(default_factory=list)
 
-    pip_fill_asm_bytes: list[str] = field(default_factory=list)
-    pip_empty_asm_bytes: list[str] = field(default_factory=list)
+
+class TextProcessingMixin:
+    """
+    Mixin providing unicode text processing functionality.
+
+    Handles hotkey extraction, unicode filtering, and conversion
+    to ATASCII assembly bytes. This eliminates duplication between
+    LabelText and DieContainer classes.
+    """
+
+    def _process_text(self, unicode: str) -> tuple[str, str, int, list[str], int]:
+        """
+        Process unicode text to extract hotkeys and convert to ATASCII bytes.
+
+        Args:
+            unicode: Input string that may contain HOTKEY_MARKER characters
+
+        Returns:
+            Tuple of (filtered_text, hot_key, hotkey_position, asm_bytes, length)
+        """
+        filtered_text, hot_key, hotkey_position = find_hotkeys_in_unicode(unicode)
+        asm_bytes = unicode_to_atari_hex2(filtered_text, hotkey_position)
+        length = len(asm_bytes)
+
+        return filtered_text, hot_key, hotkey_position, asm_bytes, length
+
+
+@dataclass
+class ScoreText(ScreenElement):
+    """Represents a score display area on screen."""
+
+    # Inherits all fields from ScreenElement:
+    # - key
+    # - screen_row
+    # - screen_col
+    # - length
+    # - asm_bytes
+
+    pass
+
+
+@dataclass
+class LabelText(ScreenElement, TextProcessingMixin):
+    """
+    Represents a text label with position on screen.
+
+    Extends ScreenElement with unicode text content and automatic
+    processing into ATASCII assembly bytes.
+    """
+
+    unicode: str = ""
+    hotkey_position: int = -1
+    hotkey_keycode: int = -1
 
     def __post_init__(self):
-        filtered_text, hotkey, hotkey_position = find_hotkeys_in_unicode(self.unicode)
-        self.hotkey = hotkey
+        """Process the unicode text to extract hotkeys and generate assembly bytes."""
+        filtered_text, hot_key, hotkey_position, asm_bytes, length = self._process_text(
+            self.unicode
+        )
+
+        self.hotkey_keycode = ord(hot_key) if hot_key else -1
         self.hotkey_position = hotkey_position
         self.unicode = filtered_text
         print(filtered_text)
 
-        self.asm_bytes = unicode_to_atari_hex2(filtered_text, hotkey_position)
-
-        self.length = len(self.asm_bytes)
+        self.asm_bytes = asm_bytes
+        self.length = length
 
 
 @dataclass
-class LabelText:
-    """Represents a label definition with its position on screen."""
+class DieContainer(ScreenElement, TextProcessingMixin):
+    """
+    Represents a die display container with pips and optional label.
 
-    key: str
-    unicode: str
-    asm_bytes: list[str] = field(default_factory=list)
-    length: int = 0
-    screen_row: int = -1
-    screen_col: int = -1
-    hotkey_position: int = -1
-    hotkey: str = ""
+    Extends ScreenElement with pip positioning data for rendering
+    dice faces, plus optional unicode text for labeling.
+    """
+
+    unicode: str = ""
+    pips: list[DiePip] = field(default_factory=list)
+    pip_fill_asm_bytes: list[str] = field(default_factory=list)
+    pip_empty_asm_bytes: list[str] = field(default_factory=list)
 
     def __post_init__(self):
-        filtered_text, hotkey, hotkey_position = find_hotkeys_in_unicode(self.unicode)
-        self.hotkey = hotkey
+        """Process the unicode text to extract hotkeys and generate assembly bytes."""
+        filtered_text, hot_key, hotkey_position, asm_bytes, length = self._process_text(
+            self.unicode
+        )
+
+        self.hotkey = hot_key
         self.hotkey_position = hotkey_position
-        self.asm_bytes = unicode_to_atari_hex2(filtered_text, hotkey_position)
         self.unicode = filtered_text
-        self.length = len(self.asm_bytes)
+        print(filtered_text)
 
-
-@dataclass
-class ScoreText:
-    """Represents a label definition with its position on screen."""
-
-    key: str
-    screen_row: int = -1
-    screen_col: int = -1
-    length: int = 0
-    asm_bytes: list[str] = field(default_factory=list)
+        self.asm_bytes = asm_bytes
+        self.length = length
 
 
 @dataclass
 class TextCollection:
+    """Container for all text elements on screen."""
+
     screen_labels: list[LabelText] = field(default_factory=list)
     screen_scores: list[ScoreText] = field(default_factory=list)
     die_container: list[DieContainer] = field(default_factory=list)
@@ -253,6 +309,7 @@ class LabelExtractor:
     def extract_labels(self) -> list[LabelPosition]:
         """
         Extract all labels from the Unicode art lines.
+
         Returns a list of LabelPosition objects containing name, row, and column.
         """
         labels = []
@@ -333,54 +390,54 @@ def get_label_text() -> TextCollection:
             raise ValueError(f"Unknown label type: {type(it)}")
 
     # Left column labels
-    add_it(LabelText("L1C", "~Aces"))  # Left column labels
-    add_it(ScoreText("S1C"))
-    add_it(LabelText("L2C", "Twos"))
-    add_it(ScoreText("S2C"))
-    add_it(LabelText("L3C", "Threes"))
-    add_it(ScoreText("S3C"))
-    add_it(LabelText("L4C", "Fours"))
-    add_it(ScoreText("S4C"))
-    add_it(LabelText("L5C", "Fives"))
-    add_it(ScoreText("S5C"))
-    add_it(LabelText("L6C", "Sixes"))
-    add_it(ScoreText("S6C"))
-    add_it(LabelText("LTS", "Top Score"))
-    add_it(ScoreText("STS"))
-    add_it(LabelText("LTB", "Upper Bonus"))
-    add_it(ScoreText("STB"))
-    add_it(LabelText("LUT", "Upper Total"))
-    add_it(ScoreText("SUT"))
+    add_it(LabelText(key="L1C", unicode="~Aces"))  # Left column labels
+    add_it(ScoreText(key="S1C"))
+    add_it(LabelText(key="L2C", unicode="Twos"))
+    add_it(ScoreText(key="S2C"))
+    add_it(LabelText(key="L3C", unicode="Threes"))
+    add_it(ScoreText(key="S3C"))
+    add_it(LabelText(key="L4C", unicode="Fours"))
+    add_it(ScoreText(key="S4C"))
+    add_it(LabelText(key="L5C", unicode="Fives"))
+    add_it(ScoreText(key="S5C"))
+    add_it(LabelText(key="L6C", unicode="Sixes"))
+    add_it(ScoreText(key="S6C"))
+    add_it(LabelText(key="LTS", unicode="Top Score"))
+    add_it(ScoreText(key="STS"))
+    add_it(LabelText(key="LTB", unicode="Upper Bonus"))
+    add_it(ScoreText(key="STB"))
+    add_it(LabelText(key="LUT", unicode="Upper Total"))
+    add_it(ScoreText(key="SUT"))
 
     # Right column labels
-    add_it(LabelText("L3K", "3 of a Kind"))
-    add_it(ScoreText("S3K"))
-    add_it(LabelText("L4K", "4 of a Kind"))
-    add_it(ScoreText("S4K"))
-    add_it(LabelText("LFH", "Full House"))
-    add_it(ScoreText("SFH"))
-    add_it(LabelText("LSS", "S Straight"))
-    add_it(ScoreText("SSS"))
-    add_it(LabelText("LLS", "L Straight"))
-    add_it(ScoreText("SLS"))
-    add_it(LabelText("L5K", "5 of a Kind"))
-    add_it(ScoreText("S5K"))
-    add_it(LabelText("LCH", "Chance"))
-    add_it(ScoreText("SCH"))
-    add_it(LabelText("L5B", "5K Bonus"))
-    add_it(ScoreText("S5B"))
-    add_it(LabelText("LLT", "Lower Total"))
-    add_it(ScoreText("SLT"))
+    add_it(LabelText(key="L3K", unicode="3 of a Kind"))
+    add_it(ScoreText(key="S3K"))
+    add_it(LabelText(key="L4K", unicode="4 of a Kind"))
+    add_it(ScoreText(key="S4K"))
+    add_it(LabelText(key="LFH", unicode="Full House"))
+    add_it(ScoreText(key="SFH"))
+    add_it(LabelText(key="LSS", unicode="S Straight"))
+    add_it(ScoreText(key="SSS"))
+    add_it(LabelText(key="LLS", unicode="L Straight"))
+    add_it(ScoreText(key="SLS"))
+    add_it(LabelText(key="L5K", unicode="5 of a Kind"))
+    add_it(ScoreText(key="S5K"))
+    add_it(LabelText(key="LCH", unicode="Chance"))
+    add_it(ScoreText(key="SCH"))
+    add_it(LabelText(key="L5B", unicode="5K Bonus"))
+    add_it(ScoreText(key="S5B"))
+    add_it(LabelText(key="LLT", unicode="Lower Total"))
+    add_it(ScoreText(key="SLT"))
 
     # Bottom labels
-    add_it(LabelText("GTT", "Grand Total"))
-    add_it(ScoreText("SGT"))
+    add_it(LabelText(key="GTT", unicode="Grand Total"))
+    add_it(ScoreText(key="SGT"))
 
-    add_it(DieContainer("DIE0", "  ~1  "))
-    add_it(DieContainer("DIE1", "  ~2  "))
-    add_it(DieContainer("DIE2", "  ~3  "))
-    add_it(DieContainer("DIE3", "  ~4  "))
-    add_it(DieContainer("DIE4", "  ~5  "))
+    add_it(DieContainer(key="DIE0", unicode="  ~1  "))
+    add_it(DieContainer(key="DIE1", unicode="  ~2  "))
+    add_it(DieContainer(key="DIE2", unicode="  ~3  "))
+    add_it(DieContainer(key="DIE3", unicode="  ~4  "))
+    add_it(DieContainer(key="DIE4", unicode="  ~5  "))
 
     return label_collections
 
@@ -461,7 +518,7 @@ def get_screen_frame() -> TextCollection:
     for die in label_text_info.die_container:
         atari_unicode_art = add_dice_boxes(die, atari_unicode_art)
 
-    label = LabelText("MAIN", atari_unicode_art)
+    label = LabelText(key="MAIN", unicode=atari_unicode_art)
     label.screen_col = 0
     label.screen_row = 0
 
