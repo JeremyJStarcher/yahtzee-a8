@@ -124,6 +124,18 @@ START
         JSR CLRDICE
         JSR ShowMainBody
 
+        JSR GetRandom
+        STA DICE_0_VALUE
+        JSR GetRandom
+        STA DICE_1_VALUE
+        JSR GetRandom
+        STA DICE_2_VALUE
+        JSR GetRandom
+        STA DICE_3_VALUE
+        JSR GetRandom
+        STA DICE_4_VALUE
+
+
         JSR SHOW_PIPS
 
         JSR GAMELOOP
@@ -275,17 +287,6 @@ PIP_PATTERNS
         .BYTE DIE_PATTERN_6
 
 .PROC SHOW_PIPS
-        JSR GetRandom
-        STA DICE_0_VALUE
-        JSR GetRandom
-        STA DICE_1_VALUE
-        JSR GetRandom
-        STA DICE_2_VALUE
-        JSR GetRandom
-        STA DICE_3_VALUE
-        JSR GetRandom
-        STA DICE_4_VALUE
-
 
 ;; Set up work
         LDY #$00
@@ -358,14 +359,26 @@ SHFTPIP
         ; Get the pattern for the current dice value
         LDX CURRENT_DIE
         LDA DICE_VALUES,X
+        ; High bit is used to tell when a dice is ready to be re-rolled, so strip that out for for lookup reasons
+        AND #%01111111                          ; Strip out the high bit from the calculations
         TAX
         LDA PIP_PATTERNS,X
         STA PIP_MASK
 
+        ; No doubt this can be combined with above
+
+        LDX CURRENT_DIE
+        LDA DICE_VALUES,X
+        AND #%10000000                          ; Check to see if that high bit is set.
+        BNE ?HIDEPIP                           ; Dice is selected
+
+        ; Get the pattern for the current dice value
         LDY CURRENT_PIP_ON_DIE
         LDA SHFTPIP,Y
         BIT PIP_MASK
         BNE ?PIP_SHOW_FILLED
+
+
 
         LDY #32
         JMP ?PIPSHOW_DISPLAY
@@ -379,6 +392,11 @@ SHFTPIP
 
         POPALL         ; Restore all registers
         RTS
+
+?HIDEPIP
+        LDY #'-'
+        JMP ?PIPSHOW_DISPLAY
+
 .ENDP
 
 
