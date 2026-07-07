@@ -18,6 +18,10 @@
 ; ================================================================
 
 
+HIGHEST_DICE_FACE = 6
+NUMBER_OF_DICE = 5
+NUMBER_OF_PIPS = 7
+
 
 .MACRO PUSHALL
         php           ; Push status register
@@ -105,13 +109,13 @@ CURRENT_PIP_PATTERN     .BYTE 1
 
         *=$2400
 
+
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
 .INCLUDE codegen/strings.m65
 .INCLUDE gameloop.m65
 
 
-NUMBER_OF_PIPS = 7
 
 ; ================================================================
 ; PROGRAM ENTRY POINT
@@ -124,19 +128,7 @@ START
         JSR CLRDICE
         JSR ShowMainBody
 
-        JSR GetRandom
-        STA DICE_0_VALUE
-        JSR GetRandom
-        STA DICE_1_VALUE
-        JSR GetRandom
-        STA DICE_2_VALUE
-        JSR GetRandom
-        STA DICE_3_VALUE
-        JSR GetRandom
-        STA DICE_4_VALUE
-
-
-        JSR SHOW_PIPS
+        JSR RESET_DIE
 
         JSR GAMELOOP
 
@@ -396,12 +388,10 @@ SHFTPIP
         JMP ?PIPSHOW_DISPLAY
 .ENDP
 
-
 ;; These functions were written as debugging tools, not regular
 ;; library calls, hence they are somewhat paranoid about preserving
 ;; registers.  This lets us just drop them anywhere and not have worry
 ;; about program logic changing.
-
 
 .PROC P_BYTEOUT
         PHA        ; Save the byte to retrieve at the end
@@ -431,7 +421,6 @@ RandomPU        .BYTE 95
 RandomMut       .BYTE 74
 RandomFlip      .BYTE 0
 
-
 GetRandom
         INC RandomFlip
         LDA RandomFlip
@@ -445,13 +434,12 @@ GetRandom
         JSR ?GetRandomMut
 ?GenRandom2
         AND #%00000111
-        CMP #$06        ; The number of faces
+        CMP #HIGHEST_DICE_FACE+1
         BCS GetRandom
 
         CMP #$00
         BEQ GetRandom
         RTS
-
 
 ?GetRandomPU             ; this is for powerups
         lda RandomPU    ; load the accumulator with a seed

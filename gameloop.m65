@@ -1,4 +1,6 @@
-CMD_TOGGLE_DIE = $FE
+CMD_TOGGLE_DIE = $01
+CMD_ROLL_DICE = $02
+
 CMD_NONE = $FF
 
 ; This needs to go in the RAM section
@@ -9,14 +11,19 @@ STORE_CMD_DATA .DS 1
 DICE_KEYS_TABLE .BYTE KEY_1, KEY_2, KEY_3, KEY_4, KEY_5
 END_DICE_KEYS_TABLE
 
-
 ATARI_LAST_KEYPRESS = $02FC
 ATARI_NO_KEYPRESS = $FF
+
+.PROC PRINTKEY
+    PPRINT "KEY PRESSED "
+    JSR P_BYTEOUT
+    PPRINTLN " "
+    RTS
+.ENDP
 
 .PROC GET_COMMAND
     LDA #CMD_NONE           ; Erase the last command
     STA STORE_CMD_ACTION    ; Entirely
-
 
     LDA #ATARI_NO_KEYPRESS
     STA ATARI_LAST_KEYPRESS
@@ -24,6 +31,13 @@ ATARI_NO_KEYPRESS = $FF
     LDA ATARI_LAST_KEYPRESS
     CMP #ATARI_NO_KEYPRESS
     BEQ ?LOOP
+
+    JSR PRINTKEY
+
+    LDA ATARI_LAST_KEYPRESS
+    CMP #KEY_R
+    BEQ ROLL_DIE
+
 
     ; Get the number of possible dice
     LDY #END_DICE_KEYS_TABLE - DICE_KEYS_TABLE -1
@@ -34,9 +48,10 @@ ATARI_NO_KEYPRESS = $FF
     BEQ PROCESS_DIE_KEY
     DEY
     BPL ?TRY_DIE
+
+?EXIT
     RTS
 .ENDP
-
 
 
 .PROC PROCESS_DIE_KEY
@@ -46,7 +61,6 @@ ATARI_NO_KEYPRESS = $FF
     STA STORE_CMD_ACTION
     RTS
 .ENDP
-
 
 ; TODO: Replace this with a lookup table, or at very least, counting down 'X' and comparing.
 .PROC RUN_CMD
@@ -68,6 +82,33 @@ ATARI_NO_KEYPRESS = $FF
 
     RTS
 .ENDP
+
+.PROC RESET_DIE
+        LDA #%10000000
+        STA DICE_0_VALUE
+        STA DICE_1_VALUE
+        STA DICE_2_VALUE
+        STA DICE_3_VALUE
+        STA DICE_4_VALUE
+
+        JMP SHOW_PIPS
+.ENDP
+
+.PROC ROLL_DIE
+        JSR GetRandom
+        STA DICE_0_VALUE
+        JSR GetRandom
+        STA DICE_1_VALUE
+        JSR GetRandom
+        STA DICE_2_VALUE
+        JSR GetRandom
+        STA DICE_3_VALUE
+        JSR GetRandom
+        STA DICE_4_VALUE
+
+        JMP SHOW_PIPS
+.ENDP
+
 
 GAMELOOP
     ;JSR SHOW_PIPS
