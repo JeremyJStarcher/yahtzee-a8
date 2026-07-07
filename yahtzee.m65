@@ -62,7 +62,8 @@ NUMBER_OF_PIPS = 7
 ;; I'm not worried about them being bloated as long as they are easy to use.
 
 .MACRO MAKE_OUTPUT_CONTROL
-%$1_IOCB        .BYTE E_IOCB2
+%$1_IOCB        .BYTE %$2
+%$1_IOCB        .BYTE 1
 %$1_ROW         .BYTE 1
 %$1_COL_L       .BYTE 1
 %$1_COL_H       .BYTE 1
@@ -91,12 +92,10 @@ PIP_MASK        .DS 1
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
 
-        *=$4000
+;        *=$4000
 .INCLUDE codegen/ram.m65
 PRNBUF          .DS 5
 SCRBUF          .DS 5
-
-
 
 ; The current die being operated on.
 CURRENT_DIE             .DS 1
@@ -104,18 +103,15 @@ CURRENT_PIP_ON_SCREEN   .DS 1
 CURRENT_PIP_ON_DIE      .DS 1
 CURRENT_PIP_PATTERN     .BYTE 1
 
-
-        MAKE_OUTPUT_CONTROL SCR
+        MAKE_OUTPUT_CONTROL SCR E_IOCB2
+        MAKE_OUTPUT_CONTROL DBG P_IOCB3
 
         *=$2400
-
 
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
 .INCLUDE codegen/strings.m65
 .INCLUDE gameloop.m65
-
-
 
 ; ================================================================
 ; PROGRAM ENTRY POINT
@@ -162,17 +158,12 @@ TEST_WORD = 65535
 
         JSR HW_DISPLAY
 
-
-
-
-
         JSR GAMELOOP
 
         ; Optional: close IOCB #2.
         ; For a tiny demo this is not strictly required,
         ; but it is a good habit for larger programs.
         JMP FINISH_PROGRAM
-
 
 .PROC ShowMainBody
         LDY #TITLE_MAIN
@@ -500,9 +491,6 @@ GetRandom
 
    	sta RandomMut     ; store the random number in variable
    	rts               ; return from subroutine
-
-
-
 
 ; ----------------------------------------------------------------------
 ; Func: INT2STR

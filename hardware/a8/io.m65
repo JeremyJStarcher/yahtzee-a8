@@ -48,7 +48,6 @@ E_IO_CHANNEL = 2
 P_IOCB3   = $30
 P_IO_CHANNEL = 3
 
-
 ; ------------------------------------------------
 ; IOCB field addresses
 ; ------------------------------------------------
@@ -62,7 +61,6 @@ P_IO_CHANNEL = 3
 ;
 ; stores into the command field for IOCB #2.
 ; ------------------------------------------------
-
 
 ICBAL   = $0344        ; Buffer address, low byte
 ICBAH   = $0345        ; Buffer address, high byte
@@ -105,7 +103,6 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
         PUSHALL        ; Save all registers
 
         LDX #E_IOCB2
-
         LDA #IO_PUTCHR
         STA ICCOM,X
 
@@ -133,8 +130,6 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
         POPALL         ; Restore all registers
         RTS
 .ENDP
-
-
 
 ; ================================================================
 ; INIT_PROGRAM
@@ -188,37 +183,52 @@ CIOV    = $E456        ; Jump here with X pointing to an IOCB
    JSR CLOSE_LPT
 .ENDM
 
-
 .MACRO PPRINT
         PUSHALL
-        JSR OPEN_LPT
-
         JMP SKIPTEXT?
 
 TESTMESSAGE? .BYTE %$1
 TESTMESSAGEL? .WORD *-TESTMESSAGE?
 
 SKIPTEXT?
+        LDA #<TESTMESSAGE?
+        STA DBG_PTR_L
+        LDA #>TESTMESSAGE?
+        STA DBG_PTR_H
+
+        LDA TESTMESSAGEL?
+        STA DBG_LEN_L
+        LDA TESTMESSAGEL? + 1
+        STA DBG_LEN_H
+
+        JSR HW_PRINT
+        POPALL
+.ENDM
+
+.PROC HW_PRINT
+        PUSHALL
+        JSR OPEN_LPT
+
         LDX #P_IOCB3
         LDA #IO_PUTCHR
         STA ICCOM,X
 
-        LDA #<TESTMESSAGE?
+        ; Address of the text buffer to print.
+        LDA DBG_PTR_L
         STA ICBAL,X
-        LDA #>TESTMESSAGE?
+        LDA DBG_PTR_H
         STA ICBAH,X
 
-        LDA TESTMESSAGEL?
+        ; Length of the text buffer.
+        LDA DBG_LEN_L
         STA ICBLL,X
-        LDA TESTMESSAGEL? + 1
+        LDA DBG_LEN_H
         STA ICBLH,X
 
         JSR CIOV
-        POPALL
-.ENDM
-
-
-
+        POPALL         ; Restore all registers
+        RTS
+.ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Why yes, we do open and close the printer with every line
@@ -254,27 +264,22 @@ SKIPTEXT?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC P_NIBBLE_OUT
         PUSHALL
-        JSR OPEN_LPT
 
         TAX
         LDA ?HEXCHARS,X
         STA PRNBUF + 0
 
-        LDX #P_IOCB3
-        LDA #IO_PUTCHR
-        STA ICCOM,X
-
         LDA #<PRNBUF
-        STA ICBAL,X
+        STA DBG_PTR_L
         LDA #>PRNBUF
-        STA ICBAH,X
+        STA DBG_PTR_H
 
-        LDA #1 ; Just one byte to print
-        STA ICBLL,X
-        LDA #0
-        STA ICBLH,X
+        LDA # <$01 ; Just one byte to print
+        STA DBG_LEN_L
+        LDA # >$01
+        STA DBG_LEN_H
 
-        JSR CIOV
+        JSR HW_PRINT
         POPALL
         RTS
 
