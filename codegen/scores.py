@@ -342,19 +342,19 @@ def get_screen_unicode_art() -> list[str]:
         " |#LTS        #STS |#LCH        #SCH  | ",
         " |#LTB        #STB |#L5B        #S5B  | ",
         " |#LUT        #SUT |#LLT        #SLT  | ",
-        " ├───────┬─────────┴──────────┬───────┤ ",
-        " | ↑↓←→  | #GTT         #SGT  |  ♠🢰◀▶ | ",
-        " └───────┴────────────────────┴───────┘ ",
+        " ├───────────────┬─┴──────────────────┤ ",
+        " |#LROL      #RCT| #GTT         #SGT  | ",
+        " └───────────────┴────────────────────┘ ",
         "   #DIE0  #DIE1  #DIE2  #DIE3  #DIE4    ",
         "                                        ",
         "                                        ",
         "                                        ",
         "                                        ",
         "                                        ",
-        " LINE4                                  ",
+        " ────────────────────────────────────── ",
         " #INSTR                                 ",
-        " LINE2                                  ",
-        " LINE1                                  ",
+        "                                        ",
+        "                                        ",
         " ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂",
     ]
 
@@ -435,13 +435,16 @@ def get_label_text() -> TextCollection:
     add_it(LabelText(key="GTT", unicode="Grand Total"))
     add_it(ScoreText(key="SGT"))
 
+    add_it(LabelText(key="LROL", unicode="Roll #"))
+    add_it(ScoreText(key="RCT"))
+
     add_it(DieContainer(key="DIE0", unicode="  ~1  "))
     add_it(DieContainer(key="DIE1", unicode="  ~2  "))
     add_it(DieContainer(key="DIE2", unicode="  ~3  "))
     add_it(DieContainer(key="DIE3", unicode="  ~4  "))
     add_it(DieContainer(key="DIE4", unicode="  ~5  "))
 
-    add_it(LabelText(key="INSTR", unicode="~Roll or ~Score"))
+    add_it(LabelText(key="INSTR", unicode="             ~Roll or ~Score"))
 
     return label_collections
 

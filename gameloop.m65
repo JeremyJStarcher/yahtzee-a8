@@ -38,7 +38,6 @@ ATARI_NO_KEYPRESS = $FF
     CMP #KEY_R
     BEQ ROLL_DIE
 
-
     ; Get the number of possible dice
     LDY #END_DICE_KEYS_TABLE - DICE_KEYS_TABLE -1
 

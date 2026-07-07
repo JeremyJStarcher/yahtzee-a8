@@ -218,6 +218,8 @@ SKIPTEXT?
 .ENDM
 
 
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Why yes, we do open and close the printer with every line
 ;;
