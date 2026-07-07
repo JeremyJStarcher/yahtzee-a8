@@ -378,8 +378,6 @@ SHFTPIP
         BIT PIP_MASK
         BNE ?PIP_SHOW_FILLED
 
-
-
         LDY #32
         JMP ?PIPSHOW_DISPLAY
 
@@ -396,7 +394,6 @@ SHFTPIP
 ?HIDEPIP
         LDY #'-'
         JMP ?PIPSHOW_DISPLAY
-
 .ENDP
 
 

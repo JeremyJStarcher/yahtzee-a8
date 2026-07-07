@@ -192,7 +192,7 @@ class TextProcessingMixin:
     LabelText and DieContainer classes.
     """
 
-    def _process_text(self, unicode: str) -> tuple[str, int, list[str], int]:
+    def _process_text(self, unicode: str) -> tuple[str, list[int], list[str], int]:
         """
         Process unicode text to filter markers and convert to ATASCII bytes.
 
@@ -200,31 +200,31 @@ class TextProcessingMixin:
             unicode: Input string that may contain HIGHLIGHT_KEY_MARKER characters
 
         Returns:
-            Tuple of (filtered_text, highlight_key_idx, asm_bytes, length)
+            Tuple of (filtered_text, highlight_key_positions, asm_bytes, length)
         """
-        filtered_text, highlight_key_idx = find_highlight_idx_in_unicode(unicode)
-        asm_bytes = unicode_to_atari_hex2(filtered_text, highlight_key_idx)
+        filtered_text, highlight_key_positions = find_highlight_idx_in_unicode(unicode)
+        asm_bytes = unicode_to_atari_hex2(filtered_text, highlight_key_positions)
         length = len(asm_bytes)
 
-        return filtered_text, highlight_key_idx, asm_bytes, length
+        return filtered_text, highlight_key_positions, asm_bytes, length
 
     def _initialize_from_text(self, unicode: str) -> None:
         """
         Initialize instance variables from unicode text.
 
-        Processes the text to extract highlight_key_idx and generate assembly bytes,
+        Processes the text to extract highlight_key_positions and generate assembly bytes,
         then sets all relevant instance attributes. Subclasses can call this
         in their __post_init__ to avoid code duplication.
 
         Args:
             unicode: Input string that may contain HIGHLIGHT_KEY_MARKER characters
         """
-        filtered_text, highlight_key_idx, asm_bytes, length = self._process_text(
+        filtered_text, highlight_key_positions, asm_bytes, length = self._process_text(
             unicode
         )
 
         # Set common attributes - subclasses may override specific ones after calling this
-        self.highlight_key_idx = highlight_key_idx
+        self.highlight_key_positions = highlight_key_positions
         self.unicode = filtered_text
         print(filtered_text)
 
@@ -256,10 +256,10 @@ class LabelText(ScreenElement, TextProcessingMixin):
     """
 
     unicode: str = ""
-    highlight_key_idx: int = -1
+    highlight_key_positions: list[int] = field(default_factory=list)
 
     def __post_init__(self):
-        """Process the unicode text to extract highlight_key_idx and generate assembly bytes."""
+        """Process the unicode text to extract highlight_key_positions and generate assembly bytes."""
         self._initialize_from_text(self.unicode)
 
 
@@ -353,7 +353,7 @@ def get_screen_unicode_art() -> list[str]:
         "                                        ",
         "                                        ",
         " LINE4                                  ",
-        " LINE3                                  ",
+        " #INSTR                                 ",
         " LINE2                                  ",
         " LINE1                                  ",
         " ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂",
@@ -393,7 +393,7 @@ def get_label_text() -> TextCollection:
             raise ValueError(f"Unknown label type: {type(it)}")
 
     # Left column labels
-    add_it(LabelText(key="L1C", unicode="~Aces"))  # Left column labels
+    add_it(LabelText(key="L1C", unicode="~A~c~e~s"))  # Left column labels
     add_it(ScoreText(key="S1C"))
     add_it(LabelText(key="L2C", unicode="T~wos"))
     add_it(ScoreText(key="S2C"))
@@ -441,6 +441,8 @@ def get_label_text() -> TextCollection:
     add_it(DieContainer(key="DIE2", unicode="  ~3  "))
     add_it(DieContainer(key="DIE3", unicode="  ~4  "))
     add_it(DieContainer(key="DIE4", unicode="  ~5  "))
+
+    add_it(LabelText(key="INSTR", unicode="~Roll or ~Score"))
 
     return label_collections
 
@@ -548,50 +550,59 @@ def filter_unicode(unicode: str) -> str:
     return filtered_text
 
 
-def find_highlight_idx_in_unicode(unicode: str) -> tuple[str, int]:
+def find_highlight_idx_in_unicode(unicode: str) -> tuple[str, list[int]]:
     """
-    Filter HIGHLIGHT_KEY_MARKER (∼) characters from the text and return its position.
+    Filter HIGHLIGHT_KEY_MARKER (~) characters from the text and return their positions.
 
     Args:
-        unicode: Input string containing at most one HIGHLIGHT_KEY_MARKER character
+        unicode: Input string containing zero or more HIGHLIGHT_KEY_MARKER characters
 
     Returns:
-        Tuple of (filtered_string, highlight_key_idx)
+        Tuple of (filtered_string, highlight_key_positions)
         - filtered_string: The input with HIGHLIGHT_KEY_MARKER removed
-        - highlight_key_idx: Index where HIGHLIGHT_KEY_MARKER was found, or -1 if none
-
-    Raises:
-        ValueError: If more than one HIGHLIGHT_KEY_MARKER is found
+        - highlight_key_positions: List of indices in the filtered string where
+                                   HIGHLIGHT_KEY_MARKER was found (adjusted to account
+                                   for removed markers), empty list if none found
     """
-    # Find and record HIGHLIGHT_KEY_MARKER positions
-    highlight_key_positions = [
+    # Find and record all HIGHLIGHT_KEY_MARKER positions
+    raw_positions = [
         i for i, char in enumerate(unicode) if char == HIGHLIGHT_KEY_MARKER
     ]
 
-    # Validate that there's at most one marker
-    if len(highlight_key_positions) > 1:
-        print(unicode)
-        raise ValueError(
-            f"Multiple HIGHLIGHT_KEY_MARKERs found: {highlight_key_positions}. Only one is allowed."
-        )
+    # Adjust positions to account for removed markers
+    # Since we're removing N markers before position P, the adjusted position is P - count_of_markers_before_P
+    highlight_key_positions = []
+    marker_count = 0
+    current_raw_idx = 0
+
+    for pos in raw_positions:
+        # Count markers between last position and this one
+        while current_raw_idx < pos:
+            if unicode[current_raw_idx] != HIGHLIGHT_KEY_MARKER:
+                marker_count += 1
+            current_raw_idx += 1
+        # Add adjusted position (position minus number of non-marker chars seen so far)
+        highlight_key_positions.append(marker_count)
+        current_raw_idx += 1  # Skip the marker itself
 
     # Filter out HIGHLIGHT_KEY_MARKER characters from the text
     filtered_text = filter_unicode(unicode)
 
-    # Return position or -1 if no marker found
-    highlight_key_idx = highlight_key_positions[0] if highlight_key_positions else -1
-
-    return filtered_text, highlight_key_idx
+    return filtered_text, highlight_key_positions
 
 
-def unicode_to_atari_hex2(unicode: str, highlight_key_idx: int) -> list[str]:
-    """Convert UNICODE string to ATSCII hex bytes."""
+def unicode_to_atari_hex2(
+    unicode: str, highlight_key_positions: list[int]
+) -> list[str]:
+    """Convert UNICODE string to ATASCII hex bytes, setting high bit on highlighted chars."""
     result = []
+    highlight_set = set(highlight_key_positions)  # for fast membership test
+
     for idx, char in enumerate(unicode):
         if char not in ATASCII_MAP:
             raise ValueError(f"Character '{char}' is not ATASCII")
 
-        modifier = 0x80 if idx == highlight_key_idx else 0x00
+        modifier = 0x80 if idx in highlight_set else 0x00
 
         if char in ATASCII_REQUIRES_ESCAPE:
             result.append(byte_as_hex(ATASCII_MAP[ATASCII_ESCAPE]))
