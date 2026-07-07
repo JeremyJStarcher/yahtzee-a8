@@ -1,7 +1,0 @@
-#!/bin/bash
-
-#mkdir /tmp/old-prn
-
-cat $1
-(sleep 40; rm -f $1) &
-
