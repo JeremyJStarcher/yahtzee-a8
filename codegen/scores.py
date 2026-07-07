@@ -677,36 +677,107 @@ def create_dice_region(dice_containers: list[DieContainer]) -> list[str]:
     return die_header
 
 
+def add_auto_generated_notes(l1: list[str]) -> None:
+    l1.append(
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+    )
+    l1.append(
+        ";; This file is auto-generated and you should not try to modify it by hand. ;;"
+    )
+    l1.append(
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+    )
+    l1.append("")
+
+
 def create_label_text_region(
     prefix: str, labels: list[LabelText | ScoreText | DieContainer]
 ) -> list[str]:
     header = []
 
+    add_auto_generated_notes(header)
+
     header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
     header.append(f"; REGION_{prefix}")
 
     equates = [
-        "; Equates in case we ever need to access a specific label by its ID.",
-        "; also serves as documentation",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; Equates to locate a specific label by its ID.",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
         "",
     ]
 
-    len_lsb = [f"{prefix}_LEN_LSB_TABLE"]
-    len_msb = [f"{prefix}_LEN_MSB_TABLE"]
+    len_lsb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The length of each label, low-byte",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_LEN_LSB_TABLE",
+    ]
+    len_msb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The length of each label, high-byte",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_LEN_MSB_TABLE",
+    ]
 
-    pos_row = [f"{prefix}_ROW_TABLE"]
-    pos_col_lsb = [f"{prefix}_COL_LSB_TABLE"]
-    pos_col_msb = [f"{prefix}_COL_MSB_TABLE"]
+    pos_row = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The row each label appears on",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_ROW_TABLE",
+    ]
 
-    outtxt = [f"{prefix}_TEXT"]
-    txt_lsb = [f"{prefix}_TXT_LSB_TABLE"]
-    txt_msb = [f"{prefix}_TXT_MSB_TABLE"]
+    pos_col_lsb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The column each label appears on (LSB)",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_COL_LSB_TABLE",
+    ]
+    pos_col_msb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The column each label appears on (MSB)",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_COL_MSB_TABLE",
+    ]
+
+    outtxt = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The text of the label - encoded into either the local system encoding or",
+        "; screen memory code",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_TEXT",
+    ]
+
+    txt_lsb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; Pointer to the text LSB",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_TXT_LSB_TABLE",
+    ]
+    txt_msb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; Pointer to the text MSB",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_TXT_MSB_TABLE",
+    ]
 
     for i, label in enumerate(labels):
         equates.append(f"{prefix}_{label.key} = {i}")
 
-        len_lsb.append(f"  .BYTE <{label.length}; {i} - {label.key}")
-        len_msb.append(f"  .BYTE >{label.length}; {i} - {label.key}")
+        len_lsb.append(
+            f"  .BYTE <{label.length}; Idx: {i} - {label.key} - len {label.length}"
+        )
+        len_msb.append(
+            f"  .BYTE >{label.length}; Idx: {i} - {label.key} - len {label.length}"
+        )
 
         pos_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
         pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")

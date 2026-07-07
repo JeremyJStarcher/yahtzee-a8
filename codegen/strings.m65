@@ -1,7 +1,12 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; This file is auto-generated and you should not try to modify it by hand. ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; REGION_TITLE
-; Equates in case we ever need to access a specific label by its ID.
-; also serves as documentation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Equates to locate a specific label by its ID.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_L1C = 0
 TITLE_L2C = 1
@@ -30,62 +35,74 @@ TITLE_DIE1 = 23
 TITLE_DIE2 = 24
 TITLE_DIE3 = 25
 TITLE_DIE4 = 26
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The length of each label, high-byte
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_LEN_MSB_TABLE
-  .BYTE >4; 0 - L1C
-  .BYTE >4; 1 - L2C
-  .BYTE >6; 2 - L3C
-  .BYTE >5; 3 - L4C
-  .BYTE >5; 4 - L5C
-  .BYTE >5; 5 - L6C
-  .BYTE >9; 6 - LTS
-  .BYTE >11; 7 - LTB
-  .BYTE >11; 8 - LUT
-  .BYTE >11; 9 - L3K
-  .BYTE >11; 10 - L4K
-  .BYTE >10; 11 - LFH
-  .BYTE >10; 12 - LSS
-  .BYTE >10; 13 - LLS
-  .BYTE >11; 14 - L5K
-  .BYTE >6; 15 - LCH
-  .BYTE >8; 16 - L5B
-  .BYTE >11; 17 - LLT
-  .BYTE >11; 18 - GTT
-  .BYTE >6; 19 - LROL
-  .BYTE >26; 20 - INSTR
-  .BYTE >959; 21 - MAIN
-  .BYTE >5; 22 - DIE0
-  .BYTE >5; 23 - DIE1
-  .BYTE >5; 24 - DIE2
-  .BYTE >5; 25 - DIE3
-  .BYTE >5; 26 - DIE4
+  .BYTE >4; Idx: 0 - L1C - len 4
+  .BYTE >4; Idx: 1 - L2C - len 4
+  .BYTE >6; Idx: 2 - L3C - len 6
+  .BYTE >5; Idx: 3 - L4C - len 5
+  .BYTE >5; Idx: 4 - L5C - len 5
+  .BYTE >5; Idx: 5 - L6C - len 5
+  .BYTE >9; Idx: 6 - LTS - len 9
+  .BYTE >11; Idx: 7 - LTB - len 11
+  .BYTE >11; Idx: 8 - LUT - len 11
+  .BYTE >11; Idx: 9 - L3K - len 11
+  .BYTE >11; Idx: 10 - L4K - len 11
+  .BYTE >10; Idx: 11 - LFH - len 10
+  .BYTE >10; Idx: 12 - LSS - len 10
+  .BYTE >10; Idx: 13 - LLS - len 10
+  .BYTE >11; Idx: 14 - L5K - len 11
+  .BYTE >6; Idx: 15 - LCH - len 6
+  .BYTE >8; Idx: 16 - L5B - len 8
+  .BYTE >11; Idx: 17 - LLT - len 11
+  .BYTE >11; Idx: 18 - GTT - len 11
+  .BYTE >6; Idx: 19 - LROL - len 6
+  .BYTE >26; Idx: 20 - INSTR - len 26
+  .BYTE >959; Idx: 21 - MAIN - len 959
+  .BYTE >5; Idx: 22 - DIE0 - len 5
+  .BYTE >5; Idx: 23 - DIE1 - len 5
+  .BYTE >5; Idx: 24 - DIE2 - len 5
+  .BYTE >5; Idx: 25 - DIE3 - len 5
+  .BYTE >5; Idx: 26 - DIE4 - len 5
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The length of each label, low-byte
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_LEN_LSB_TABLE
-  .BYTE <4; 0 - L1C
-  .BYTE <4; 1 - L2C
-  .BYTE <6; 2 - L3C
-  .BYTE <5; 3 - L4C
-  .BYTE <5; 4 - L5C
-  .BYTE <5; 5 - L6C
-  .BYTE <9; 6 - LTS
-  .BYTE <11; 7 - LTB
-  .BYTE <11; 8 - LUT
-  .BYTE <11; 9 - L3K
-  .BYTE <11; 10 - L4K
-  .BYTE <10; 11 - LFH
-  .BYTE <10; 12 - LSS
-  .BYTE <10; 13 - LLS
-  .BYTE <11; 14 - L5K
-  .BYTE <6; 15 - LCH
-  .BYTE <8; 16 - L5B
-  .BYTE <11; 17 - LLT
-  .BYTE <11; 18 - GTT
-  .BYTE <6; 19 - LROL
-  .BYTE <26; 20 - INSTR
-  .BYTE <959; 21 - MAIN
-  .BYTE <5; 22 - DIE0
-  .BYTE <5; 23 - DIE1
-  .BYTE <5; 24 - DIE2
-  .BYTE <5; 25 - DIE3
-  .BYTE <5; 26 - DIE4
+  .BYTE <4; Idx: 0 - L1C - len 4
+  .BYTE <4; Idx: 1 - L2C - len 4
+  .BYTE <6; Idx: 2 - L3C - len 6
+  .BYTE <5; Idx: 3 - L4C - len 5
+  .BYTE <5; Idx: 4 - L5C - len 5
+  .BYTE <5; Idx: 5 - L6C - len 5
+  .BYTE <9; Idx: 6 - LTS - len 9
+  .BYTE <11; Idx: 7 - LTB - len 11
+  .BYTE <11; Idx: 8 - LUT - len 11
+  .BYTE <11; Idx: 9 - L3K - len 11
+  .BYTE <11; Idx: 10 - L4K - len 11
+  .BYTE <10; Idx: 11 - LFH - len 10
+  .BYTE <10; Idx: 12 - LSS - len 10
+  .BYTE <10; Idx: 13 - LLS - len 10
+  .BYTE <11; Idx: 14 - L5K - len 11
+  .BYTE <6; Idx: 15 - LCH - len 6
+  .BYTE <8; Idx: 16 - L5B - len 8
+  .BYTE <11; Idx: 17 - LLT - len 11
+  .BYTE <11; Idx: 18 - GTT - len 11
+  .BYTE <6; Idx: 19 - LROL - len 6
+  .BYTE <26; Idx: 20 - INSTR - len 26
+  .BYTE <959; Idx: 21 - MAIN - len 959
+  .BYTE <5; Idx: 22 - DIE0 - len 5
+  .BYTE <5; Idx: 23 - DIE1 - len 5
+  .BYTE <5; Idx: 24 - DIE2 - len 5
+  .BYTE <5; Idx: 25 - DIE3 - len 5
+  .BYTE <5; Idx: 26 - DIE4 - len 5
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The row each label appears on
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_ROW_TABLE
   .BYTE 1; 0 - L1C
   .BYTE 2; 1 - L2C
@@ -114,6 +131,10 @@ TITLE_ROW_TABLE
   .BYTE 13; 24 - DIE2
   .BYTE 13; 25 - DIE3
   .BYTE 13; 26 - DIE4
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The column each label appears on (LSB)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_COL_LSB_TABLE
   .BYTE <2; 0 - L1C
   .BYTE <2; 1 - L2C
@@ -142,6 +163,10 @@ TITLE_COL_LSB_TABLE
   .BYTE <17; 24 - DIE2
   .BYTE <24; 25 - DIE3
   .BYTE <31; 26 - DIE4
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The column each label appears on (MSB)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_COL_MSB_TABLE
   .BYTE >2; 0 - L1C
   .BYTE >2; 1 - L2C
@@ -170,6 +195,10 @@ TITLE_COL_MSB_TABLE
   .BYTE >17; 24 - DIE2
   .BYTE >24; 25 - DIE3
   .BYTE >31; 26 - DIE4
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pointer to the text LSB
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_TXT_LSB_TABLE
   .BYTE <TITLE_L1C_TEXT; 0 - L1C
   .BYTE <TITLE_L2C_TEXT; 1 - L2C
@@ -198,6 +227,10 @@ TITLE_TXT_LSB_TABLE
   .BYTE <TITLE_DIE2_TEXT; 24 - DIE2
   .BYTE <TITLE_DIE3_TEXT; 25 - DIE3
   .BYTE <TITLE_DIE4_TEXT; 26 - DIE4
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pointer to the text MSB
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_TXT_MSB_TABLE
   .BYTE >TITLE_L1C_TEXT; 0 - L1C
   .BYTE >TITLE_L2C_TEXT; 1 - L2C
@@ -226,6 +259,11 @@ TITLE_TXT_MSB_TABLE
   .BYTE >TITLE_DIE2_TEXT; 24 - DIE2
   .BYTE >TITLE_DIE3_TEXT; 25 - DIE3
   .BYTE >TITLE_DIE4_TEXT; 26 - DIE4
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The text of the label - encoded into either the local system encoding or
+; screen memory code
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TITLE_TEXT
 TITLE_L1C_TEXT
  .BYTE $C1
