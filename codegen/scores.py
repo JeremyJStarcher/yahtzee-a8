@@ -226,7 +226,6 @@ class TextProcessingMixin:
         # Set common attributes - subclasses may override specific ones after calling this
         self.highlight_key_positions = highlight_key_positions
         self.unicode = filtered_text
-        print(filtered_text)
 
         self.asm_bytes = asm_bytes
         self.length = length
@@ -732,7 +731,6 @@ def create_label_text_region(
 
 
 def main():
-    print("Hello to main")
     text_collection = get_screen_frame()
     all_labels: list[LabelText | ScoreText | DieContainer] = []
     all_labels.extend(text_collection.screen_labels)
