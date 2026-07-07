@@ -785,7 +785,14 @@ def create_label_text_region(
 
         txtlabel = f"{prefix}_{label.key}_TEXT"
 
-        outtxt.append(f"{txtlabel}\n .BYTE " + "\n .BYTE ".join(label.asm_bytes))
+        # Write .BYTE lines in chunks of 40 elements
+        chunk_size = 40
+        byte_lines = []
+        for i in range(0, len(label.asm_bytes), chunk_size):
+            chunk = label.asm_bytes[i : i + chunk_size]
+            byte_lines.append(" .BYTE " + ",".join(chunk))
+
+        outtxt.append(f"{txtlabel}\n" + "\n".join(byte_lines))
 
         txt_lsb.append(f"  .BYTE <{txtlabel}; {i} - {label.key}")
         txt_msb.append(f"  .BYTE >{txtlabel}; {i} - {label.key}")
