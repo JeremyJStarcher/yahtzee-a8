@@ -573,9 +573,17 @@ def add_auto_generated_notes(l1: list[str]) -> None:
     l1.append("")
 
 
-def create_label_text_region(
-    prefix: str, labels: list[LabelText | ScoreText | DieContainer]
-) -> list[str]:
+def create_label_text_region(prefix: str, text_collection: TextCollection) -> list[str]:
+    """Create assembly region for label text data from a TextCollection."""
+
+    # Build combined list from TextCollection
+    all_labels: list[LabelText | ScoreText | DieContainer] = []
+    all_labels.extend(text_collection.screen_labels)
+    if text_collection.screen_frame:
+        all_labels.append(text_collection.screen_frame)
+    all_labels.extend(text_collection.die_container)
+
+    labels = all_labels
     header = []
 
     add_auto_generated_notes(header)
@@ -652,6 +660,8 @@ def create_label_text_region(
         f"{prefix}_TXT_MSB_TABLE",
     ]
 
+    equates.append(f"{prefix}_VALUES_COUNT = {len(text_collection.screen_scores)}")
+
     for i, label in enumerate(labels):
         equates.append(f"{prefix}_{label.key} = {i}")
 
@@ -696,14 +706,9 @@ def create_label_text_region(
 
 def main():
     text_collection = get_screen_frame()
-    all_labels: list[LabelText | ScoreText | DieContainer] = []
-    all_labels.extend(text_collection.screen_labels)
-    if text_collection.screen_frame:
-        all_labels.append(text_collection.screen_frame)
-    all_labels.extend(text_collection.die_container)
 
     with open(ROM_ASM_FILE_NAME, "w", encoding="utf-8") as file:
-        out = create_label_text_region("TITLE", all_labels)
+        out = create_label_text_region("TITLE", text_collection)
         out.extend(create_pip_region(text_collection.die_container))
         file.write("\n".join(out))
 

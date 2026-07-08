@@ -8,6 +8,7 @@
 ; Equates to locate a specific label by its ID.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+TITLE_VALUES_COUNT = 20
 TITLE_L1C = 0
 TITLE_L2C = 1
 TITLE_L3C = 2
