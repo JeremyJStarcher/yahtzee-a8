@@ -8,6 +8,7 @@ Generates .BYTE tables and label lookup structures for assembly.
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 ROM_ASM_FILE_NAME = Path(__file__).with_name("strings.m65")
 RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
@@ -115,8 +116,8 @@ class TextProcessingMixin:
 
 
 @dataclass
-class ScoreText(ScreenElement):
-    """Represents a score display area on screen."""
+class GameValue(ScreenElement):
+    """Represents a game value display area on screen (scores, totals, etc.)."""
 
     default_value: int = 0xFFFF
 
@@ -169,7 +170,7 @@ class TextCollection:
     """Container for all text elements on screen."""
 
     screen_labels: list[LabelText] = field(default_factory=list)
-    screen_scores: list[ScoreText] = field(default_factory=list)
+    game_values: list[GameValue] = field(default_factory=list)
     die_container: list[DieContainer] = field(default_factory=list)
     screen_frame: LabelText | None = None
 
@@ -264,11 +265,11 @@ def get_label_text() -> TextCollection:
 
     label_collections = TextCollection()
 
-    def add_it(it: LabelText | ScoreText | DieContainer):
+    def add_it(it: LabelText | GameValue | DieContainer):
         if isinstance(it, LabelText):
             label_collections.screen_labels.append(it)
-        elif isinstance(it, ScoreText):
-            label_collections.screen_scores.append(it)
+        elif isinstance(it, GameValue):
+            label_collections.game_values.append(it)
         elif isinstance(it, DieContainer):
             label_collections.die_container.append(it)
         else:
@@ -276,50 +277,50 @@ def get_label_text() -> TextCollection:
 
     # Left column labels
     add_it(LabelText(key="L1C", unicode="~A~c~e~s"))  # Left column labels
-    add_it(ScoreText(key="S1C", default_value=11))
+    add_it(GameValue(key="S1C", default_value=11))
     add_it(LabelText(key="L2C", unicode="T~wos"))
-    add_it(ScoreText(key="S2C", default_value=12))
+    add_it(GameValue(key="S2C", default_value=12))
     add_it(LabelText(key="L3C", unicode="Threes"))
-    add_it(ScoreText(key="S3C", default_value=13))
+    add_it(GameValue(key="S3C", default_value=13))
     add_it(LabelText(key="L4C", unicode="Fours"))
-    add_it(ScoreText(key="S4C", default_value=14))
+    add_it(GameValue(key="S4C", default_value=14))
     add_it(LabelText(key="L5C", unicode="Fives"))
-    add_it(ScoreText(key="S5C", default_value=15))
+    add_it(GameValue(key="S5C", default_value=15))
     add_it(LabelText(key="L6C", unicode="Sixes"))
-    add_it(ScoreText(key="S6C", default_value=111))
+    add_it(GameValue(key="S6C", default_value=111))
     add_it(LabelText(key="LTS", unicode="Top Score"))
-    add_it(ScoreText(key="STS", default_value=113))
+    add_it(GameValue(key="STS", default_value=113))
     add_it(LabelText(key="LTB", unicode="Upper Bonus"))
-    add_it(ScoreText(key="STB", default_value=1134))
+    add_it(GameValue(key="STB", default_value=1134))
     add_it(LabelText(key="LUT", unicode="Upper Total"))
-    add_it(ScoreText(key="SUT", default_value=113))
+    add_it(GameValue(key="SUT", default_value=113))
 
     # Right column labels
     add_it(LabelText(key="L3K", unicode="3 of a Kind"))
-    add_it(ScoreText(key="S3K", default_value=143))
+    add_it(GameValue(key="S3K", default_value=143))
     add_it(LabelText(key="L4K", unicode="4 of a Kind"))
-    add_it(ScoreText(key="S4K", default_value=11))
+    add_it(GameValue(key="S4K", default_value=11))
     add_it(LabelText(key="LFH", unicode="Full House"))
-    add_it(ScoreText(key="SFH", default_value=11))
+    add_it(GameValue(key="SFH", default_value=11))
     add_it(LabelText(key="LSS", unicode="S Straight"))
-    add_it(ScoreText(key="SSS", default_value=11))
+    add_it(GameValue(key="SSS", default_value=11))
     add_it(LabelText(key="LLS", unicode="L Straight"))
-    add_it(ScoreText(key="SLS", default_value=11))
+    add_it(GameValue(key="SLS", default_value=11))
     add_it(LabelText(key="L5K", unicode="5 of a Kind"))
-    add_it(ScoreText(key="S5K", default_value=11))
+    add_it(GameValue(key="S5K", default_value=11))
     add_it(LabelText(key="LCH", unicode="Chance"))
-    add_it(ScoreText(key="SCH", default_value=11))
+    add_it(GameValue(key="SCH", default_value=11))
     add_it(LabelText(key="L5B", unicode="5K Bonus"))
-    add_it(ScoreText(key="S5B", default_value=11))
+    add_it(GameValue(key="S5B", default_value=11))
     add_it(LabelText(key="LLT", unicode="Lower Total"))
-    add_it(ScoreText(key="SLT", default_value=11))
+    add_it(GameValue(key="SLT", default_value=11))
 
     # Bottom labels
     add_it(LabelText(key="GTT", unicode="Grand Total"))
-    add_it(ScoreText(key="SGT", default_value=1134))
+    add_it(GameValue(key="SGT", default_value=1134))
 
     add_it(LabelText(key="LROL", unicode="Roll #"))
-    add_it(ScoreText(key="RCT", default_value=11))
+    add_it(GameValue(key="RCT", default_value=11))
 
     add_it(DieContainer(key="DIE0", unicode="  ~1  "))
     add_it(DieContainer(key="DIE1", unicode="  ~2  "))
@@ -374,7 +375,7 @@ def get_screen_frame() -> TextCollection:
 
     combined_list = (
         label_text_info.screen_labels
-        + label_text_info.screen_scores
+        + label_text_info.game_values
         + label_text_info.die_container
     )
 
@@ -415,7 +416,7 @@ def get_screen_frame() -> TextCollection:
     ret: TextCollection = TextCollection(
         screen_frame=label,
         screen_labels=label_text_info.screen_labels,
-        screen_scores=label_text_info.screen_scores,
+        game_values=label_text_info.game_values,
         die_container=label_text_info.die_container,
     )
 
@@ -497,19 +498,22 @@ def unicode_to_atari_hex2(
     return result
 
 
-def create_ram_region(prefix: str, labels: list[ScoreText]) -> list[str]:
+def create_ram_region(prefix: str, labels: list[GameValue]) -> list[str]:
     header = []
     footer = []
 
     header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
     header.append(f"START_REGION_{prefix}")
 
-    len_lsb = [f"{prefix}_SCORE_LSB_TABLE"]
-    len_msb = [f"{prefix}_SCORE_MSB_TABLE"]
+    lsb_name = "_VALUE_LSB_"
+    msb_name = "_VALUE_MSB_"
+
+    len_lsb = [f"{prefix}{lsb_name}_TABLE"]
+    len_msb = [f"{prefix}{msb_name}_TABLE"]
 
     for _i, label in enumerate(labels):
-        len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .BYTE <{label.default_value}")
-        len_msb.append(f"{prefix}_SCORE_MSB_{label.key}  .BYTE >{label.default_value}")
+        len_lsb.append(f"{prefix}{lsb_name}{label.key}  .BYTE <{label.default_value}")
+        len_msb.append(f"{prefix}{msb_name}{label.key}  .BYTE >{label.default_value}")
 
     footer.append(f"END_REGION_{prefix}")
     footer.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
@@ -520,11 +524,9 @@ def create_ram_region(prefix: str, labels: list[ScoreText]) -> list[str]:
 def create_pip_region(dice_containers: list[DieContainer]) -> list[str]:
 
     pip_header: list[str] = []
-    #    pos_col_lsb: list[str] = []
-    #    pos_col_msb: list[str] = []
-    #    pos_row: list[str] = []
-
+    pip_header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
     pip_header.append("; The location of each pip on each die")
+    pip_header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
 
     pip_list: list[str] = []
     pip_ptr_lsb: list[str] = []
@@ -536,16 +538,16 @@ def create_pip_region(dice_containers: list[DieContainer]) -> list[str]:
     for di, die in enumerate(dice_containers):
         die_label = f"DIE_{di}_PIPS"
 
-        pip_ptr_lsb.append(f" .BYTE <{die_label}")
-        pip_ptr_msb.append(f" .BYTE >{die_label}")
+        pip_ptr_lsb.append(f"  .BYTE <{die_label}")
+        pip_ptr_msb.append(f"  .BYTE >{die_label}")
 
         pip_list.append(die_label)
 
         for pi, pip in enumerate(die.pips):
             cmt: str = f"; Die {di}- Pip {pi}"
-            pip_list.append(f"  .BYTE {pip.screen_row}; {cmt} row")
-            pip_list.append(f"  .BYTE <{pip.screen_col}; {cmt} clst")
-            pip_list.append(f"  .BYTE >{pip.screen_col}; {cmt} cmsb")
+            pip_list.append(f"  .BYTE {pip.screen_row}; {cmt} row (byte)")
+            pip_list.append(f"  .BYTE <{pip.screen_col}; {cmt} column (lsb)")
+            pip_list.append(f"  .BYTE >{pip.screen_col}; {cmt} column (msb)")
 
     return pip_header + pip_list + pip_ptr_lsb + pip_ptr_msb
 
@@ -573,108 +575,48 @@ def add_auto_generated_notes(l1: list[str]) -> None:
     l1.append("")
 
 
-def create_label_text_region(prefix: str, text_collection: TextCollection) -> list[str]:
-    """Create assembly region for label text data from a TextCollection."""
+@dataclass
+class ScreenElements:
+    offset_counter: int = 0
+    header: list[str] = field(default_factory=list)
+    equates: list[str] = field(default_factory=list)
+    len_lsb: list[str] = field(default_factory=list)
+    len_msb: list[str] = field(default_factory=list)
+    pos_row: list[str] = field(default_factory=list)
+    pos_col_lsb: list[str] = field(default_factory=list)
+    pos_col_msb: list[str] = field(default_factory=list)
+    out_text: list[str] = field(default_factory=list)
+    txt_lsb: list[str] = field(default_factory=list)
+    txt_msb: list[str] = field(default_factory=list)
 
-    # Build combined list from TextCollection
-    all_labels: list[LabelText | ScoreText | DieContainer] = []
-    all_labels.extend(text_collection.screen_labels)
-    if text_collection.screen_frame:
-        all_labels.append(text_collection.screen_frame)
-    all_labels.extend(text_collection.die_container)
 
-    labels = all_labels
-    header = []
+add_text_to_region_offset_counter: int = 0
 
-    add_auto_generated_notes(header)
 
-    header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
-    header.append(f"; REGION_{prefix}")
+def add_text_to_region(
+    prefix: str,
+    labels: list[LabelText | GameValue | DieContainer],
+    h: ScreenElements,
+):
 
-    equates = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; Equates to locate a specific label by its ID.",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-    ]
+    h.equates.append(f"{prefix}_COUNT = {len(labels)}")
+    h.equates.append(f"{prefix}_START = {h.offset_counter}")
 
-    len_lsb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; The length of each label, low-byte",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_LEN_LSB_TABLE",
-    ]
-    len_msb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; The length of each label, high-byte",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_LEN_MSB_TABLE",
-    ]
+    for _li, label in enumerate(labels):
+        i = h.offset_counter
+        h.offset_counter = h.offset_counter + 1
+        h.equates.append(f"{prefix}_{label.key} = {i}")
 
-    pos_row = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; The row each label appears on",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_ROW_TABLE",
-    ]
-
-    pos_col_lsb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; The column each label appears on (LSB)",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_COL_LSB_TABLE",
-    ]
-    pos_col_msb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; The column each label appears on (MSB)",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_COL_MSB_TABLE",
-    ]
-
-    outtxt = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; The text of the label - encoded into either the local system encoding or",
-        "; screen memory code",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_TEXT",
-    ]
-
-    txt_lsb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; Pointer to the text LSB",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_TXT_LSB_TABLE",
-    ]
-    txt_msb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "; Pointer to the text MSB",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
-        "",
-        f"{prefix}_TXT_MSB_TABLE",
-    ]
-
-    equates.append(f"{prefix}_VALUES_COUNT = {len(text_collection.screen_scores)}")
-
-    for i, label in enumerate(labels):
-        equates.append(f"{prefix}_{label.key} = {i}")
-
-        len_lsb.append(
+        h.len_lsb.append(
             f"  .BYTE <{label.length}; Idx: {i} - {label.key} - len {label.length}"
         )
-        len_msb.append(
+        h.len_msb.append(
             f"  .BYTE >{label.length}; Idx: {i} - {label.key} - len {label.length}"
         )
 
-        pos_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
-        pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
-        pos_col_msb.append(f"  .BYTE >{label.screen_col}; {i} - {label.key}")
+        h.pos_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
+        h.pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
+        h.pos_col_msb.append(f"  .BYTE >{label.screen_col}; {i} - {label.key}")
 
         txtlabel = f"{prefix}_{label.key}_TEXT"
 
@@ -683,24 +625,157 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
         byte_lines = []
         for i in range(0, len(label.asm_bytes), chunk_size):
             chunk = label.asm_bytes[i : i + chunk_size]
-            byte_lines.append(" .BYTE " + ",".join(chunk))
+            byte_lines.append("  .BYTE " + ",".join(chunk))
 
-        outtxt.append(f"{txtlabel}\n" + "\n".join(byte_lines))
+        h.out_text.append(f"{txtlabel}\n" + "\n".join(byte_lines))
 
-        txt_lsb.append(f"  .BYTE <{txtlabel}; {i} - {label.key}")
-        txt_msb.append(f"  .BYTE >{txtlabel}; {i} - {label.key}")
+        h.txt_lsb.append(f"  .BYTE <{txtlabel}; {i} - {label.key}")
+        h.txt_msb.append(f"  .BYTE >{txtlabel}; {i} - {label.key}")
+
+    h.equates.append(
+        f"{prefix}_END = {len(labels) + add_text_to_region_offset_counter}-1"
+    )
+    h.equates.append("")
+
+
+def create_label_text_region(prefix: str, text_collection: TextCollection) -> list[str]:
+    """Create assembly region for label text data from a TextCollection."""
+
+    # Build combined list from TextCollection
+    # all_labels: list[LabelText | GameValue | DieContainer] = []
+    # all_labels.extend(text_collection.screen_labels)
+    # #if text_collection.screen_frame:
+    # #    all_labels.append(text_collection.screen_frame)
+    # labels = all_labels
+
+    h: ScreenElements = ScreenElements()
+    h.header = []
+
+    add_auto_generated_notes(h.header)
+
+    h.header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    h.header.append(f"; REGION_{prefix}")
+
+    h.equates = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; Equates to locate a specific label by its ID.",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+    ]
+
+    h.len_lsb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The length of each label, low-byte",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_LEN_LSB_TABLE",
+    ]
+    h.len_msb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The length of each label, high-byte",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_LEN_MSB_TABLE",
+    ]
+
+    h.pos_row = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The row each label appears on",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_ROW_TABLE",
+    ]
+
+    h.pos_col_lsb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The column each label appears on (LSB)",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_COL_LSB_TABLE",
+    ]
+    h.pos_col_msb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The column each label appears on (MSB)",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_COL_MSB_TABLE",
+    ]
+
+    h.out_text = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; The text of the label - encoded into either the local system encoding or",
+        "; screen memory code",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_TEXT",
+    ]
+
+    h.txt_lsb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; Pointer to the text LSB",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_TXT_LSB_TABLE",
+    ]
+    h.txt_msb = [
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "; Pointer to the text MSB",
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        "",
+        f"{prefix}_TXT_MSB_TABLE",
+    ]
+
+    h.equates.append("")
+    h.equates.append(
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+    )
+    h.equates.append("; GAME VALUE EQUATES")
+    h.equates.append(
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+    )
+
+    h.equates.append(f"GAME_VALUES_COUNT = {len(text_collection.game_values)}")
+
+    for i, label in enumerate(text_collection.game_values):
+        h.equates.append(f"GAME_VALUE_{label.key} = {i}")
+
+    h.equates.append("")
+    h.equates.append(
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+    )
+    h.equates.append("; LABEL EQUATES")
+    h.equates.append(
+        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+    )
+
+    labels_list: list[LabelText | GameValue | DieContainer] = cast(
+        list[LabelText | GameValue | DieContainer], text_collection.screen_labels
+    )
+
+    # Cast required because mypy doesn't narrow list subclasses automatically
+    dice_list: list[LabelText | GameValue | DieContainer] = cast(
+        list[LabelText | GameValue | DieContainer], text_collection.die_container
+    )
+
+    frame_list: list[LabelText | GameValue | DieContainer] = cast(
+        list[LabelText | GameValue | DieContainer], [text_collection.screen_frame]
+    )
+
+    add_text_to_region("FRAME", frame_list, h)
+    add_text_to_region("DICE", dice_list, h)
+    add_text_to_region("LABELS", labels_list, h)
 
     return (
-        header
-        + equates
-        + len_msb
-        + len_lsb
-        + pos_row
-        + pos_col_lsb
-        + pos_col_msb
-        + txt_lsb
-        + txt_msb
-        + outtxt
+        h.header
+        + h.equates
+        + h.len_msb
+        + h.len_lsb
+        + h.pos_row
+        + h.pos_col_lsb
+        + h.pos_col_msb
+        + h.txt_lsb
+        + h.txt_msb
+        + h.out_text
     )
 
 
@@ -713,7 +788,7 @@ def main():
         file.write("\n".join(out))
 
     with open(RAM_ASM_FILE_NAME, "w", encoding="utf-8") as file:
-        out = create_ram_region("RAM", text_collection.screen_scores)
+        out = create_ram_region("RAM", text_collection.game_values)
         out.extend(create_dice_region(text_collection.die_container))
         file.write("\n".join(out))
 

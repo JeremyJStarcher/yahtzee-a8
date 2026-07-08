@@ -8,461 +8,503 @@
 ; Equates to locate a specific label by its ID.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-TITLE_VALUES_COUNT = 20
-TITLE_L1C = 0
-TITLE_L2C = 1
-TITLE_L3C = 2
-TITLE_L4C = 3
-TITLE_L5C = 4
-TITLE_L6C = 5
-TITLE_LTS = 6
-TITLE_LTB = 7
-TITLE_LUT = 8
-TITLE_L3K = 9
-TITLE_L4K = 10
-TITLE_LFH = 11
-TITLE_LSS = 12
-TITLE_LLS = 13
-TITLE_L5K = 14
-TITLE_LCH = 15
-TITLE_L5B = 16
-TITLE_LLT = 17
-TITLE_GTT = 18
-TITLE_LROL = 19
-TITLE_INSTR = 20
-TITLE_MAIN = 21
-TITLE_DIE0 = 22
-TITLE_DIE1 = 23
-TITLE_DIE2 = 24
-TITLE_DIE3 = 25
-TITLE_DIE4 = 26
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; GAME VALUE EQUATES
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+GAME_VALUES_COUNT = 20
+GAME_VALUE_S1C = 0
+GAME_VALUE_S2C = 1
+GAME_VALUE_S3C = 2
+GAME_VALUE_S4C = 3
+GAME_VALUE_S5C = 4
+GAME_VALUE_S6C = 5
+GAME_VALUE_STS = 6
+GAME_VALUE_STB = 7
+GAME_VALUE_SUT = 8
+GAME_VALUE_S3K = 9
+GAME_VALUE_S4K = 10
+GAME_VALUE_SFH = 11
+GAME_VALUE_SSS = 12
+GAME_VALUE_SLS = 13
+GAME_VALUE_S5K = 14
+GAME_VALUE_SCH = 15
+GAME_VALUE_S5B = 16
+GAME_VALUE_SLT = 17
+GAME_VALUE_SGT = 18
+GAME_VALUE_RCT = 19
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; LABEL EQUATES
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+FRAME_COUNT = 1
+FRAME_START = 0
+FRAME_MAIN = 0
+FRAME_END = 1-1
+
+DICE_COUNT = 5
+DICE_START = 1
+DICE_DIE0 = 1
+DICE_DIE1 = 2
+DICE_DIE2 = 3
+DICE_DIE3 = 4
+DICE_DIE4 = 5
+DICE_END = 5-1
+
+LABELS_COUNT = 21
+LABELS_START = 6
+LABELS_L1C = 6
+LABELS_L2C = 7
+LABELS_L3C = 8
+LABELS_L4C = 9
+LABELS_L5C = 10
+LABELS_L6C = 11
+LABELS_LTS = 12
+LABELS_LTB = 13
+LABELS_LUT = 14
+LABELS_L3K = 15
+LABELS_L4K = 16
+LABELS_LFH = 17
+LABELS_LSS = 18
+LABELS_LLS = 19
+LABELS_L5K = 20
+LABELS_LCH = 21
+LABELS_L5B = 22
+LABELS_LLT = 23
+LABELS_GTT = 24
+LABELS_LROL = 25
+LABELS_INSTR = 26
+LABELS_END = 21-1
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The length of each label, high-byte
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_LEN_MSB_TABLE
-  .BYTE >4; Idx: 0 - L1C - len 4
-  .BYTE >4; Idx: 1 - L2C - len 4
-  .BYTE >6; Idx: 2 - L3C - len 6
-  .BYTE >5; Idx: 3 - L4C - len 5
-  .BYTE >5; Idx: 4 - L5C - len 5
-  .BYTE >5; Idx: 5 - L6C - len 5
-  .BYTE >9; Idx: 6 - LTS - len 9
-  .BYTE >11; Idx: 7 - LTB - len 11
-  .BYTE >11; Idx: 8 - LUT - len 11
-  .BYTE >11; Idx: 9 - L3K - len 11
-  .BYTE >11; Idx: 10 - L4K - len 11
-  .BYTE >10; Idx: 11 - LFH - len 10
-  .BYTE >10; Idx: 12 - LSS - len 10
-  .BYTE >10; Idx: 13 - LLS - len 10
-  .BYTE >11; Idx: 14 - L5K - len 11
-  .BYTE >6; Idx: 15 - LCH - len 6
-  .BYTE >8; Idx: 16 - L5B - len 8
-  .BYTE >11; Idx: 17 - LLT - len 11
-  .BYTE >11; Idx: 18 - GTT - len 11
-  .BYTE >6; Idx: 19 - LROL - len 6
-  .BYTE >26; Idx: 20 - INSTR - len 26
-  .BYTE >959; Idx: 21 - MAIN - len 959
-  .BYTE >5; Idx: 22 - DIE0 - len 5
-  .BYTE >5; Idx: 23 - DIE1 - len 5
-  .BYTE >5; Idx: 24 - DIE2 - len 5
-  .BYTE >5; Idx: 25 - DIE3 - len 5
-  .BYTE >5; Idx: 26 - DIE4 - len 5
+  .BYTE >959; Idx: 0 - MAIN - len 959
+  .BYTE >5; Idx: 1 - DIE0 - len 5
+  .BYTE >5; Idx: 2 - DIE1 - len 5
+  .BYTE >5; Idx: 3 - DIE2 - len 5
+  .BYTE >5; Idx: 4 - DIE3 - len 5
+  .BYTE >5; Idx: 5 - DIE4 - len 5
+  .BYTE >4; Idx: 6 - L1C - len 4
+  .BYTE >4; Idx: 7 - L2C - len 4
+  .BYTE >6; Idx: 8 - L3C - len 6
+  .BYTE >5; Idx: 9 - L4C - len 5
+  .BYTE >5; Idx: 10 - L5C - len 5
+  .BYTE >5; Idx: 11 - L6C - len 5
+  .BYTE >9; Idx: 12 - LTS - len 9
+  .BYTE >11; Idx: 13 - LTB - len 11
+  .BYTE >11; Idx: 14 - LUT - len 11
+  .BYTE >11; Idx: 15 - L3K - len 11
+  .BYTE >11; Idx: 16 - L4K - len 11
+  .BYTE >10; Idx: 17 - LFH - len 10
+  .BYTE >10; Idx: 18 - LSS - len 10
+  .BYTE >10; Idx: 19 - LLS - len 10
+  .BYTE >11; Idx: 20 - L5K - len 11
+  .BYTE >6; Idx: 21 - LCH - len 6
+  .BYTE >8; Idx: 22 - L5B - len 8
+  .BYTE >11; Idx: 23 - LLT - len 11
+  .BYTE >11; Idx: 24 - GTT - len 11
+  .BYTE >6; Idx: 25 - LROL - len 6
+  .BYTE >26; Idx: 26 - INSTR - len 26
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The length of each label, low-byte
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_LEN_LSB_TABLE
-  .BYTE <4; Idx: 0 - L1C - len 4
-  .BYTE <4; Idx: 1 - L2C - len 4
-  .BYTE <6; Idx: 2 - L3C - len 6
-  .BYTE <5; Idx: 3 - L4C - len 5
-  .BYTE <5; Idx: 4 - L5C - len 5
-  .BYTE <5; Idx: 5 - L6C - len 5
-  .BYTE <9; Idx: 6 - LTS - len 9
-  .BYTE <11; Idx: 7 - LTB - len 11
-  .BYTE <11; Idx: 8 - LUT - len 11
-  .BYTE <11; Idx: 9 - L3K - len 11
-  .BYTE <11; Idx: 10 - L4K - len 11
-  .BYTE <10; Idx: 11 - LFH - len 10
-  .BYTE <10; Idx: 12 - LSS - len 10
-  .BYTE <10; Idx: 13 - LLS - len 10
-  .BYTE <11; Idx: 14 - L5K - len 11
-  .BYTE <6; Idx: 15 - LCH - len 6
-  .BYTE <8; Idx: 16 - L5B - len 8
-  .BYTE <11; Idx: 17 - LLT - len 11
-  .BYTE <11; Idx: 18 - GTT - len 11
-  .BYTE <6; Idx: 19 - LROL - len 6
-  .BYTE <26; Idx: 20 - INSTR - len 26
-  .BYTE <959; Idx: 21 - MAIN - len 959
-  .BYTE <5; Idx: 22 - DIE0 - len 5
-  .BYTE <5; Idx: 23 - DIE1 - len 5
-  .BYTE <5; Idx: 24 - DIE2 - len 5
-  .BYTE <5; Idx: 25 - DIE3 - len 5
-  .BYTE <5; Idx: 26 - DIE4 - len 5
+  .BYTE <959; Idx: 0 - MAIN - len 959
+  .BYTE <5; Idx: 1 - DIE0 - len 5
+  .BYTE <5; Idx: 2 - DIE1 - len 5
+  .BYTE <5; Idx: 3 - DIE2 - len 5
+  .BYTE <5; Idx: 4 - DIE3 - len 5
+  .BYTE <5; Idx: 5 - DIE4 - len 5
+  .BYTE <4; Idx: 6 - L1C - len 4
+  .BYTE <4; Idx: 7 - L2C - len 4
+  .BYTE <6; Idx: 8 - L3C - len 6
+  .BYTE <5; Idx: 9 - L4C - len 5
+  .BYTE <5; Idx: 10 - L5C - len 5
+  .BYTE <5; Idx: 11 - L6C - len 5
+  .BYTE <9; Idx: 12 - LTS - len 9
+  .BYTE <11; Idx: 13 - LTB - len 11
+  .BYTE <11; Idx: 14 - LUT - len 11
+  .BYTE <11; Idx: 15 - L3K - len 11
+  .BYTE <11; Idx: 16 - L4K - len 11
+  .BYTE <10; Idx: 17 - LFH - len 10
+  .BYTE <10; Idx: 18 - LSS - len 10
+  .BYTE <10; Idx: 19 - LLS - len 10
+  .BYTE <11; Idx: 20 - L5K - len 11
+  .BYTE <6; Idx: 21 - LCH - len 6
+  .BYTE <8; Idx: 22 - L5B - len 8
+  .BYTE <11; Idx: 23 - LLT - len 11
+  .BYTE <11; Idx: 24 - GTT - len 11
+  .BYTE <6; Idx: 25 - LROL - len 6
+  .BYTE <26; Idx: 26 - INSTR - len 26
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The row each label appears on
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_ROW_TABLE
-  .BYTE 1; 0 - L1C
-  .BYTE 2; 1 - L2C
-  .BYTE 3; 2 - L3C
-  .BYTE 4; 3 - L4C
-  .BYTE 5; 4 - L5C
-  .BYTE 6; 5 - L6C
-  .BYTE 7; 6 - LTS
-  .BYTE 8; 7 - LTB
-  .BYTE 9; 8 - LUT
-  .BYTE 1; 9 - L3K
-  .BYTE 2; 10 - L4K
-  .BYTE 3; 11 - LFH
-  .BYTE 4; 12 - LSS
-  .BYTE 5; 13 - LLS
-  .BYTE 6; 14 - L5K
-  .BYTE 7; 15 - LCH
-  .BYTE 8; 16 - L5B
-  .BYTE 9; 17 - LLT
-  .BYTE 11; 18 - GTT
-  .BYTE 11; 19 - LROL
-  .BYTE 20; 20 - INSTR
-  .BYTE 0; 21 - MAIN
-  .BYTE 13; 22 - DIE0
-  .BYTE 13; 23 - DIE1
-  .BYTE 13; 24 - DIE2
-  .BYTE 13; 25 - DIE3
-  .BYTE 13; 26 - DIE4
+  .BYTE 0; 0 - MAIN
+  .BYTE 13; 1 - DIE0
+  .BYTE 13; 2 - DIE1
+  .BYTE 13; 3 - DIE2
+  .BYTE 13; 4 - DIE3
+  .BYTE 13; 5 - DIE4
+  .BYTE 1; 6 - L1C
+  .BYTE 2; 7 - L2C
+  .BYTE 3; 8 - L3C
+  .BYTE 4; 9 - L4C
+  .BYTE 5; 10 - L5C
+  .BYTE 6; 11 - L6C
+  .BYTE 7; 12 - LTS
+  .BYTE 8; 13 - LTB
+  .BYTE 9; 14 - LUT
+  .BYTE 1; 15 - L3K
+  .BYTE 2; 16 - L4K
+  .BYTE 3; 17 - LFH
+  .BYTE 4; 18 - LSS
+  .BYTE 5; 19 - LLS
+  .BYTE 6; 20 - L5K
+  .BYTE 7; 21 - LCH
+  .BYTE 8; 22 - L5B
+  .BYTE 9; 23 - LLT
+  .BYTE 11; 24 - GTT
+  .BYTE 11; 25 - LROL
+  .BYTE 20; 26 - INSTR
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The column each label appears on (LSB)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_COL_LSB_TABLE
-  .BYTE <2; 0 - L1C
-  .BYTE <2; 1 - L2C
-  .BYTE <2; 2 - L3C
-  .BYTE <2; 3 - L4C
-  .BYTE <2; 4 - L5C
-  .BYTE <2; 5 - L6C
-  .BYTE <2; 6 - LTS
-  .BYTE <2; 7 - LTB
-  .BYTE <2; 8 - LUT
-  .BYTE <20; 9 - L3K
-  .BYTE <20; 10 - L4K
-  .BYTE <20; 11 - LFH
-  .BYTE <20; 12 - LSS
-  .BYTE <20; 13 - LLS
-  .BYTE <20; 14 - L5K
-  .BYTE <20; 15 - LCH
-  .BYTE <20; 16 - L5B
-  .BYTE <20; 17 - LLT
-  .BYTE <19; 18 - GTT
-  .BYTE <2; 19 - LROL
-  .BYTE <1; 20 - INSTR
-  .BYTE <0; 21 - MAIN
-  .BYTE <3; 22 - DIE0
-  .BYTE <10; 23 - DIE1
-  .BYTE <17; 24 - DIE2
-  .BYTE <24; 25 - DIE3
-  .BYTE <31; 26 - DIE4
+  .BYTE <0; 0 - MAIN
+  .BYTE <3; 1 - DIE0
+  .BYTE <10; 2 - DIE1
+  .BYTE <17; 3 - DIE2
+  .BYTE <24; 4 - DIE3
+  .BYTE <31; 5 - DIE4
+  .BYTE <2; 6 - L1C
+  .BYTE <2; 7 - L2C
+  .BYTE <2; 8 - L3C
+  .BYTE <2; 9 - L4C
+  .BYTE <2; 10 - L5C
+  .BYTE <2; 11 - L6C
+  .BYTE <2; 12 - LTS
+  .BYTE <2; 13 - LTB
+  .BYTE <2; 14 - LUT
+  .BYTE <20; 15 - L3K
+  .BYTE <20; 16 - L4K
+  .BYTE <20; 17 - LFH
+  .BYTE <20; 18 - LSS
+  .BYTE <20; 19 - LLS
+  .BYTE <20; 20 - L5K
+  .BYTE <20; 21 - LCH
+  .BYTE <20; 22 - L5B
+  .BYTE <20; 23 - LLT
+  .BYTE <19; 24 - GTT
+  .BYTE <2; 25 - LROL
+  .BYTE <1; 26 - INSTR
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The column each label appears on (MSB)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_COL_MSB_TABLE
-  .BYTE >2; 0 - L1C
-  .BYTE >2; 1 - L2C
-  .BYTE >2; 2 - L3C
-  .BYTE >2; 3 - L4C
-  .BYTE >2; 4 - L5C
-  .BYTE >2; 5 - L6C
-  .BYTE >2; 6 - LTS
-  .BYTE >2; 7 - LTB
-  .BYTE >2; 8 - LUT
-  .BYTE >20; 9 - L3K
-  .BYTE >20; 10 - L4K
-  .BYTE >20; 11 - LFH
-  .BYTE >20; 12 - LSS
-  .BYTE >20; 13 - LLS
-  .BYTE >20; 14 - L5K
-  .BYTE >20; 15 - LCH
-  .BYTE >20; 16 - L5B
-  .BYTE >20; 17 - LLT
-  .BYTE >19; 18 - GTT
-  .BYTE >2; 19 - LROL
-  .BYTE >1; 20 - INSTR
-  .BYTE >0; 21 - MAIN
-  .BYTE >3; 22 - DIE0
-  .BYTE >10; 23 - DIE1
-  .BYTE >17; 24 - DIE2
-  .BYTE >24; 25 - DIE3
-  .BYTE >31; 26 - DIE4
+  .BYTE >0; 0 - MAIN
+  .BYTE >3; 1 - DIE0
+  .BYTE >10; 2 - DIE1
+  .BYTE >17; 3 - DIE2
+  .BYTE >24; 4 - DIE3
+  .BYTE >31; 5 - DIE4
+  .BYTE >2; 6 - L1C
+  .BYTE >2; 7 - L2C
+  .BYTE >2; 8 - L3C
+  .BYTE >2; 9 - L4C
+  .BYTE >2; 10 - L5C
+  .BYTE >2; 11 - L6C
+  .BYTE >2; 12 - LTS
+  .BYTE >2; 13 - LTB
+  .BYTE >2; 14 - LUT
+  .BYTE >20; 15 - L3K
+  .BYTE >20; 16 - L4K
+  .BYTE >20; 17 - LFH
+  .BYTE >20; 18 - LSS
+  .BYTE >20; 19 - LLS
+  .BYTE >20; 20 - L5K
+  .BYTE >20; 21 - LCH
+  .BYTE >20; 22 - L5B
+  .BYTE >20; 23 - LLT
+  .BYTE >19; 24 - GTT
+  .BYTE >2; 25 - LROL
+  .BYTE >1; 26 - INSTR
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Pointer to the text LSB
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_TXT_LSB_TABLE
-  .BYTE <TITLE_L1C_TEXT; 0 - L1C
-  .BYTE <TITLE_L2C_TEXT; 0 - L2C
-  .BYTE <TITLE_L3C_TEXT; 0 - L3C
-  .BYTE <TITLE_L4C_TEXT; 0 - L4C
-  .BYTE <TITLE_L5C_TEXT; 0 - L5C
-  .BYTE <TITLE_L6C_TEXT; 0 - L6C
-  .BYTE <TITLE_LTS_TEXT; 0 - LTS
-  .BYTE <TITLE_LTB_TEXT; 0 - LTB
-  .BYTE <TITLE_LUT_TEXT; 0 - LUT
-  .BYTE <TITLE_L3K_TEXT; 0 - L3K
-  .BYTE <TITLE_L4K_TEXT; 0 - L4K
-  .BYTE <TITLE_LFH_TEXT; 0 - LFH
-  .BYTE <TITLE_LSS_TEXT; 0 - LSS
-  .BYTE <TITLE_LLS_TEXT; 0 - LLS
-  .BYTE <TITLE_L5K_TEXT; 0 - L5K
-  .BYTE <TITLE_LCH_TEXT; 0 - LCH
-  .BYTE <TITLE_L5B_TEXT; 0 - L5B
-  .BYTE <TITLE_LLT_TEXT; 0 - LLT
-  .BYTE <TITLE_GTT_TEXT; 0 - GTT
-  .BYTE <TITLE_LROL_TEXT; 0 - LROL
-  .BYTE <TITLE_INSTR_TEXT; 0 - INSTR
-  .BYTE <TITLE_MAIN_TEXT; 920 - MAIN
-  .BYTE <TITLE_DIE0_TEXT; 0 - DIE0
-  .BYTE <TITLE_DIE1_TEXT; 0 - DIE1
-  .BYTE <TITLE_DIE2_TEXT; 0 - DIE2
-  .BYTE <TITLE_DIE3_TEXT; 0 - DIE3
-  .BYTE <TITLE_DIE4_TEXT; 0 - DIE4
+  .BYTE <FRAME_MAIN_TEXT; 920 - MAIN
+  .BYTE <DICE_DIE0_TEXT; 0 - DIE0
+  .BYTE <DICE_DIE1_TEXT; 0 - DIE1
+  .BYTE <DICE_DIE2_TEXT; 0 - DIE2
+  .BYTE <DICE_DIE3_TEXT; 0 - DIE3
+  .BYTE <DICE_DIE4_TEXT; 0 - DIE4
+  .BYTE <LABELS_L1C_TEXT; 0 - L1C
+  .BYTE <LABELS_L2C_TEXT; 0 - L2C
+  .BYTE <LABELS_L3C_TEXT; 0 - L3C
+  .BYTE <LABELS_L4C_TEXT; 0 - L4C
+  .BYTE <LABELS_L5C_TEXT; 0 - L5C
+  .BYTE <LABELS_L6C_TEXT; 0 - L6C
+  .BYTE <LABELS_LTS_TEXT; 0 - LTS
+  .BYTE <LABELS_LTB_TEXT; 0 - LTB
+  .BYTE <LABELS_LUT_TEXT; 0 - LUT
+  .BYTE <LABELS_L3K_TEXT; 0 - L3K
+  .BYTE <LABELS_L4K_TEXT; 0 - L4K
+  .BYTE <LABELS_LFH_TEXT; 0 - LFH
+  .BYTE <LABELS_LSS_TEXT; 0 - LSS
+  .BYTE <LABELS_LLS_TEXT; 0 - LLS
+  .BYTE <LABELS_L5K_TEXT; 0 - L5K
+  .BYTE <LABELS_LCH_TEXT; 0 - LCH
+  .BYTE <LABELS_L5B_TEXT; 0 - L5B
+  .BYTE <LABELS_LLT_TEXT; 0 - LLT
+  .BYTE <LABELS_GTT_TEXT; 0 - GTT
+  .BYTE <LABELS_LROL_TEXT; 0 - LROL
+  .BYTE <LABELS_INSTR_TEXT; 0 - INSTR
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Pointer to the text MSB
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_TXT_MSB_TABLE
-  .BYTE >TITLE_L1C_TEXT; 0 - L1C
-  .BYTE >TITLE_L2C_TEXT; 0 - L2C
-  .BYTE >TITLE_L3C_TEXT; 0 - L3C
-  .BYTE >TITLE_L4C_TEXT; 0 - L4C
-  .BYTE >TITLE_L5C_TEXT; 0 - L5C
-  .BYTE >TITLE_L6C_TEXT; 0 - L6C
-  .BYTE >TITLE_LTS_TEXT; 0 - LTS
-  .BYTE >TITLE_LTB_TEXT; 0 - LTB
-  .BYTE >TITLE_LUT_TEXT; 0 - LUT
-  .BYTE >TITLE_L3K_TEXT; 0 - L3K
-  .BYTE >TITLE_L4K_TEXT; 0 - L4K
-  .BYTE >TITLE_LFH_TEXT; 0 - LFH
-  .BYTE >TITLE_LSS_TEXT; 0 - LSS
-  .BYTE >TITLE_LLS_TEXT; 0 - LLS
-  .BYTE >TITLE_L5K_TEXT; 0 - L5K
-  .BYTE >TITLE_LCH_TEXT; 0 - LCH
-  .BYTE >TITLE_L5B_TEXT; 0 - L5B
-  .BYTE >TITLE_LLT_TEXT; 0 - LLT
-  .BYTE >TITLE_GTT_TEXT; 0 - GTT
-  .BYTE >TITLE_LROL_TEXT; 0 - LROL
-  .BYTE >TITLE_INSTR_TEXT; 0 - INSTR
-  .BYTE >TITLE_MAIN_TEXT; 920 - MAIN
-  .BYTE >TITLE_DIE0_TEXT; 0 - DIE0
-  .BYTE >TITLE_DIE1_TEXT; 0 - DIE1
-  .BYTE >TITLE_DIE2_TEXT; 0 - DIE2
-  .BYTE >TITLE_DIE3_TEXT; 0 - DIE3
-  .BYTE >TITLE_DIE4_TEXT; 0 - DIE4
+  .BYTE >FRAME_MAIN_TEXT; 920 - MAIN
+  .BYTE >DICE_DIE0_TEXT; 0 - DIE0
+  .BYTE >DICE_DIE1_TEXT; 0 - DIE1
+  .BYTE >DICE_DIE2_TEXT; 0 - DIE2
+  .BYTE >DICE_DIE3_TEXT; 0 - DIE3
+  .BYTE >DICE_DIE4_TEXT; 0 - DIE4
+  .BYTE >LABELS_L1C_TEXT; 0 - L1C
+  .BYTE >LABELS_L2C_TEXT; 0 - L2C
+  .BYTE >LABELS_L3C_TEXT; 0 - L3C
+  .BYTE >LABELS_L4C_TEXT; 0 - L4C
+  .BYTE >LABELS_L5C_TEXT; 0 - L5C
+  .BYTE >LABELS_L6C_TEXT; 0 - L6C
+  .BYTE >LABELS_LTS_TEXT; 0 - LTS
+  .BYTE >LABELS_LTB_TEXT; 0 - LTB
+  .BYTE >LABELS_LUT_TEXT; 0 - LUT
+  .BYTE >LABELS_L3K_TEXT; 0 - L3K
+  .BYTE >LABELS_L4K_TEXT; 0 - L4K
+  .BYTE >LABELS_LFH_TEXT; 0 - LFH
+  .BYTE >LABELS_LSS_TEXT; 0 - LSS
+  .BYTE >LABELS_LLS_TEXT; 0 - LLS
+  .BYTE >LABELS_L5K_TEXT; 0 - L5K
+  .BYTE >LABELS_LCH_TEXT; 0 - LCH
+  .BYTE >LABELS_L5B_TEXT; 0 - L5B
+  .BYTE >LABELS_LLT_TEXT; 0 - LLT
+  .BYTE >LABELS_GTT_TEXT; 0 - GTT
+  .BYTE >LABELS_LROL_TEXT; 0 - LROL
+  .BYTE >LABELS_INSTR_TEXT; 0 - INSTR
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The text of the label - encoded into either the local system encoding or
 ; screen memory code
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 TITLE_TEXT
-TITLE_L1C_TEXT
- .BYTE $C1,$E3,$E5,$F3
-TITLE_L2C_TEXT
- .BYTE $54,$F7,$6F,$73
-TITLE_L3C_TEXT
- .BYTE $54,$68,$72,$65,$65,$73
-TITLE_L4C_TEXT
- .BYTE $46,$6F,$75,$72,$73
-TITLE_L5C_TEXT
- .BYTE $46,$69,$76,$65,$73
-TITLE_L6C_TEXT
- .BYTE $53,$69,$78,$65,$73
-TITLE_LTS_TEXT
- .BYTE $54,$6F,$70,$20,$53,$63,$6F,$72,$65
-TITLE_LTB_TEXT
- .BYTE $55,$70,$70,$65,$72,$20,$42,$6F,$6E,$75,$73
-TITLE_LUT_TEXT
- .BYTE $55,$70,$70,$65,$72,$20,$54,$6F,$74,$61,$6C
-TITLE_L3K_TEXT
- .BYTE $33,$20,$6F,$66,$20,$61,$20,$4B,$69,$6E,$64
-TITLE_L4K_TEXT
- .BYTE $34,$20,$6F,$66,$20,$61,$20,$4B,$69,$6E,$64
-TITLE_LFH_TEXT
- .BYTE $46,$75,$6C,$6C,$20,$48,$6F,$75,$73,$65
-TITLE_LSS_TEXT
- .BYTE $53,$20,$53,$74,$72,$61,$69,$67,$68,$74
-TITLE_LLS_TEXT
- .BYTE $4C,$20,$53,$74,$72,$61,$69,$67,$68,$74
-TITLE_L5K_TEXT
- .BYTE $35,$20,$6F,$66,$20,$61,$20,$4B,$69,$6E,$64
-TITLE_LCH_TEXT
- .BYTE $43,$68,$61,$6E,$63,$65
-TITLE_L5B_TEXT
- .BYTE $35,$4B,$20,$42,$6F,$6E,$75,$73
-TITLE_LLT_TEXT
- .BYTE $4C,$6F,$77,$65,$72,$20,$54,$6F,$74,$61,$6C
-TITLE_GTT_TEXT
- .BYTE $47,$72,$61,$6E,$64,$20,$54,$6F,$74,$61,$6C
-TITLE_LROL_TEXT
- .BYTE $52,$6F,$6C,$6C,$20,$23
-TITLE_INSTR_TEXT
- .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$D2,$6F,$6C,$6C,$20,$6F,$72,$20,$D3,$63,$6F,$72,$65
-TITLE_MAIN_TEXT
- .BYTE $20,$11,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$04,$21,$46,$49,$56,$45,$20,$44,$49,$43,$45,$21,$01,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$05,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$01,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$17,$12,$18,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$04,$20
- .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$7C,$20,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
- .BYTE $20,$1A,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$18,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$03,$20
- .BYTE $20,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20
- .BYTE $20,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$20,$20
- .BYTE $20,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$20,$20
- .BYTE $20,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$20,$20
- .BYTE $20,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$20,$20
- .BYTE $20,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$20,$20
- .BYTE $20,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$20
- .BYTE $20,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
- .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
- .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
- .BYTE $20,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E
-TITLE_DIE0_TEXT
- .BYTE $20,$20,$B1,$20,$20
-TITLE_DIE1_TEXT
- .BYTE $20,$20,$B2,$20,$20
-TITLE_DIE2_TEXT
- .BYTE $20,$20,$B3,$20,$20
-TITLE_DIE3_TEXT
- .BYTE $20,$20,$B4,$20,$20
-TITLE_DIE4_TEXT
- .BYTE $20,$20,$B5,$20,$20
+FRAME_MAIN_TEXT
+  .BYTE $20,$11,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$04,$21,$46,$49,$56,$45,$20,$44,$49,$43,$45,$21,$01,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$05,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$01,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$17,$12,$18,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$04,$20
+  .BYTE $20,$7C,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$2E,$2E,$2E,$2E,$7C,$20,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$20,$20,$7C,$20
+  .BYTE $20,$1A,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$18,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$03,$20
+  .BYTE $20,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$11,$12,$12,$12,$05,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$7C,$2E,$2E,$2E,$7C,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$7C,$2E,$20,$2E,$7C,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$1A,$12,$12,$12,$03,$20,$20,$20,$20
+  .BYTE $20,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$12,$20
+  .BYTE $20,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$2E,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
+  .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
+  .BYTE $20,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E,$0E
+DICE_DIE0_TEXT
+  .BYTE $20,$20,$B1,$20,$20
+DICE_DIE1_TEXT
+  .BYTE $20,$20,$B2,$20,$20
+DICE_DIE2_TEXT
+  .BYTE $20,$20,$B3,$20,$20
+DICE_DIE3_TEXT
+  .BYTE $20,$20,$B4,$20,$20
+DICE_DIE4_TEXT
+  .BYTE $20,$20,$B5,$20,$20
+LABELS_L1C_TEXT
+  .BYTE $C1,$E3,$E5,$F3
+LABELS_L2C_TEXT
+  .BYTE $54,$F7,$6F,$73
+LABELS_L3C_TEXT
+  .BYTE $54,$68,$72,$65,$65,$73
+LABELS_L4C_TEXT
+  .BYTE $46,$6F,$75,$72,$73
+LABELS_L5C_TEXT
+  .BYTE $46,$69,$76,$65,$73
+LABELS_L6C_TEXT
+  .BYTE $53,$69,$78,$65,$73
+LABELS_LTS_TEXT
+  .BYTE $54,$6F,$70,$20,$53,$63,$6F,$72,$65
+LABELS_LTB_TEXT
+  .BYTE $55,$70,$70,$65,$72,$20,$42,$6F,$6E,$75,$73
+LABELS_LUT_TEXT
+  .BYTE $55,$70,$70,$65,$72,$20,$54,$6F,$74,$61,$6C
+LABELS_L3K_TEXT
+  .BYTE $33,$20,$6F,$66,$20,$61,$20,$4B,$69,$6E,$64
+LABELS_L4K_TEXT
+  .BYTE $34,$20,$6F,$66,$20,$61,$20,$4B,$69,$6E,$64
+LABELS_LFH_TEXT
+  .BYTE $46,$75,$6C,$6C,$20,$48,$6F,$75,$73,$65
+LABELS_LSS_TEXT
+  .BYTE $53,$20,$53,$74,$72,$61,$69,$67,$68,$74
+LABELS_LLS_TEXT
+  .BYTE $4C,$20,$53,$74,$72,$61,$69,$67,$68,$74
+LABELS_L5K_TEXT
+  .BYTE $35,$20,$6F,$66,$20,$61,$20,$4B,$69,$6E,$64
+LABELS_LCH_TEXT
+  .BYTE $43,$68,$61,$6E,$63,$65
+LABELS_L5B_TEXT
+  .BYTE $35,$4B,$20,$42,$6F,$6E,$75,$73
+LABELS_LLT_TEXT
+  .BYTE $4C,$6F,$77,$65,$72,$20,$54,$6F,$74,$61,$6C
+LABELS_GTT_TEXT
+  .BYTE $47,$72,$61,$6E,$64,$20,$54,$6F,$74,$61,$6C
+LABELS_LROL_TEXT
+  .BYTE $52,$6F,$6C,$6C,$20,$23
+LABELS_INSTR_TEXT
+  .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$D2,$6F,$6C,$6C,$20,$6F,$72,$20,$D3,$63,$6F,$72,$65
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The location of each pip on each die
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DIE_0_PIPS
-  .BYTE 15; ; Die 0- Pip 0 row
-  .BYTE <4; ; Die 0- Pip 0 clst
-  .BYTE >4; ; Die 0- Pip 0 cmsb
-  .BYTE 15; ; Die 0- Pip 1 row
-  .BYTE <6; ; Die 0- Pip 1 clst
-  .BYTE >6; ; Die 0- Pip 1 cmsb
-  .BYTE 16; ; Die 0- Pip 2 row
-  .BYTE <4; ; Die 0- Pip 2 clst
-  .BYTE >4; ; Die 0- Pip 2 cmsb
-  .BYTE 16; ; Die 0- Pip 3 row
-  .BYTE <5; ; Die 0- Pip 3 clst
-  .BYTE >5; ; Die 0- Pip 3 cmsb
-  .BYTE 16; ; Die 0- Pip 4 row
-  .BYTE <6; ; Die 0- Pip 4 clst
-  .BYTE >6; ; Die 0- Pip 4 cmsb
-  .BYTE 17; ; Die 0- Pip 5 row
-  .BYTE <4; ; Die 0- Pip 5 clst
-  .BYTE >4; ; Die 0- Pip 5 cmsb
-  .BYTE 17; ; Die 0- Pip 6 row
-  .BYTE <6; ; Die 0- Pip 6 clst
-  .BYTE >6; ; Die 0- Pip 6 cmsb
+  .BYTE 15; ; Die 0- Pip 0 row (byte)
+  .BYTE <4; ; Die 0- Pip 0 column (lsb)
+  .BYTE >4; ; Die 0- Pip 0 column (msb)
+  .BYTE 15; ; Die 0- Pip 1 row (byte)
+  .BYTE <6; ; Die 0- Pip 1 column (lsb)
+  .BYTE >6; ; Die 0- Pip 1 column (msb)
+  .BYTE 16; ; Die 0- Pip 2 row (byte)
+  .BYTE <4; ; Die 0- Pip 2 column (lsb)
+  .BYTE >4; ; Die 0- Pip 2 column (msb)
+  .BYTE 16; ; Die 0- Pip 3 row (byte)
+  .BYTE <5; ; Die 0- Pip 3 column (lsb)
+  .BYTE >5; ; Die 0- Pip 3 column (msb)
+  .BYTE 16; ; Die 0- Pip 4 row (byte)
+  .BYTE <6; ; Die 0- Pip 4 column (lsb)
+  .BYTE >6; ; Die 0- Pip 4 column (msb)
+  .BYTE 17; ; Die 0- Pip 5 row (byte)
+  .BYTE <4; ; Die 0- Pip 5 column (lsb)
+  .BYTE >4; ; Die 0- Pip 5 column (msb)
+  .BYTE 17; ; Die 0- Pip 6 row (byte)
+  .BYTE <6; ; Die 0- Pip 6 column (lsb)
+  .BYTE >6; ; Die 0- Pip 6 column (msb)
 DIE_1_PIPS
-  .BYTE 15; ; Die 1- Pip 0 row
-  .BYTE <11; ; Die 1- Pip 0 clst
-  .BYTE >11; ; Die 1- Pip 0 cmsb
-  .BYTE 15; ; Die 1- Pip 1 row
-  .BYTE <13; ; Die 1- Pip 1 clst
-  .BYTE >13; ; Die 1- Pip 1 cmsb
-  .BYTE 16; ; Die 1- Pip 2 row
-  .BYTE <11; ; Die 1- Pip 2 clst
-  .BYTE >11; ; Die 1- Pip 2 cmsb
-  .BYTE 16; ; Die 1- Pip 3 row
-  .BYTE <12; ; Die 1- Pip 3 clst
-  .BYTE >12; ; Die 1- Pip 3 cmsb
-  .BYTE 16; ; Die 1- Pip 4 row
-  .BYTE <13; ; Die 1- Pip 4 clst
-  .BYTE >13; ; Die 1- Pip 4 cmsb
-  .BYTE 17; ; Die 1- Pip 5 row
-  .BYTE <11; ; Die 1- Pip 5 clst
-  .BYTE >11; ; Die 1- Pip 5 cmsb
-  .BYTE 17; ; Die 1- Pip 6 row
-  .BYTE <13; ; Die 1- Pip 6 clst
-  .BYTE >13; ; Die 1- Pip 6 cmsb
+  .BYTE 15; ; Die 1- Pip 0 row (byte)
+  .BYTE <11; ; Die 1- Pip 0 column (lsb)
+  .BYTE >11; ; Die 1- Pip 0 column (msb)
+  .BYTE 15; ; Die 1- Pip 1 row (byte)
+  .BYTE <13; ; Die 1- Pip 1 column (lsb)
+  .BYTE >13; ; Die 1- Pip 1 column (msb)
+  .BYTE 16; ; Die 1- Pip 2 row (byte)
+  .BYTE <11; ; Die 1- Pip 2 column (lsb)
+  .BYTE >11; ; Die 1- Pip 2 column (msb)
+  .BYTE 16; ; Die 1- Pip 3 row (byte)
+  .BYTE <12; ; Die 1- Pip 3 column (lsb)
+  .BYTE >12; ; Die 1- Pip 3 column (msb)
+  .BYTE 16; ; Die 1- Pip 4 row (byte)
+  .BYTE <13; ; Die 1- Pip 4 column (lsb)
+  .BYTE >13; ; Die 1- Pip 4 column (msb)
+  .BYTE 17; ; Die 1- Pip 5 row (byte)
+  .BYTE <11; ; Die 1- Pip 5 column (lsb)
+  .BYTE >11; ; Die 1- Pip 5 column (msb)
+  .BYTE 17; ; Die 1- Pip 6 row (byte)
+  .BYTE <13; ; Die 1- Pip 6 column (lsb)
+  .BYTE >13; ; Die 1- Pip 6 column (msb)
 DIE_2_PIPS
-  .BYTE 15; ; Die 2- Pip 0 row
-  .BYTE <18; ; Die 2- Pip 0 clst
-  .BYTE >18; ; Die 2- Pip 0 cmsb
-  .BYTE 15; ; Die 2- Pip 1 row
-  .BYTE <20; ; Die 2- Pip 1 clst
-  .BYTE >20; ; Die 2- Pip 1 cmsb
-  .BYTE 16; ; Die 2- Pip 2 row
-  .BYTE <18; ; Die 2- Pip 2 clst
-  .BYTE >18; ; Die 2- Pip 2 cmsb
-  .BYTE 16; ; Die 2- Pip 3 row
-  .BYTE <19; ; Die 2- Pip 3 clst
-  .BYTE >19; ; Die 2- Pip 3 cmsb
-  .BYTE 16; ; Die 2- Pip 4 row
-  .BYTE <20; ; Die 2- Pip 4 clst
-  .BYTE >20; ; Die 2- Pip 4 cmsb
-  .BYTE 17; ; Die 2- Pip 5 row
-  .BYTE <18; ; Die 2- Pip 5 clst
-  .BYTE >18; ; Die 2- Pip 5 cmsb
-  .BYTE 17; ; Die 2- Pip 6 row
-  .BYTE <20; ; Die 2- Pip 6 clst
-  .BYTE >20; ; Die 2- Pip 6 cmsb
+  .BYTE 15; ; Die 2- Pip 0 row (byte)
+  .BYTE <18; ; Die 2- Pip 0 column (lsb)
+  .BYTE >18; ; Die 2- Pip 0 column (msb)
+  .BYTE 15; ; Die 2- Pip 1 row (byte)
+  .BYTE <20; ; Die 2- Pip 1 column (lsb)
+  .BYTE >20; ; Die 2- Pip 1 column (msb)
+  .BYTE 16; ; Die 2- Pip 2 row (byte)
+  .BYTE <18; ; Die 2- Pip 2 column (lsb)
+  .BYTE >18; ; Die 2- Pip 2 column (msb)
+  .BYTE 16; ; Die 2- Pip 3 row (byte)
+  .BYTE <19; ; Die 2- Pip 3 column (lsb)
+  .BYTE >19; ; Die 2- Pip 3 column (msb)
+  .BYTE 16; ; Die 2- Pip 4 row (byte)
+  .BYTE <20; ; Die 2- Pip 4 column (lsb)
+  .BYTE >20; ; Die 2- Pip 4 column (msb)
+  .BYTE 17; ; Die 2- Pip 5 row (byte)
+  .BYTE <18; ; Die 2- Pip 5 column (lsb)
+  .BYTE >18; ; Die 2- Pip 5 column (msb)
+  .BYTE 17; ; Die 2- Pip 6 row (byte)
+  .BYTE <20; ; Die 2- Pip 6 column (lsb)
+  .BYTE >20; ; Die 2- Pip 6 column (msb)
 DIE_3_PIPS
-  .BYTE 15; ; Die 3- Pip 0 row
-  .BYTE <25; ; Die 3- Pip 0 clst
-  .BYTE >25; ; Die 3- Pip 0 cmsb
-  .BYTE 15; ; Die 3- Pip 1 row
-  .BYTE <27; ; Die 3- Pip 1 clst
-  .BYTE >27; ; Die 3- Pip 1 cmsb
-  .BYTE 16; ; Die 3- Pip 2 row
-  .BYTE <25; ; Die 3- Pip 2 clst
-  .BYTE >25; ; Die 3- Pip 2 cmsb
-  .BYTE 16; ; Die 3- Pip 3 row
-  .BYTE <26; ; Die 3- Pip 3 clst
-  .BYTE >26; ; Die 3- Pip 3 cmsb
-  .BYTE 16; ; Die 3- Pip 4 row
-  .BYTE <27; ; Die 3- Pip 4 clst
-  .BYTE >27; ; Die 3- Pip 4 cmsb
-  .BYTE 17; ; Die 3- Pip 5 row
-  .BYTE <25; ; Die 3- Pip 5 clst
-  .BYTE >25; ; Die 3- Pip 5 cmsb
-  .BYTE 17; ; Die 3- Pip 6 row
-  .BYTE <27; ; Die 3- Pip 6 clst
-  .BYTE >27; ; Die 3- Pip 6 cmsb
+  .BYTE 15; ; Die 3- Pip 0 row (byte)
+  .BYTE <25; ; Die 3- Pip 0 column (lsb)
+  .BYTE >25; ; Die 3- Pip 0 column (msb)
+  .BYTE 15; ; Die 3- Pip 1 row (byte)
+  .BYTE <27; ; Die 3- Pip 1 column (lsb)
+  .BYTE >27; ; Die 3- Pip 1 column (msb)
+  .BYTE 16; ; Die 3- Pip 2 row (byte)
+  .BYTE <25; ; Die 3- Pip 2 column (lsb)
+  .BYTE >25; ; Die 3- Pip 2 column (msb)
+  .BYTE 16; ; Die 3- Pip 3 row (byte)
+  .BYTE <26; ; Die 3- Pip 3 column (lsb)
+  .BYTE >26; ; Die 3- Pip 3 column (msb)
+  .BYTE 16; ; Die 3- Pip 4 row (byte)
+  .BYTE <27; ; Die 3- Pip 4 column (lsb)
+  .BYTE >27; ; Die 3- Pip 4 column (msb)
+  .BYTE 17; ; Die 3- Pip 5 row (byte)
+  .BYTE <25; ; Die 3- Pip 5 column (lsb)
+  .BYTE >25; ; Die 3- Pip 5 column (msb)
+  .BYTE 17; ; Die 3- Pip 6 row (byte)
+  .BYTE <27; ; Die 3- Pip 6 column (lsb)
+  .BYTE >27; ; Die 3- Pip 6 column (msb)
 DIE_4_PIPS
-  .BYTE 15; ; Die 4- Pip 0 row
-  .BYTE <32; ; Die 4- Pip 0 clst
-  .BYTE >32; ; Die 4- Pip 0 cmsb
-  .BYTE 15; ; Die 4- Pip 1 row
-  .BYTE <34; ; Die 4- Pip 1 clst
-  .BYTE >34; ; Die 4- Pip 1 cmsb
-  .BYTE 16; ; Die 4- Pip 2 row
-  .BYTE <32; ; Die 4- Pip 2 clst
-  .BYTE >32; ; Die 4- Pip 2 cmsb
-  .BYTE 16; ; Die 4- Pip 3 row
-  .BYTE <33; ; Die 4- Pip 3 clst
-  .BYTE >33; ; Die 4- Pip 3 cmsb
-  .BYTE 16; ; Die 4- Pip 4 row
-  .BYTE <34; ; Die 4- Pip 4 clst
-  .BYTE >34; ; Die 4- Pip 4 cmsb
-  .BYTE 17; ; Die 4- Pip 5 row
-  .BYTE <32; ; Die 4- Pip 5 clst
-  .BYTE >32; ; Die 4- Pip 5 cmsb
-  .BYTE 17; ; Die 4- Pip 6 row
-  .BYTE <34; ; Die 4- Pip 6 clst
-  .BYTE >34; ; Die 4- Pip 6 cmsb
+  .BYTE 15; ; Die 4- Pip 0 row (byte)
+  .BYTE <32; ; Die 4- Pip 0 column (lsb)
+  .BYTE >32; ; Die 4- Pip 0 column (msb)
+  .BYTE 15; ; Die 4- Pip 1 row (byte)
+  .BYTE <34; ; Die 4- Pip 1 column (lsb)
+  .BYTE >34; ; Die 4- Pip 1 column (msb)
+  .BYTE 16; ; Die 4- Pip 2 row (byte)
+  .BYTE <32; ; Die 4- Pip 2 column (lsb)
+  .BYTE >32; ; Die 4- Pip 2 column (msb)
+  .BYTE 16; ; Die 4- Pip 3 row (byte)
+  .BYTE <33; ; Die 4- Pip 3 column (lsb)
+  .BYTE >33; ; Die 4- Pip 3 column (msb)
+  .BYTE 16; ; Die 4- Pip 4 row (byte)
+  .BYTE <34; ; Die 4- Pip 4 column (lsb)
+  .BYTE >34; ; Die 4- Pip 4 column (msb)
+  .BYTE 17; ; Die 4- Pip 5 row (byte)
+  .BYTE <32; ; Die 4- Pip 5 column (lsb)
+  .BYTE >32; ; Die 4- Pip 5 column (msb)
+  .BYTE 17; ; Die 4- Pip 6 row (byte)
+  .BYTE <34; ; Die 4- Pip 6 column (lsb)
+  .BYTE >34; ; Die 4- Pip 6 column (msb)
 PIP_PTR_LSB
- .BYTE <DIE_0_PIPS
- .BYTE <DIE_1_PIPS
- .BYTE <DIE_2_PIPS
- .BYTE <DIE_3_PIPS
- .BYTE <DIE_4_PIPS
+  .BYTE <DIE_0_PIPS
+  .BYTE <DIE_1_PIPS
+  .BYTE <DIE_2_PIPS
+  .BYTE <DIE_3_PIPS
+  .BYTE <DIE_4_PIPS
 PIP_PTR_MSB
- .BYTE >DIE_0_PIPS
- .BYTE >DIE_1_PIPS
- .BYTE >DIE_2_PIPS
- .BYTE >DIE_3_PIPS
- .BYTE >DIE_4_PIPS
+  .BYTE >DIE_0_PIPS
+  .BYTE >DIE_1_PIPS
+  .BYTE >DIE_2_PIPS
+  .BYTE >DIE_3_PIPS
+  .BYTE >DIE_4_PIPS

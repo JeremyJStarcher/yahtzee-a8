@@ -22,7 +22,6 @@ HIGHEST_DICE_FACE = 6
 NUMBER_OF_DICE = 5
 NUMBER_OF_PIPS = 7
 
-
 .MACRO PUSHALL
         php           ; Push status register
         STA SAVEA     ; Save the 'A' register while storing the others
@@ -124,6 +123,7 @@ START
         JSR CLRRAM
         JSR CLRDICE
         JSR ShowMainBody
+        JSR ShowDiceLabels
 
         JSR RESET_DIE
 
@@ -165,26 +165,43 @@ TEST_WORD = 65535
         ; but it is a good habit for larger programs.
         JMP FINISH_PROGRAM
 
-.PROC ShowMainBody
-        LDY #TITLE_MAIN
-?LOOP
+.MACRO SHOW_RANGE
+;       SHOW_RANGE DICE_START DICE_END
+
+        LDY #%$2
+LOOP?
+        TYA
         JSR DISPLAY_MESSAGE
         DEY
-        BPL ?LOOP        ; Branches if the value is between 0-127
+        CPY #%$1
+        BPL LOOP?
+.ENDM
+
+.MACRO SHOW_RANGE2
+;       SHOW_RANGE DICE_START COUNT
+        LDY #%$1
+        LDX #%$2
+LOOP?
+        TYA
+        JSR DISPLAY_MESSAGE
+        INY
+        DEX
+        BNE LOOP?
+.ENDM
+
+.PROC ShowMainBody
+        LDY #FRAME_START
+        JSR DISPLAY_MESSAGE
+        ; SHOW_RANGE2 FRAME_START FRAME_COUNT
+        SHOW_RANGE2 LABELS_START LABELS_COUNT
+        RTS
 .ENDP
 
 .PROC ShowDiceLabels
-        LDY #TITLE_DIE4
-?LOOP
-        JSR DISPLAY_MESSAGE
-        DEY
-        TYA
-        CPY #TITLE_DIE0
-        BCS ?LOOP        ; CS (Not less than)
-.ENDP
+        SHOW_RANGE2 DICE_START DICE_COUNT
         RTS
-
-
+.ENDP
+i
 ; Y = The index of the message to print
 .PROC DISPLAY_MESSAGE
          PUSHALL        ; Save all registers
