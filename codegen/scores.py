@@ -118,14 +118,14 @@ class TextProcessingMixin:
 class ScoreText(ScreenElement):
     """Represents a score display area on screen."""
 
+    default_value: int = 0xFFFF
+
     # Inherits all fields from ScreenElement:
     # - key
     # - screen_row
     # - screen_col
     # - length
     # - asm_bytes
-
-    pass
 
 
 @dataclass
@@ -276,50 +276,50 @@ def get_label_text() -> TextCollection:
 
     # Left column labels
     add_it(LabelText(key="L1C", unicode="~A~c~e~s"))  # Left column labels
-    add_it(ScoreText(key="S1C"))
+    add_it(ScoreText(key="S1C", default_value=11))
     add_it(LabelText(key="L2C", unicode="T~wos"))
-    add_it(ScoreText(key="S2C"))
+    add_it(ScoreText(key="S2C", default_value=12))
     add_it(LabelText(key="L3C", unicode="Threes"))
-    add_it(ScoreText(key="S3C"))
+    add_it(ScoreText(key="S3C", default_value=13))
     add_it(LabelText(key="L4C", unicode="Fours"))
-    add_it(ScoreText(key="S4C"))
+    add_it(ScoreText(key="S4C", default_value=14))
     add_it(LabelText(key="L5C", unicode="Fives"))
-    add_it(ScoreText(key="S5C"))
+    add_it(ScoreText(key="S5C", default_value=15))
     add_it(LabelText(key="L6C", unicode="Sixes"))
-    add_it(ScoreText(key="S6C"))
+    add_it(ScoreText(key="S6C", default_value=111))
     add_it(LabelText(key="LTS", unicode="Top Score"))
-    add_it(ScoreText(key="STS"))
+    add_it(ScoreText(key="STS", default_value=113))
     add_it(LabelText(key="LTB", unicode="Upper Bonus"))
-    add_it(ScoreText(key="STB"))
+    add_it(ScoreText(key="STB", default_value=1134))
     add_it(LabelText(key="LUT", unicode="Upper Total"))
-    add_it(ScoreText(key="SUT"))
+    add_it(ScoreText(key="SUT", default_value=113))
 
     # Right column labels
     add_it(LabelText(key="L3K", unicode="3 of a Kind"))
-    add_it(ScoreText(key="S3K"))
+    add_it(ScoreText(key="S3K", default_value=143))
     add_it(LabelText(key="L4K", unicode="4 of a Kind"))
-    add_it(ScoreText(key="S4K"))
+    add_it(ScoreText(key="S4K", default_value=11))
     add_it(LabelText(key="LFH", unicode="Full House"))
-    add_it(ScoreText(key="SFH"))
+    add_it(ScoreText(key="SFH", default_value=11))
     add_it(LabelText(key="LSS", unicode="S Straight"))
-    add_it(ScoreText(key="SSS"))
+    add_it(ScoreText(key="SSS", default_value=11))
     add_it(LabelText(key="LLS", unicode="L Straight"))
-    add_it(ScoreText(key="SLS"))
+    add_it(ScoreText(key="SLS", default_value=11))
     add_it(LabelText(key="L5K", unicode="5 of a Kind"))
-    add_it(ScoreText(key="S5K"))
+    add_it(ScoreText(key="S5K", default_value=11))
     add_it(LabelText(key="LCH", unicode="Chance"))
-    add_it(ScoreText(key="SCH"))
+    add_it(ScoreText(key="SCH", default_value=11))
     add_it(LabelText(key="L5B", unicode="5K Bonus"))
-    add_it(ScoreText(key="S5B"))
+    add_it(ScoreText(key="S5B", default_value=11))
     add_it(LabelText(key="LLT", unicode="Lower Total"))
-    add_it(ScoreText(key="SLT"))
+    add_it(ScoreText(key="SLT", default_value=11))
 
     # Bottom labels
     add_it(LabelText(key="GTT", unicode="Grand Total"))
-    add_it(ScoreText(key="SGT"))
+    add_it(ScoreText(key="SGT", default_value=1134))
 
     add_it(LabelText(key="LROL", unicode="Roll #"))
-    add_it(ScoreText(key="RCT"))
+    add_it(ScoreText(key="RCT", default_value=11))
 
     add_it(DieContainer(key="DIE0", unicode="  ~1  "))
     add_it(DieContainer(key="DIE1", unicode="  ~2  "))
@@ -508,8 +508,8 @@ def create_ram_region(prefix: str, labels: list[ScoreText]) -> list[str]:
     len_msb = [f"{prefix}_SCORE_MSB_TABLE"]
 
     for _i, label in enumerate(labels):
-        len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .BYTE 1")
-        len_msb.append(f"{prefix}_SCORE_MSB_{label.key}  .BYTE 1")
+        len_lsb.append(f"{prefix}_SCORE_LSB_{label.key}  .BYTE <{label.default_value}")
+        len_msb.append(f"{prefix}_SCORE_MSB_{label.key}  .BYTE >{label.default_value}")
 
     footer.append(f"END_REGION_{prefix}")
     footer.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
