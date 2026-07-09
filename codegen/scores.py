@@ -590,14 +590,37 @@ class ScreenElements:
     txt_msb: list[str] = field(default_factory=list)
 
 
-add_text_to_region_offset_counter: int = 0
+def add_game_values_to_region(
+    prefix: str,
+    labels: list[GameValue],
+    h: ScreenElements,
+) -> None:
+    """
+    This must come after *all* add_text_to_region calls as this
+    does not use all of the "fields" as the text labels.
+
+    This **will** cause corruption issues if used in the wrong place.
+    """
+    h.equates.append(f"{prefix}_COUNT = {len(labels)}")
+    h.equates.append(f"{prefix}_START = {h.offset_counter}")
+    for _li, label in enumerate(labels):
+        i = h.offset_counter
+        h.offset_counter = h.offset_counter + 1
+        h.equates.append(f"{prefix}_{label.key} = {i}")
+
+        h.pos_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
+        h.pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
+        h.pos_col_msb.append(f"  .BYTE >{label.screen_col}; {i} - {label.key}")
+
+    h.equates.append(f"{prefix}_END = {len(labels)}-1")
+    h.equates.append("")
 
 
 def add_text_to_region(
     prefix: str,
     labels: list[LabelText | GameValue | DieContainer],
     h: ScreenElements,
-):
+) -> None:
 
     h.equates.append(f"{prefix}_COUNT = {len(labels)}")
     h.equates.append(f"{prefix}_START = {h.offset_counter}")
@@ -632,21 +655,12 @@ def add_text_to_region(
         h.txt_lsb.append(f"  .BYTE <{txtlabel}; {i} - {label.key}")
         h.txt_msb.append(f"  .BYTE >{txtlabel}; {i} - {label.key}")
 
-    h.equates.append(
-        f"{prefix}_END = {len(labels) + add_text_to_region_offset_counter}-1"
-    )
+    h.equates.append(f"{prefix}_END = {len(labels)}-1")
     h.equates.append("")
 
 
 def create_label_text_region(prefix: str, text_collection: TextCollection) -> list[str]:
     """Create assembly region for label text data from a TextCollection."""
-
-    # Build combined list from TextCollection
-    # all_labels: list[LabelText | GameValue | DieContainer] = []
-    # all_labels.extend(text_collection.screen_labels)
-    # #if text_collection.screen_frame:
-    # #    all_labels.append(text_collection.screen_frame)
-    # labels = all_labels
 
     h: ScreenElements = ScreenElements()
     h.header = []
@@ -734,11 +748,6 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
         ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
     )
 
-    h.equates.append(f"GAME_VALUES_COUNT = {len(text_collection.game_values)}")
-
-    for i, label in enumerate(text_collection.game_values):
-        h.equates.append(f"GAME_VALUE_{label.key} = {i}")
-
     h.equates.append("")
     h.equates.append(
         ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
@@ -748,11 +757,11 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
         ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
     )
 
+    # Cast required because mypy doesn't narrow list subclasses automatically
     labels_list: list[LabelText | GameValue | DieContainer] = cast(
         list[LabelText | GameValue | DieContainer], text_collection.screen_labels
     )
 
-    # Cast required because mypy doesn't narrow list subclasses automatically
     dice_list: list[LabelText | GameValue | DieContainer] = cast(
         list[LabelText | GameValue | DieContainer], text_collection.die_container
     )
@@ -764,6 +773,7 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
     add_text_to_region("FRAME", frame_list, h)
     add_text_to_region("DICE", dice_list, h)
     add_text_to_region("LABELS", labels_list, h)
+    add_game_values_to_region("GAME_VALUES", text_collection.game_values, h)
 
     return (
         h.header

@@ -22,9 +22,6 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC GET_COMMAND
-    LDA #CMD_NONE           ; Erase the last command
-    STA STORE_CMD_ACTION    ; Entirely
-
     LDA #ATARI_NO_KEYPRESS
     STA ATARI_LAST_KEYPRESS
 ?LOOP
@@ -32,11 +29,12 @@ ATARI_NO_KEYPRESS = $FF
     CMP #ATARI_NO_KEYPRESS
     BEQ ?LOOP
 
-    JSR PRINTKEY
+    ; JSR PRINTKEY
 
     LDA ATARI_LAST_KEYPRESS
     CMP #KEY_R
-    BEQ ROLL_DIE
+    BEQ SET_ROLL_DIE_CMD
+
 
     ; Get the number of possible dice
     LDY #END_DICE_KEYS_TABLE - DICE_KEYS_TABLE -1
@@ -61,13 +59,12 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
-; TODO: Replace this with a lookup table, or at very least, counting down 'X' and comparing.
 .PROC RUN_CMD
-    CMP #CMD_TOGGLE_DIE
-    BNE ?J2
-    JMP HANDLE_TOGGLE_DIE
+    LDX STORE_CMD_ACTION
 
-?J2
+    JMP_IF_X_IS CMD_TOGGLE_DIE HANDLE_TOGGLE_DIE
+    JMP_IF_X_IS CMD_ROLL_DICE HANDLE_ROLL_DICE
+
     RTS
 .ENDP
 
@@ -93,7 +90,13 @@ ATARI_NO_KEYPRESS = $FF
         JMP SHOW_PIPS
 .ENDP
 
-.PROC ROLL_DIE
+.PROC SET_ROLL_DIE_CMD
+    LDA #CMD_ROLL_DICE
+    STA STORE_CMD_ACTION
+    RTS
+.ENDP
+
+.PROC HANDLE_ROLL_DICE
         JSR GetRandom
         STA DICE_0_VALUE
         JSR GetRandom
@@ -108,9 +111,62 @@ ATARI_NO_KEYPRESS = $FF
         JMP SHOW_PIPS
 .ENDP
 
+.PROC SHOW_VALUE
+
+    PUSHALL
+        LDA RAM_VALUE_LSB__TABLE, Y
+        STA MSIINT
+        LDA RAM_VALUE_MSB__TABLE, Y
+        STA MSIINT + 1
+
+
+        JSR INT2STR
+    POPALL
+
+        ; Address of the text buffer to print.
+        LDA # <MSISTR
+        STA SCR_PTR_L
+        LDA # >MSISTR
+        STA SCR_PTR_H
+
+        ; Length of the text buffer.
+        LDA # <5
+        STA SCR_LEN_L
+        LDA # >5
+        STA SCR_LEN_H
+
+        ; Set cursor position
+        LDA TITLE_ROW_TABLE, Y
+        STA SCR_ROW
+
+        LDA TITLE_COL_LSB_TABLE,Y
+        STA SCR_COL_L
+        LDA TITLE_COL_MSB_TABLE,Y
+        STA SCR_COL_H
+
+        JMP HW_DISPLAY
+.ENDP
+
 
 GAMELOOP
-    ;JSR SHOW_PIPS
+    LDA #CMD_NONE           ; Erase the last command
+    STA STORE_CMD_ACTION    ; Entirely
+
+VALUE = 1234
+    LDY #GAME_VALUES_S1C
+        LDA #<VALUE
+        STA RAM_VALUE_LSB__TABLE, Y
+        LDA #>VALUE
+        STA RAM_VALUE_MSB__TABLE, Y
+
+
+
+    LDY #GAME_VALUES_S1C
+    JSR SHOW_VALUE
+    LDY #GAME_VALUES_S1C +1
+    JSR SHOW_VALUE
+    LDY #GAME_VALUES_S1C +1
+    JSR SHOW_VALUE
 
     JSR GET_COMMAND
     JSR RUN_CMD
