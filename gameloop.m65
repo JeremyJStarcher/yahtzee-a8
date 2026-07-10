@@ -80,14 +80,14 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC RESET_DIE
-        LDA #%10000000
-        STA DICE_0_VALUE
-        STA DICE_1_VALUE
-        STA DICE_2_VALUE
-        STA DICE_3_VALUE
-        STA DICE_4_VALUE
+    LDA #%10000000
+    STA DICE_0_VALUE
+    STA DICE_1_VALUE
+    STA DICE_2_VALUE
+    STA DICE_3_VALUE
+    STA DICE_4_VALUE
 
-        JMP SHOW_PIPS
+    JMP SHOW_PIPS
 .ENDP
 
 .PROC SET_ROLL_DIE_CMD
@@ -97,54 +97,54 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC HANDLE_ROLL_DICE
-        JSR GetRandom
-        STA DICE_0_VALUE
-        JSR GetRandom
-        STA DICE_1_VALUE
-        JSR GetRandom
-        STA DICE_2_VALUE
-        JSR GetRandom
-        STA DICE_3_VALUE
-        JSR GetRandom
-        STA DICE_4_VALUE
+    JSR GetRandom
+    STA DICE_0_VALUE
+    JSR GetRandom
+    STA DICE_1_VALUE
+    JSR GetRandom
+    STA DICE_2_VALUE
+    JSR GetRandom
+    STA DICE_3_VALUE
+    JSR GetRandom
+    STA DICE_4_VALUE
 
-        JMP SHOW_PIPS
+    JMP SHOW_PIPS
 .ENDP
 
 .PROC SHOW_VALUE
 
     PUSHALL
-        LDA RAM_VALUE_LSB__TABLE, Y
-        STA MSIINT
-        LDA RAM_VALUE_MSB__TABLE, Y
-        STA MSIINT + 1
+    LDA RAM_VALUE_LSB__TABLE, Y
+    STA MSIINT
+    LDA RAM_VALUE_MSB__TABLE, Y
+    STA MSIINT + 1
 
 
-        JSR INT2STR
+    JSR INT2STR
     POPALL
 
-        ; Address of the text buffer to print.
-        LDA # <MSISTR
-        STA SCR_PTR_L
-        LDA # >MSISTR
-        STA SCR_PTR_H
+    ; Address of the text buffer to print.
+    LDA # <MSISTR
+    STA SCR_PTR_L
+    LDA # >MSISTR
+    STA SCR_PTR_H
 
-        ; Length of the text buffer.
-        LDA # <5
-        STA SCR_LEN_L
-        LDA # >5
-        STA SCR_LEN_H
+    ; Length of the text buffer.
+    LDA # <5
+    STA SCR_LEN_L
+    LDA # >5
+    STA SCR_LEN_H
 
-        ; Set cursor position
-        LDA TITLE_ROW_TABLE, Y
-        STA SCR_ROW
+    ; Set cursor position
+    LDA TITLE_ROW_TABLE, Y
+    STA SCR_ROW
 
-        LDA TITLE_COL_LSB_TABLE,Y
-        STA SCR_COL_L
-        LDA TITLE_COL_MSB_TABLE,Y
-        STA SCR_COL_H
+    LDA TITLE_COL_LSB_TABLE,Y
+    STA SCR_COL_L
+    LDA TITLE_COL_MSB_TABLE,Y
+    STA SCR_COL_H
 
-        JMP HW_DISPLAY
+    JMP HW_DISPLAY
 .ENDP
 
 
