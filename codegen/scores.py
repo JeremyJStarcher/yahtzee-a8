@@ -604,7 +604,6 @@ def add_game_values_to_region(
     h.pos_col_lsb.append(f"{prefix}_COL_LSB")
     h.pos_col_msb.append(f"{prefix}_COL_MSB")
 
-    h.equates.append(f"{prefix}_COUNT = {len(labels)}")
     h.equates.append(f"{prefix}_START = {h.offset_counter}")
     for _li, label in enumerate(labels):
         i = h.offset_counter
@@ -615,7 +614,7 @@ def add_game_values_to_region(
         h.pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
         h.pos_col_msb.append(f"  .BYTE >{label.screen_col}; {i} - {label.key}")
 
-    h.equates.append(f"{prefix}_END = {len(labels)}-1")
+    h.equates.append(f"{prefix}_LAST = {byte_as_hex(h.offset_counter - 1)}")
     h.equates.append("")
 
 
@@ -625,7 +624,6 @@ def add_text_to_region(
     h: ScreenElements,
 ) -> None:
 
-    h.equates.append(f"{prefix}_COUNT = {len(labels)}")
     h.equates.append(f"{prefix}_START = {h.offset_counter}")
 
     for _li, label in enumerate(labels):
@@ -658,7 +656,7 @@ def add_text_to_region(
         h.txt_lsb.append(f"  .BYTE <{txtlabel}; {i} - {label.key}")
         h.txt_msb.append(f"  .BYTE >{txtlabel}; {i} - {label.key}")
 
-    h.equates.append(f"{prefix}_END = {len(labels)}-1")
+    h.equates.append(f"{prefix}_LAST = {h.offset_counter - 1}")
     h.equates.append("")
 
 

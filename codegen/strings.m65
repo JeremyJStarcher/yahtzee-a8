@@ -16,21 +16,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; LABEL EQUATES
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-FRAME_COUNT = 1
 FRAME_START = 0
 FRAME_MAIN = 0
-FRAME_END = 1-1
+FRAME_LAST = 0
 
-DICE_COUNT = 5
 DICE_START = 1
 DICE_DIE0 = 1
 DICE_DIE1 = 2
 DICE_DIE2 = 3
 DICE_DIE3 = 4
 DICE_DIE4 = 5
-DICE_END = 5-1
+DICE_LAST = 5
 
-LABELS_COUNT = 21
 LABELS_START = 6
 LABELS_L1C = 6
 LABELS_L2C = 7
@@ -53,9 +50,8 @@ LABELS_LLT = 23
 LABELS_GTT = 24
 LABELS_LROL = 25
 LABELS_INSTR = 26
-LABELS_END = 21-1
+LABELS_LAST = 26
 
-GAME_VALUES_COUNT = 20
 GAME_VALUES_START = 0
 GAME_VALUES_S1C = $00
 GAME_VALUES_S2C = $01
@@ -77,7 +73,7 @@ GAME_VALUES_S5B = $10
 GAME_VALUES_SLT = $11
 GAME_VALUES_SGT = $12
 GAME_VALUES_RCT = $13
-GAME_VALUES_END = 20-1
+GAME_VALUES_LAST = $13
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The length of each label, high-byte
