@@ -68,7 +68,6 @@ START:
 
     JSR MEMDUMP
 
-    JSR CLRDICE
     JSR ShowMainBody
     JSR ShowDiceLabels
     JSR RESET_DIE
@@ -119,25 +118,6 @@ START:
 
     POPALL         ; Restore all registers
     RTS
-.ENDP
-
-.PROC CLRDICE
-    PHA
-    LDA # <DICE_VALUES
-    STA STRPTR
-    LDA # >DICE_VALUES
-    STA STRPTR + 1
-
-    LDA # <DICE_VALUES_END
-    STA ENDPTR
-    LDA # >DICE_VALUES_END
-    STA ENDPTR + 1
-    PLA
-
-    LDA #$00        ; The value set RAM to
-    JMP MEMFILL     ; Clear the ram
-
-    LDA #$00        ; The value set RAM to
 .ENDP
 
 .PROC CLRRAM
@@ -222,7 +202,6 @@ START:
     ; ---------- Write the fill byte ----------
     LDY #$00
     LDA (STRPTR), Y
-    JSR P_BYTEOUT
 
     ; ---------- Increment 16‑bit pointer ----------
     INC STRPTR
