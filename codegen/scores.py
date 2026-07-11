@@ -139,6 +139,7 @@ class LabelText(ScreenElement, TextProcessingMixin):
     """
 
     unicode: str = ""
+    linked_to: str | None = None
     highlight_key_positions: list[int] = field(default_factory=list)
 
     def __post_init__(self):
@@ -172,6 +173,7 @@ class TextCollection:
     screen_labels: list[LabelText] = field(default_factory=list)
     game_values: list[GameValue] = field(default_factory=list)
     die_container: list[DieContainer] = field(default_factory=list)
+    label_replacement_text: list[LabelText] = field(default_factory=list)
     screen_frame: LabelText | None = None
 
 
@@ -182,12 +184,14 @@ class LabelPosition:
     name: str
     screen_row: int
     screen_col: int
+    template_length: int
 
 
 class LabelExtractor:
     """Extracts labels from Unicode art and returns their positions."""
 
-    LABEL_PATTERN = re.compile(r"#(\w+)")
+    # Match #NAME or #NAME#### (label name followed by optional # padding)
+    LABEL_PATTERN = re.compile(r"#(\w+)(#*)")
 
     def __init__(self, atari_unicode_art_lines: list[str]):
         self.atari_unicode_art_lines = atari_unicode_art_lines
@@ -196,7 +200,8 @@ class LabelExtractor:
         """
         Extract all labels from the Unicode art lines.
 
-        Returns a list of LabelPosition objects containing name, row, and column.
+        Returns a list of LabelPosition objects containing name, row, column,
+        and template_length (the total width from first # to last #).
         """
         labels = []
 
@@ -205,9 +210,16 @@ class LabelExtractor:
                 label_name = match.group(1)
                 col_idx = match.start()
 
+                # Calculate template length: 1 (for leading #) + len(name) + len(padding)
+                padding = match.group(2)
+                template_length = 1 + len(label_name) + len(padding)
+
                 labels.append(
                     LabelPosition(
-                        name=label_name, screen_row=row_idx, screen_col=col_idx
+                        name=label_name,
+                        screen_row=row_idx,
+                        screen_col=col_idx,
+                        template_length=template_length,
                     )
                 )
 
@@ -217,15 +229,15 @@ class LabelExtractor:
 def get_screen_unicode_art() -> list[str]:
     lines = [
         " ┌────────────┤!FIVE DICE!├───────────┐ ",
-        " |#L1C        #S1C |#L3K        #S3K  | ",
-        " |#L2C        #S2C |#L4K        #S4K  | ",
-        " |#L3C        #S3C |#LFH        #SFH  | ",
-        " |#L4C        #S4C |#LSS        #SSS  | ",
-        " |#L5C        #S5C |#LLS        #SLS  | ",
-        " |#L6C        #S6C |#L5K        #S5K  | ",
-        " |#LTS        #STS |#LCH        #SCH  | ",
-        " |#LTB        #STB |#L5B        #S5B  | ",
-        " |#LUT        #SUT |#LLT        #SLT  | ",
+        " |#L1C####### #S1C |#L3K####### #S3K  | ",
+        " |#L2C####### #S2C |#L4K####### #S4K  | ",
+        " |#L3C####### #S3C |#LFH####### #SFH  | ",
+        " |#L4C####### #S4C |#LSS####### #SSS  | ",
+        " |#L5C####### #S5C |#LLS####### #SLS  | ",
+        " |#L6C####### #S6C |#L5K####### #S5K  | ",
+        " |#LTS####### #STS |#LCH####### #SCH  | ",
+        " |#LTB####### #STB |#L5B####### #S5B  | ",
+        " |#LUT####### #SUT |#LLT####### #SLT  | ",
         " ├───────────────┬─┴──────────────────┤ ",
         " |#LROL      #RCT| #GTT         #SGT  | ",
         " └───────────────┴────────────────────┘ ",
@@ -236,7 +248,7 @@ def get_screen_unicode_art() -> list[str]:
         "                                        ",
         "                                        ",
         " ────────────────────────────────────── ",
-        " #INSTR                                 ",
+        " #INSTR################################ ",
         "                                        ",
         "                                        ",
         " ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂",
@@ -245,33 +257,63 @@ def get_screen_unicode_art() -> list[str]:
     return lines
 
 
-def replace_template(orig, newt, idx):
-    a = list(orig)
-    t = list(newt)
+def replace_template(orig_text: str, _new_text: str, idx: int, template_length: int):
+    a = list(orig_text)
+    # t = list(new_text)
 
-    length = min(len(newt), len(orig))
+    # length = min(len(new_text), len(orig_text))
 
-    for i in range(length):
-        if i + idx >= len(orig):
-            break
-        a[i + idx] = t[i]
+    # for i in range(length):
+    #     if i + idx >= len(orig_text):
+    #         break
+    #     a[i + idx] = t[i]
+    #     a[i + idx] = "."
+
+    for i in range(template_length):
         a[i + idx] = "."
 
     return "".join(a)
 
 
+def center_string(unicode: str, width: int) -> str:
+    """
+    Calculate the number of spaces needed on the left and right to center a string.
+
+    Args:
+        unicode: Input string that may contain special markers
+        width: The total widthof the field
+    Returns:
+        The sting centered.
+    """
+    filtered_unicode = filter_special_markers_from_unicode(unicode)
+    text_length = len(filtered_unicode)
+
+    total_padding = width - text_length
+
+    if total_padding <= 0:
+        return unicode
+
+    left_spaces = total_padding // 2
+    right_spaces = total_padding - left_spaces
+
+    return (" " * left_spaces) + unicode + (" " * right_spaces)
+
+
 def get_label_text() -> TextCollection:
     """Define all labels with their display text."""
 
-    label_collections = TextCollection()
+    text_collection = TextCollection()
 
     def add_it(it: LabelText | GameValue | DieContainer):
         if isinstance(it, LabelText):
-            label_collections.screen_labels.append(it)
+            if it.linked_to is None:
+                text_collection.screen_labels.append(it)
+            else:
+                text_collection.label_replacement_text.append(it)
         elif isinstance(it, GameValue):
-            label_collections.game_values.append(it)
+            text_collection.game_values.append(it)
         elif isinstance(it, DieContainer):
-            label_collections.die_container.append(it)
+            text_collection.die_container.append(it)
         else:
             raise ValueError(f"Unknown label type: {type(it)}")
 
@@ -328,9 +370,13 @@ def get_label_text() -> TextCollection:
     add_it(DieContainer(key="DIE3", unicode="  ~4  "))
     add_it(DieContainer(key="DIE4", unicode="  ~5  "))
 
-    add_it(LabelText(key="INSTR", unicode="             ~Roll or ~Score"))
+    instr_label_width = 38
+    l1 = center_string("~Roll or ~Score", instr_label_width)
+    add_it(LabelText(key="INSTR", unicode=l1))
+    l2 = center_string("Start ~New Game", instr_label_width)
+    add_it(LabelText(key="INSTR_START", unicode=l2, linked_to="INSTR"))
 
-    return label_collections
+    return text_collection
 
 
 def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
@@ -391,13 +437,13 @@ def get_screen_frame() -> TextCollection:
 
         for ai, txt in enumerate(unicode_art_lines):
             if label.screen_row == ai:
-                replacement = SCREEN_PLACE_HOLDER * (len(record.key) + 1)
+                replacement: str = SCREEN_PLACE_HOLDER * (len(record.key) + 1)
 
                 if isinstance(record, (LabelText, DieContainer)):
                     replacement = record.unicode
 
                 unicode_art_lines[ai] = replace_template(
-                    txt, replacement, label.screen_col
+                    txt, replacement, label.screen_col, label.template_length
                 )
 
     for record in combined_list:
@@ -418,6 +464,7 @@ def get_screen_frame() -> TextCollection:
         screen_labels=label_text_info.screen_labels,
         game_values=label_text_info.game_values,
         die_container=label_text_info.die_container,
+        label_replacement_text=label_text_info.label_replacement_text,
     )
 
     return ret
@@ -430,7 +477,7 @@ def byte_as_hex(byte: int) -> str:
     return f"${byte:02X}"
 
 
-def filter_unicode(unicode: str) -> str:
+def filter_special_markers_from_unicode(unicode: str) -> str:
     # Filter out HIGHLIGHT_KEY_MARKER characters from the text
     filtered_text = "".join(char for char in unicode if char != HIGHLIGHT_KEY_MARKER)
     return filtered_text
@@ -472,7 +519,7 @@ def find_highlight_idx_in_unicode(unicode: str) -> tuple[str, list[int]]:
         current_raw_idx += 1  # Skip the marker itself
 
     # Filter out HIGHLIGHT_KEY_MARKER characters from the text
-    filtered_text = filter_unicode(unicode)
+    filtered_text = filter_special_markers_from_unicode(unicode)
 
     return filtered_text, highlight_key_positions
 
@@ -616,6 +663,27 @@ def add_game_values_to_region(
 
     h.equates.append(f"{prefix}_LAST = {byte_as_hex(h.offset_counter - 1)}")
     h.equates.append("")
+
+
+def complete_replaement_text(text_collection: TextCollection) -> None:
+
+    for replacement_label in text_collection.label_replacement_text:
+        label = next(
+            (
+                p
+                for p in text_collection.screen_labels
+                if p.key == replacement_label.linked_to
+            ),
+            None,
+        )
+
+        if label is None:
+            raise ValueError(
+                f"Oh woah unto is. the linked_to of {replacement_label.linked_to} is not found"
+            )
+
+        replacement_label.screen_col = label.screen_col
+        replacement_label.screen_row = label.screen_row
 
 
 def add_text_to_region(
@@ -763,6 +831,11 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
         list[LabelText | GameValue | DieContainer], text_collection.screen_labels
     )
 
+    label_replacement_list: list[LabelText | GameValue | DieContainer] = cast(
+        list[LabelText | GameValue | DieContainer],
+        text_collection.label_replacement_text,
+    )
+
     dice_list: list[LabelText | GameValue | DieContainer] = cast(
         list[LabelText | GameValue | DieContainer], text_collection.die_container
     )
@@ -771,9 +844,13 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
         list[LabelText | GameValue | DieContainer], [text_collection.screen_frame]
     )
 
+    complete_replaement_text(text_collection=text_collection)
+
     add_text_to_region("FRAME", frame_list, h)
     add_text_to_region("DICE", dice_list, h)
     add_text_to_region("LABELS", labels_list, h)
+    add_text_to_region("REPLACEMENT_LABELS", label_replacement_list, h)
+
     add_game_values_to_region("GAME_VALUES", text_collection.game_values, h)
 
     return (

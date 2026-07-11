@@ -11,4 +11,5 @@ rm -f a8*
 
 #../code/atasm -xd2.atr -g/tmp/file.lst  ./yahtzee.m65 && ../code/atari800 yahtzee.65o
 ./codegen/scores.py && ../code/atasm -xd2.atr -g/tmp/file.lst  ./yahtzee.m65 && ../code/atari800 yahtzee.65o
+# ./codegen/scores.py 
 

@@ -145,7 +145,7 @@ ATARI_NO_KEYPRESS = $FF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Roll the DICE
-; 
+;
 ; Inputs: none
 ; Outputs: none
 ; Destroys:
@@ -165,7 +165,7 @@ ATARI_NO_KEYPRESS = $FF
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Prepare the data for a new game 
+; Prepare the data for a new game
 ;
 ; Inputs: none
 ; Outputs: none
@@ -296,7 +296,7 @@ NOT_EQUAL:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;  Display all values
-; 
+;
 ; Inputs: none
 ; Returns: none
 ; Destroys:
@@ -312,6 +312,9 @@ NOT_EQUAL:
 .ENDP
 
 GAMELOOP
+    LDY #REPLACEMENT_LABELS_INSTR_START
+    JSR DISPLAY_MESSAGE
+
     LDA #CMD_NONE           ; Erase the last command
     STA STORE_CMD_ACTION    ; Entirely
 
