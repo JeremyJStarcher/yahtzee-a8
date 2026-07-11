@@ -84,3 +84,12 @@ LOOP?
         BNE LOOP?
 .ENDM
 
+
+
+.macro  inc16
+        inc     %$1
+        bne     Skip?
+        inc     %$1+1
+Skip?
+.ENDM
+

@@ -56,27 +56,27 @@ LABELS_INSTR = 26
 LABELS_END = 21-1
 
 GAME_VALUES_COUNT = 20
-GAME_VALUES_START = 27
-GAME_VALUES_S1C = 27
-GAME_VALUES_S2C = 28
-GAME_VALUES_S3C = 29
-GAME_VALUES_S4C = 30
-GAME_VALUES_S5C = 31
-GAME_VALUES_S6C = 32
-GAME_VALUES_STS = 33
-GAME_VALUES_STB = 34
-GAME_VALUES_SUT = 35
-GAME_VALUES_S3K = 36
-GAME_VALUES_S4K = 37
-GAME_VALUES_SFH = 38
-GAME_VALUES_SSS = 39
-GAME_VALUES_SLS = 40
-GAME_VALUES_S5K = 41
-GAME_VALUES_SCH = 42
-GAME_VALUES_S5B = 43
-GAME_VALUES_SLT = 44
-GAME_VALUES_SGT = 45
-GAME_VALUES_RCT = 46
+GAME_VALUES_START = 0
+GAME_VALUES_S1C = $00
+GAME_VALUES_S2C = $01
+GAME_VALUES_S3C = $02
+GAME_VALUES_S4C = $03
+GAME_VALUES_S5C = $04
+GAME_VALUES_S6C = $05
+GAME_VALUES_STS = $06
+GAME_VALUES_STB = $07
+GAME_VALUES_SUT = $08
+GAME_VALUES_S3K = $09
+GAME_VALUES_S4K = $0A
+GAME_VALUES_SFH = $0B
+GAME_VALUES_SSS = $0C
+GAME_VALUES_SLS = $0D
+GAME_VALUES_S5K = $0E
+GAME_VALUES_SCH = $0F
+GAME_VALUES_S5B = $10
+GAME_VALUES_SLT = $11
+GAME_VALUES_SGT = $12
+GAME_VALUES_RCT = $13
 GAME_VALUES_END = 20-1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -175,26 +175,27 @@ TITLE_ROW_TABLE
   .BYTE 11; 24 - GTT
   .BYTE 11; 25 - LROL
   .BYTE 20; 26 - INSTR
-  .BYTE 1; 27 - S1C
-  .BYTE 2; 28 - S2C
-  .BYTE 3; 29 - S3C
-  .BYTE 4; 30 - S4C
-  .BYTE 5; 31 - S5C
-  .BYTE 6; 32 - S6C
-  .BYTE 7; 33 - STS
-  .BYTE 8; 34 - STB
-  .BYTE 9; 35 - SUT
-  .BYTE 1; 36 - S3K
-  .BYTE 2; 37 - S4K
-  .BYTE 3; 38 - SFH
-  .BYTE 4; 39 - SSS
-  .BYTE 5; 40 - SLS
-  .BYTE 6; 41 - S5K
-  .BYTE 7; 42 - SCH
-  .BYTE 8; 43 - S5B
-  .BYTE 9; 44 - SLT
-  .BYTE 11; 45 - SGT
-  .BYTE 11; 46 - RCT
+GAME_VALUES_ROWS
+  .BYTE 1; 0 - S1C
+  .BYTE 2; 1 - S2C
+  .BYTE 3; 2 - S3C
+  .BYTE 4; 3 - S4C
+  .BYTE 5; 4 - S5C
+  .BYTE 6; 5 - S6C
+  .BYTE 7; 6 - STS
+  .BYTE 8; 7 - STB
+  .BYTE 9; 8 - SUT
+  .BYTE 1; 9 - S3K
+  .BYTE 2; 10 - S4K
+  .BYTE 3; 11 - SFH
+  .BYTE 4; 12 - SSS
+  .BYTE 5; 13 - SLS
+  .BYTE 6; 14 - S5K
+  .BYTE 7; 15 - SCH
+  .BYTE 8; 16 - S5B
+  .BYTE 9; 17 - SLT
+  .BYTE 11; 18 - SGT
+  .BYTE 11; 19 - RCT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The column each label appears on (LSB)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -227,26 +228,27 @@ TITLE_COL_LSB_TABLE
   .BYTE <19; 24 - GTT
   .BYTE <2; 25 - LROL
   .BYTE <1; 26 - INSTR
-  .BYTE <14; 27 - S1C
-  .BYTE <14; 28 - S2C
-  .BYTE <14; 29 - S3C
-  .BYTE <14; 30 - S4C
-  .BYTE <14; 31 - S5C
-  .BYTE <14; 32 - S6C
-  .BYTE <14; 33 - STS
-  .BYTE <14; 34 - STB
-  .BYTE <14; 35 - SUT
-  .BYTE <32; 36 - S3K
-  .BYTE <32; 37 - S4K
-  .BYTE <32; 38 - SFH
-  .BYTE <32; 39 - SSS
-  .BYTE <32; 40 - SLS
-  .BYTE <32; 41 - S5K
-  .BYTE <32; 42 - SCH
-  .BYTE <32; 43 - S5B
-  .BYTE <32; 44 - SLT
-  .BYTE <32; 45 - SGT
-  .BYTE <13; 46 - RCT
+GAME_VALUES_COL_LSB
+  .BYTE <14; 0 - S1C
+  .BYTE <14; 1 - S2C
+  .BYTE <14; 2 - S3C
+  .BYTE <14; 3 - S4C
+  .BYTE <14; 4 - S5C
+  .BYTE <14; 5 - S6C
+  .BYTE <14; 6 - STS
+  .BYTE <14; 7 - STB
+  .BYTE <14; 8 - SUT
+  .BYTE <32; 9 - S3K
+  .BYTE <32; 10 - S4K
+  .BYTE <32; 11 - SFH
+  .BYTE <32; 12 - SSS
+  .BYTE <32; 13 - SLS
+  .BYTE <32; 14 - S5K
+  .BYTE <32; 15 - SCH
+  .BYTE <32; 16 - S5B
+  .BYTE <32; 17 - SLT
+  .BYTE <32; 18 - SGT
+  .BYTE <13; 19 - RCT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The column each label appears on (MSB)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -279,26 +281,27 @@ TITLE_COL_MSB_TABLE
   .BYTE >19; 24 - GTT
   .BYTE >2; 25 - LROL
   .BYTE >1; 26 - INSTR
-  .BYTE >14; 27 - S1C
-  .BYTE >14; 28 - S2C
-  .BYTE >14; 29 - S3C
-  .BYTE >14; 30 - S4C
-  .BYTE >14; 31 - S5C
-  .BYTE >14; 32 - S6C
-  .BYTE >14; 33 - STS
-  .BYTE >14; 34 - STB
-  .BYTE >14; 35 - SUT
-  .BYTE >32; 36 - S3K
-  .BYTE >32; 37 - S4K
-  .BYTE >32; 38 - SFH
-  .BYTE >32; 39 - SSS
-  .BYTE >32; 40 - SLS
-  .BYTE >32; 41 - S5K
-  .BYTE >32; 42 - SCH
-  .BYTE >32; 43 - S5B
-  .BYTE >32; 44 - SLT
-  .BYTE >32; 45 - SGT
-  .BYTE >13; 46 - RCT
+GAME_VALUES_COL_MSB
+  .BYTE >14; 0 - S1C
+  .BYTE >14; 1 - S2C
+  .BYTE >14; 2 - S3C
+  .BYTE >14; 3 - S4C
+  .BYTE >14; 4 - S5C
+  .BYTE >14; 5 - S6C
+  .BYTE >14; 6 - STS
+  .BYTE >14; 7 - STB
+  .BYTE >14; 8 - SUT
+  .BYTE >32; 9 - S3K
+  .BYTE >32; 10 - S4K
+  .BYTE >32; 11 - SFH
+  .BYTE >32; 12 - SSS
+  .BYTE >32; 13 - SLS
+  .BYTE >32; 14 - S5K
+  .BYTE >32; 15 - SCH
+  .BYTE >32; 16 - S5B
+  .BYTE >32; 17 - SLT
+  .BYTE >32; 18 - SGT
+  .BYTE >13; 19 - RCT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Pointer to the text LSB
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

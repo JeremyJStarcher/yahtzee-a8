@@ -41,10 +41,6 @@ PIP_MASK        .DS 1
 .INCLUDE iomac.lib
 .INCLUDE macros.inc
 
-;        *=$4000
-.INCLUDE codegen/ram.m65
-PRNBUF          .DS 5
-SCRBUF          .DS 5
 
 ; The current die being operated on.
 CURRENT_DIE             .DS 1
@@ -55,7 +51,7 @@ CURRENT_PIP_PATTERN     .BYTE 1
     MAKE_OUTPUT_CONTROL SCR E_IOCB2
     MAKE_OUTPUT_CONTROL DBG P_IOCB3
 
-    *=$2400
+    *=$2000
 
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
@@ -66,14 +62,17 @@ CURRENT_PIP_PATTERN     .BYTE 1
 ; PROGRAM ENTRY POINT
 ; ================================================================
 
-START
+START:
     JSR INIT_PROGRAM
-    JSR CLRRAM
+    ;JSR CLRRAM
+
+    JSR MEMDUMP
+
     JSR CLRDICE
     JSR ShowMainBody
     JSR ShowDiceLabels
     JSR RESET_DIE
-    
+
     JSR GAMELOOP
 
     JMP FINISH_PROGRAM
@@ -155,6 +154,7 @@ START
     PLA
 
     LDA #$00        ; The value set RAM to
+    JMP MEMFILL
 .ENDP
 
 .PROC MEMFILL:
@@ -187,6 +187,54 @@ START
 ?MEMFILL_DONE:
     RTS
 .ENDP
+
+
+
+.PROC MEMDUMP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; We are going to print the RAM out
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    PHA
+    LDA # <START_REGION_RAM
+    STA STRPTR
+    LDA # >START_REGION_RAM
+    STA STRPTR + 1
+
+    LDA # <END_REGION_RAM
+    STA ENDPTR
+    LDA # >END_REGION_RAM
+    STA ENDPTR + 1
+    PLA
+
+?LOOP:
+
+    ; ---------- Check for end (exclusive) ----------
+    LDA STRPTR
+    CMP ENDPTR
+    BNE ?MEMFILL_WRITE   ; Low bytes differ → not at end yet
+
+    LDA STRPTR+1
+    CMP ENDPTR+1
+    JEQ ?MEMFILL_DONE    ; High bytes also equal → STRPTR == ENDPTR, stop
+
+?MEMFILL_WRITE:
+    ; ---------- Write the fill byte ----------
+    LDY #$00
+    LDA (STRPTR), Y
+    JSR P_BYTEOUT
+
+    ; ---------- Increment 16‑bit pointer ----------
+    INC STRPTR
+    BNE ?LOOP    ; No low‑byte rollover → loop
+    INC STRPTR+1     ; Rollover from $FF to $00 → bump high byte
+    JMP ?LOOP
+
+?MEMFILL_DONE:
+    RTS
+.ENDP
+
+
 
 ;        "┌───┐",
 ;        "|0 1|",
@@ -484,10 +532,23 @@ ITSTABLE_LEN = * - ITSTABLE
 
 .ENDP
 
+
+;        *=$4000
+
 ; -------- Data allocations (storage for the routine) --------
+
+
+.INCLUDE codegen/ram.m65
+YTMP    .DS 1
+
+
 MSISTR   *= *+6         ; reserve 6 bytes for the output string (5 digits + EOL)
 MSIINT   *= *+2         ; reserve 2 bytes for the input integer (little‑endian)
 MSICTR   *= *+1         ; reserve 1 byte for the output string index
+
+
+SCRBUF          .DS 50
+PRNBUF          .DS 50
 
 
 ; ================================================================

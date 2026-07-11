@@ -112,13 +112,15 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC SHOW_VALUE
+; How many characters are we actually going to print?
+PRINT_LEN = 4
 
     PUSHALL
-    LDA RAM_VALUE_LSB__TABLE, Y
-    STA MSIINT
+
     LDA RAM_VALUE_MSB__TABLE, Y
     STA MSIINT + 1
-
+    LDA RAM_VALUE_LSB__TABLE, Y
+    STA MSIINT
 
     JSR INT2STR
     POPALL
@@ -129,44 +131,68 @@ ATARI_NO_KEYPRESS = $FF
     LDA # >MSISTR
     STA SCR_PTR_H
 
+    ; We are never going to print that first byte, so skip it from the get-go.
+    INC16 SCR_PTR_L
+
     ; Length of the text buffer.
-    LDA # <5
+    LDA # <PRINT_LEN
     STA SCR_LEN_L
-    LDA # >5
+    LDA # >PRINT_LEN
     STA SCR_LEN_H
 
     ; Set cursor position
-    LDA TITLE_ROW_TABLE, Y
+    LDA GAME_VALUES_ROWS, Y
     STA SCR_ROW
 
-    LDA TITLE_COL_LSB_TABLE,Y
+    LDA GAME_VALUES_COL_LSB,Y
     STA SCR_COL_L
-    LDA TITLE_COL_MSB_TABLE,Y
+    LDA GAME_VALUES_COL_MSB,Y
     STA SCR_COL_H
 
     JMP HW_DISPLAY
 .ENDP
 
+V1 = $FF
+V2 = $FF
+
+.MACRO QQ
+    LDY #%$1
+    JSR SHOW_VALUE
+.ENDM
+
+.PROC SHOW_ALL_VALUES
+
+    QQ GAME_VALUES_S1C
+    QQ GAME_VALUES_S2C
+    QQ GAME_VALUES_S3C
+    QQ GAME_VALUES_S4C
+    QQ GAME_VALUES_S5C
+    QQ GAME_VALUES_S6C
+    QQ GAME_VALUES_STS
+    QQ GAME_VALUES_STB
+    QQ GAME_VALUES_SUT ;;
+    QQ GAME_VALUES_S3K
+    QQ GAME_VALUES_S4K
+    QQ GAME_VALUES_SFH
+    QQ GAME_VALUES_SSS
+    QQ GAME_VALUES_SLS
+    QQ GAME_VALUES_S5K ;;
+    QQ GAME_VALUES_SCH ;;
+    QQ GAME_VALUES_S5B ;;
+    QQ GAME_VALUES_SLT ;;
+    QQ GAME_VALUES_SGT ;;;;;;;;;;
+    QQ GAME_VALUES_RCT
+
+    RTS
+.ENDP
 
 GAMELOOP
     LDA #CMD_NONE           ; Erase the last command
     STA STORE_CMD_ACTION    ; Entirely
 
-VALUE = 1234
-    LDY #GAME_VALUES_S1C
-        LDA #<VALUE
-        STA RAM_VALUE_LSB__TABLE, Y
-        LDA #>VALUE
-        STA RAM_VALUE_MSB__TABLE, Y
 
+    JSR SHOW_ALL_VALUES
 
-
-    LDY #GAME_VALUES_S1C
-    JSR SHOW_VALUE
-    LDY #GAME_VALUES_S1C +1
-    JSR SHOW_VALUE
-    LDY #GAME_VALUES_S1C +1
-    JSR SHOW_VALUE
 
     JSR GET_COMMAND
     JSR RUN_CMD

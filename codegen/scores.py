@@ -317,7 +317,7 @@ def get_label_text() -> TextCollection:
 
     # Bottom labels
     add_it(LabelText(key="GTT", unicode="Grand Total"))
-    add_it(GameValue(key="SGT", default_value=1134))
+    add_it(GameValue(key="SGT", default_value=9999))
 
     add_it(LabelText(key="LROL", unicode="Roll #"))
     add_it(GameValue(key="RCT", default_value=11))
@@ -508,17 +508,17 @@ def create_ram_region(prefix: str, labels: list[GameValue]) -> list[str]:
     lsb_name = "_VALUE_LSB_"
     msb_name = "_VALUE_MSB_"
 
-    len_lsb = [f"{prefix}{lsb_name}_TABLE"]
-    len_msb = [f"{prefix}{msb_name}_TABLE"]
+    value_lsb = [f"{prefix}{lsb_name}_TABLE"]
+    value_msb = [f"{prefix}{msb_name}_TABLE"]
 
     for _i, label in enumerate(labels):
-        len_lsb.append(f"{prefix}{lsb_name}{label.key}  .BYTE <{label.default_value}")
-        len_msb.append(f"{prefix}{msb_name}{label.key}  .BYTE >{label.default_value}")
+        value_lsb.append(f"{prefix}{lsb_name}{label.key}  .BYTE <{label.default_value}")
+        value_msb.append(f"{prefix}{msb_name}{label.key}  .BYTE >{label.default_value}")
 
     footer.append(f"END_REGION_{prefix}")
     footer.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
 
-    return header + len_msb + len_lsb + footer
+    return header + value_msb + value_lsb + footer
 
 
 def create_pip_region(dice_containers: list[DieContainer]) -> list[str]:
@@ -595,18 +595,21 @@ def add_game_values_to_region(
     labels: list[GameValue],
     h: ScreenElements,
 ) -> None:
-    """
-    This must come after *all* add_text_to_region calls as this
-    does not use all of the "fields" as the text labels.
 
-    This **will** cause corruption issues if used in the wrong place.
-    """
+    # We are going to reset the offset_counter, because these values are completely isolated from
+    # the other values.
+    h.offset_counter = 0
+
+    h.pos_row.append(f"{prefix}_ROWS")
+    h.pos_col_lsb.append(f"{prefix}_COL_LSB")
+    h.pos_col_msb.append(f"{prefix}_COL_MSB")
+
     h.equates.append(f"{prefix}_COUNT = {len(labels)}")
     h.equates.append(f"{prefix}_START = {h.offset_counter}")
     for _li, label in enumerate(labels):
         i = h.offset_counter
         h.offset_counter = h.offset_counter + 1
-        h.equates.append(f"{prefix}_{label.key} = {i}")
+        h.equates.append(f"{prefix}_{label.key} = {byte_as_hex(i)}")
 
         h.pos_row.append(f"  .BYTE {label.screen_row}; {i} - {label.key}")
         h.pos_col_lsb.append(f"  .BYTE <{label.screen_col}; {i} - {label.key}")
