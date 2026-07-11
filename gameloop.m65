@@ -175,7 +175,32 @@ ATARI_NO_KEYPRESS = $FF
 .PROC NEW_GAME
     JSR RESET_DIE
     JSR RESET_VALUES
+
+    SET_GAME_VALUE GAME_VALUES_RCT 1024
+
     RTS
+.ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Compares a game value to the default score sheet value
+; inputs:
+;   Y - score index
+; Returns:
+;   Z = 1 if match
+; Destroys A
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.PROC COMPARE_TO_DEFAULT:
+    LDA RAM_VALUE_LSB__TABLE,Y
+    CMP # <UNSCORED_SLOT
+    BNE NOT_EQUAL    ; Low byte not $FF -> Z=0, return
+    LDA RAM_VALUE_MSB__TABLE,Y
+    CMP # >UNSCORED_SLOT
+    RTS
+
+NOT_EQUAL:
+    RTS              ; Z is already 0 from the BNE condition
 .ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -228,6 +253,10 @@ ATARI_NO_KEYPRESS = $FF
 ; How many characters are we actually going to print?
     PRINT_LEN = 4
 
+    JSR COMPARE_TO_DEFAULT
+    BNE ?SKIP
+    RTS
+?SKIP
     PUSHALL
 
     LDA RAM_VALUE_MSB__TABLE, Y
