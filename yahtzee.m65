@@ -64,32 +64,53 @@ CURRENT_PIP_PATTERN     .BYTE 1
 
 START:
     JSR INIT_PROGRAM
-    ;JSR CLRRAM
-
-    JSR MEMDUMP
 
     JSR ShowMainBody
     JSR ShowDiceLabels
-    JSR RESET_DIE
+    JSR NEW_GAME
 
     JSR GAMELOOP
 
     JMP FINISH_PROGRAM
 
+;;;;;;;;;;;;;;;;;;;;;;;
+; Display the main body
+;
+; Input: none
+; Returns: none
+; Destroys registers
+;;;;;;;;;;;;;;;;;;;;;;;
+
 .PROC ShowMainBody
     LDY #FRAME_START
     JSR DISPLAY_MESSAGE
-    ; SHOW_RANGE2 FRAME_START FRAME_COUNT
     SHOW_RANGE2 LABELS_START LABELS_COUNT
     RTS
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;
+; Display the various screen labels
+;
+; Input: none
+; Returns: none
+; Destroys registers
+;;;;;;;;;;;;;;;;;;;;;;;
 .PROC ShowDiceLabels
     SHOW_RANGE2 DICE_START DICE_COUNT
     RTS
 .ENDP
 
-; Y = The index of the message to print
+
+;;;;;;;;;;;;;;;;;;;;;;;
+; Display the various screen labels
+; Takes positioning and text data from the precomputed
+; tables.
+; Input:
+;   Y = The index of the message to print
+; Returns: none
+; Preservers all registers.
+;;;;;;;;;;;;;;;;;;;;;;;
+
 .PROC DISPLAY_MESSAGE
     PUSHALL        ; Save all registers
 
@@ -120,127 +141,57 @@ START:
     RTS
 .ENDP
 
-.PROC CLRRAM
-    PHA
-    LDA # <START_REGION_RAM
-    STA STRPTR
-    LDA # >START_REGION_RAM
-    STA STRPTR + 1
-
-    LDA # <END_REGION_RAM
-    STA ENDPTR
-    LDA # >END_REGION_RAM
-    STA ENDPTR + 1
-    PLA
-
-    LDA #$00        ; The value set RAM to
-    JMP MEMFILL
-.ENDP
-
-.PROC MEMFILL:
-    TAX             ; Save fill byte in X (A is clobbered by comparisons)
-    LDY #$00        ; Y stays 0 for (STRPTR),Y addressing
-
-?LOOP:
-
-    ; ---------- Check for end (exclusive) ----------
-    LDA STRPTR
-    CMP ENDPTR
-    BNE ?MEMFILL_WRITE   ; Low bytes differ → not at end yet
-
-    LDA STRPTR+1
-    CMP ENDPTR+1
-    BEQ ?MEMFILL_DONE    ; High bytes also equal → STRPTR == ENDPTR, stop
-
-?MEMFILL_WRITE:
-    ; ---------- Write the fill byte ----------
-    ; -- Debugging JSR CLRMSG
-    TXA             ; Retrieve fill byte from X
-    STA (STRPTR),Y
-
-    ; ---------- Increment 16‑bit pointer ----------
-    INC STRPTR
-    BNE ?LOOP    ; No low‑byte rollover → loop
-    INC STRPTR+1     ; Rollover from $FF to $00 → bump high byte
-    JMP ?LOOP
-
-?MEMFILL_DONE:
-    RTS
-.ENDP
 
 
+; "┌───┐",
+; "|0 1|",
+; "|234|",
+; "|5 6|",
+; "└───┘",
 
-.PROC MEMDUMP
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; We are going to print the RAM out
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    PHA
-    LDA # <START_REGION_RAM
-    STA STRPTR
-    LDA # >START_REGION_RAM
-    STA STRPTR + 1
-
-    LDA # <END_REGION_RAM
-    STA ENDPTR
-    LDA # >END_REGION_RAM
-    STA ENDPTR + 1
-    PLA
-
-?LOOP:
-
-    ; ---------- Check for end (exclusive) ----------
-    LDA STRPTR
-    CMP ENDPTR
-    BNE ?MEMFILL_WRITE   ; Low bytes differ → not at end yet
-
-    LDA STRPTR+1
-    CMP ENDPTR+1
-    JEQ ?MEMFILL_DONE    ; High bytes also equal → STRPTR == ENDPTR, stop
-
-?MEMFILL_WRITE:
-    ; ---------- Write the fill byte ----------
-    LDY #$00
-    LDA (STRPTR), Y
-
-    ; ---------- Increment 16‑bit pointer ----------
-    INC STRPTR
-    BNE ?LOOP    ; No low‑byte rollover → loop
-    INC STRPTR+1     ; Rollover from $FF to $00 → bump high byte
-    JMP ?LOOP
-
-?MEMFILL_DONE:
-    RTS
-.ENDP
-
-
-
-;        "┌───┐",
-;        "|0 1|",
-;        "|234|",
-;        "|5 6|",
-;        "└───┘",
-
-DIE_PATTERN_0 = %00000000
-DIE_PATTERN_1 = %00010000
-DIE_PATTERN_2 = %01000100
-DIE_PATTERN_3 = %01010100
-DIE_PATTERN_4 = %11000110
-DIE_PATTERN_5 = %11010110
-DIE_PATTERN_6 = %11101110
-
+;; This is the binary pattern for each die face and the pips that would be activated.
 PIP_PATTERNS
-    .BYTE DIE_PATTERN_0
-    .BYTE DIE_PATTERN_1
-    .BYTE DIE_PATTERN_2
-    .BYTE DIE_PATTERN_3
-    .BYTE DIE_PATTERN_4
-    .BYTE DIE_PATTERN_5
-    .BYTE DIE_PATTERN_6
+    .BYTE %00000000
+    .BYTE %00010000
+    .BYTE %01000100
+    .BYTE %01010100
+    .BYTE %11000110
+    .BYTE %11010110
+    .BYTE %11101110
+
+; Quick lookup table to match a pip number to the pattern above.
+; A multi-bitshift lookup table rather than looping.
+SHFTPIP
+    .BYTE %00000001
+    .BYTE %00000010
+    .BYTE %00000100
+    .BYTE %00001000
+    .BYTE %00010000
+    .BYTE %00100000
+    .BYTE %01000000
+    .BYTE %10000000
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Show all of the pips
+;;
+;; Inputs: none
+;; Returns: none
+;; Destroys all registers
+;;
+;; We loop through all of the pips in our pips data.
+;; This contains the position values for ALL pips on
+;; ALL dice.
+;;
+;; Every time we count down one dice worth of pips,
+;; we increment which die we are looking at.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 .PROC SHOW_PIPS
 
-;; Set up work
+
+    ;; Set things up for the first pip on the first die
+
     LDY #$00
     STY CURRENT_DIE
     LDA PIP_PATTERNS,Y
@@ -254,7 +205,7 @@ PIP_PATTERNS
     LDA #$00
     STA CURRENT_PIP_ON_SCREEN
 
-    LDX #5
+    LDX #NUMBER_OF_DICE
 ?NEXT_DIE
     LDY #NUMBER_OF_PIPS
 ?NEXT_PIP
@@ -268,16 +219,9 @@ PIP_PATTERNS
     RTS
 .ENDP
 
-SHFTPIP
-    .BYTE %00000001
-    .BYTE %00000010
-    .BYTE %00000100
-    .BYTE %00001000
-    .BYTE %00010000
-    .BYTE %00100000
-    .BYTE %01000000
-    .BYTE %10000000
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Used internally by SHOW_PIPS. Should never be called alone
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC SHOWPIP
     PUSHALL        ; Save all registers
 
@@ -353,6 +297,12 @@ SHFTPIP
 ;; registers.  This lets us just drop them anywhere and not have worry
 ;; about program logic changing.
 
+
+; Print the current byte in HEX format
+; Inputs
+;   A - The byte to print
+; Returns: none
+; Preserves all registers.
 .PROC P_BYTEOUT
     PHA        ; Save the byte to retrieve at the end
     PHA        ; save the byte
@@ -374,6 +324,11 @@ SHFTPIP
 ; This generates and returns a number between 0-255.
 ; Have two of these to avoid dependencies between powerups and
 ; mutations.
+; Inputs: none
+; Returns:
+; A - the new random number between 1 and HIGHEST-DICE-face
+;   To return something else, that bitmask would also need fixed.
+; Preserves registers
 ; ****************************************************************
 
 ; Todo -- move these into RAM
@@ -518,8 +473,6 @@ ITSTABLE_LEN = * - ITSTABLE
 
 
 .INCLUDE codegen/ram.m65
-YTMP    .DS 1
-
 
 MSISTR   *= *+6         ; reserve 6 bytes for the output string (5 digits + EOL)
 MSIINT   *= *+2         ; reserve 2 bytes for the input integer (little‑endian)
