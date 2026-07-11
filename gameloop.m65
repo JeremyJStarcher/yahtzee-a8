@@ -1,5 +1,6 @@
 UNSCORED_SLOT = $AEEA
 
+REROLL_DIE_MASK = %10000000
 
 CMD_TOGGLE_DIE = $01
 CMD_ROLL_DICE = $02
@@ -14,6 +15,7 @@ STORE_CMD_DATA .DS 1
 DICE_KEYS_TABLE .BYTE KEY_1, KEY_2, KEY_3, KEY_4, KEY_5
 END_DICE_KEYS_TABLE
 
+; The address of the last keypress on the keyboard.
 ATARI_LAST_KEYPRESS = $02FC
 ATARI_NO_KEYPRESS = $FF
 
@@ -24,6 +26,15 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Get the command. Process I/O and use the COMMAND pattern
+;
+; Inputs: none
+; Output:
+;   STORE_CMD_ACTION
+;   STORE_CMD_DATA
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC GET_COMMAND
     LDA #ATARI_NO_KEYPRESS
     STA ATARI_LAST_KEYPRESS
@@ -53,7 +64,17 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; One of the dice key was pressed
+;
+; Inputs:
+;   Y - The index of the dice keys lookup table.
+;
+; Outputs:
+;
+;  STORE_CMD_ACTION = CMD_TOGGLE_DIE
+;  STORE_CMD_DATA = Y
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC PROCESS_DIE_KEY
     STY STORE_CMD_DATA        ; Store the dice # to act upon
 
@@ -62,6 +83,15 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Actually execute the command pattern
+;
+; Inputs:
+;  STORE_CMD_ACTION
+; Returns:
+;  none
+; Destroys all registers.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC RUN_CMD
     LDX STORE_CMD_ACTION
 
@@ -71,10 +101,11 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
+
 .PROC HANDLE_TOGGLE_DIE
     LDY STORE_CMD_DATA
 
-    LDA #$%10000000
+    LDA #REROLL_DIE_MASK
     EOR DICE_VALUES,Y
     STA DICE_VALUES,Y
     JSR SHOW_PIPS
@@ -89,7 +120,7 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC RESET_VALUES
-    LDY #GAME_VALUES_COUNT
+    LDY #GAME_VALUES_COUNT-1
 ?LOOP
     LDA # <UNSCORED_SLOT
     STA RAM_VALUE_LSB__TABLE, Y
@@ -101,13 +132,12 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC RESET_DIE
-    LDA #%10000000
-    LDY #NUMBER_OF_DICE
+    LDA #REROLL_DIE_MASK
+    LDY #NUMBER_OF_DICE -1
 ?LOOP
     STA DICE_VALUES, Y
     DEY
     BPL ?LOOP
-
     RTS
 .ENDP
 
@@ -118,21 +148,20 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 .PROC HANDLE_ROLL_DICE
+
+    LDY #NUMBER_OF_DICE -1
+?LOOP
     JSR GetRandom
-    STA DICE_0_VALUE
-    JSR GetRandom
-    STA DICE_1_VALUE
-    JSR GetRandom
-    STA DICE_2_VALUE
-    JSR GetRandom
-    STA DICE_3_VALUE
-    JSR GetRandom
-    STA DICE_4_VALUE
+    STA DICE_VALUES, Y
+    DEY
+    BPL ?LOOP
+
+    RTS
 .ENDP
 
-.PROC SHOW_VALUE
+.PROC DISPLAY_VALUE
 ; How many characters are we actually going to print?
-PRINT_LEN = 4
+    PRINT_LEN = 4
 
     PUSHALL
 
@@ -171,37 +200,12 @@ PRINT_LEN = 4
     JMP HW_DISPLAY
 .ENDP
 
-V1 = $FF
-V2 = $FF
-
-.MACRO QQ
-    LDY #%$1
-    JSR SHOW_VALUE
-.ENDM
-
-.PROC SHOW_ALL_VALUES
-
-    QQ GAME_VALUES_S1C
-    QQ GAME_VALUES_S2C
-    QQ GAME_VALUES_S3C
-    QQ GAME_VALUES_S4C
-    QQ GAME_VALUES_S5C
-    QQ GAME_VALUES_S6C
-    QQ GAME_VALUES_STS
-    QQ GAME_VALUES_STB
-    QQ GAME_VALUES_SUT ;;
-    QQ GAME_VALUES_S3K
-    QQ GAME_VALUES_S4K
-    QQ GAME_VALUES_SFH
-    QQ GAME_VALUES_SSS
-    QQ GAME_VALUES_SLS
-    QQ GAME_VALUES_S5K ;;
-    QQ GAME_VALUES_SCH ;;
-    QQ GAME_VALUES_S5B ;;
-    QQ GAME_VALUES_SLT ;;
-    QQ GAME_VALUES_SGT ;;;;;;;;;;
-    QQ GAME_VALUES_RCT
-
+.PROC DISPLAY_ALL_VALUES
+    LDY #GAME_VALUES_COUNT
+?LOOP
+    JSR DISPLAY_VALUE
+    DEY
+    BPL ?LOOP
     RTS
 .ENDP
 
@@ -210,12 +214,9 @@ GAMELOOP
     STA STORE_CMD_ACTION    ; Entirely
 
     JSR SHOW_PIPS
-    JSR SHOW_ALL_VALUES
-
+    JSR DISPLAY_ALL_VALUES
 
     JSR GET_COMMAND
     JSR RUN_CMD
-
-    PPRINTLN "GAME LOOP"
 
     JMP GAMELOOP
