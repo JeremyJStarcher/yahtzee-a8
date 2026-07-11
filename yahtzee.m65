@@ -20,6 +20,7 @@
 
 HIGHEST_DICE_FACE = 6
 NUMBER_OF_DICE = 5
+DIE_LAST_INDEX = NUMBER_OF_DICE-1
 NUMBER_OF_PIPS = 7
 
 ; ------------------------------------------------
@@ -188,8 +189,6 @@ SHFTPIP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 .PROC SHOW_PIPS
-
-
     ;; Set things up for the first pip on the first die
 
     LDY #$00
@@ -358,7 +357,7 @@ GetRandom
 
 ?GetRandomPU             ; this is for powerups
     lda RandomPU    ; load the accumulator with a seed
-    	lsr             ; logical shift right
+    lsr             ; logical shift right
     bcc ?SkipEor1    ; branch on carry clear
     eor #$D4        ; exclusive OR (i.e. XOR) function
 
@@ -370,9 +369,9 @@ GetRandom
 ?GetRandomMut              ; this is for mutation flag
 
    	lda RandomMut   ; load the accumulator with a seed
-    	lsr             ; logical shift right
-bcc ?SkipEor2      ; branch on carry clear
-    	eor #$A9          ; exclusive OR (i.e. XOR) function
+    lsr             ; logical shift right
+    bcc ?SkipEor2      ; branch on carry clear
+    eor #$A9          ; exclusive OR (i.e. XOR) function
      ; $A9 generates inverse sequence
 
 ?SkipEor2

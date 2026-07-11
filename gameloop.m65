@@ -102,6 +102,16 @@ ATARI_NO_KEYPRESS = $FF
 .ENDP
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Toggle a die between selectedand not selected.
+;
+; Input:
+;   y - The index of the die to toggle.
+;
+; Returns: none
+;
+; Destroys all registers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC HANDLE_TOGGLE_DIE
     LDY STORE_CMD_DATA
 
@@ -113,12 +123,63 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Set the ROLL_DIE command
+;
+; Inputs: none
+; Outputs:
+;  STORE_CMD_ACTION
+; Destroys
+;  A
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC SET_ROLL_DIE_CMD
+    LDA #CMD_ROLL_DICE
+    STA STORE_CMD_ACTION
+    RTS
+.ENDP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Roll the DICE
+; 
+; Inputs: none
+; Outputs: none
+; Destroys:
+;   A
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC HANDLE_ROLL_DICE
+
+    LDY #DIE_LAST_INDEX
+?LOOP
+    JSR GetRandom
+    STA DICE_VALUES, Y
+    DEY
+    BPL ?LOOP
+
+    RTS
+.ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Prepare the data for a new game 
+;
+; Inputs: none
+; Outputs: none
+; Destroys registers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 .PROC NEW_GAME
     JSR RESET_DIE
     JSR RESET_VALUES
     RTS
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Clears all of the scoresheet values
+; Inputs: none
+; Outputs: none
+; Destroys:
+;   A, Y
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC RESET_VALUES
     LDY #GAME_VALUES_LAST
 ?LOOP
@@ -131,9 +192,16 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Resets all of the dice to be re-rolled
+; Inputs: none
+; Outputs: none
+; Destroys:
+;   A, Y
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC RESET_DIE
     LDA #REROLL_DIE_MASK
-    LDY #NUMBER_OF_DICE -1
+    LDY #DIE_LAST_INDEX
 ?LOOP
     STA DICE_VALUES, Y
     DEY
@@ -141,23 +209,15 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
-.PROC SET_ROLL_DIE_CMD
-    LDA #CMD_ROLL_DICE
-    STA STORE_CMD_ACTION
-    RTS
-.ENDP
-
-.PROC HANDLE_ROLL_DICE
-
-    LDY #NUMBER_OF_DICE -1
-?LOOP
-    JSR GetRandom
-    STA DICE_VALUES, Y
-    DEY
-    BPL ?LOOP
-
-    RTS
-.ENDP
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  Display a scoresheet value
+;
+; Inputs:
+;   Y - The index to Display
+; Returns: none
+; Destroys:
+;  A
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 .PROC DISPLAY_VALUE
 ; How many characters are we actually going to print?
@@ -200,6 +260,14 @@ ATARI_NO_KEYPRESS = $FF
     JMP HW_DISPLAY
 .ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  Display all values
+; 
+; Inputs: none
+; Returns: none
+; Destroys:
+;   A, Y
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC DISPLAY_ALL_VALUES
     LDY #GAME_VALUES_LAST
 ?LOOP
