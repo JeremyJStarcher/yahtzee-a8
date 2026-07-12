@@ -371,8 +371,11 @@ def get_label_text() -> TextCollection:
     add_it(DieContainer(key="DIE4", unicode="  ~5  "))
 
     instr_label_width = 38
-    l1 = center_string("~Roll or ~Score", instr_label_width)
+
+    l1 = center_string("", instr_label_width)
     add_it(LabelText(key="INSTR", unicode=l1))
+    l1 = center_string("~Roll or ~Score", instr_label_width)
+    add_it(LabelText(key="INSTR_OR_SCORE", unicode=l1, linked_to="INSTR"))
     l2 = center_string("Start ~New Game", instr_label_width)
     add_it(LabelText(key="INSTR_START", unicode=l2, linked_to="INSTR"))
 

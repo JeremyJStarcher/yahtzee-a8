@@ -1,16 +1,23 @@
-UNSCORED_SLOT = $AEEA
 
+; This needs to go in the RAM section
+DATA_CMD_ACTION .DS 1
+DATA_CMD_DATA .DS 1
+DATA_STATE .DS 1
+DATA_NEXT_STATE .DS 1
+
+
+; Back to ROM
+STATE_JUST_LOADED = 1
+STATE_WAITING_FOR_NEW_GAME = 1
+
+
+UNSCORED_SLOT_VALUE = $AEEA
 REROLL_DIE_MASK = %10000000
 
 CMD_TOGGLE_DIE = $01
 CMD_ROLL_DICE = $02
-
 CMD_NONE = $FF
 
-; This needs to go in the RAM section
-STORE_CMD_ACTION .DS 1
-STORE_CMD_DATA .DS 1
-;
 
 DICE_KEYS_TABLE .BYTE KEY_1, KEY_2, KEY_3, KEY_4, KEY_5
 END_DICE_KEYS_TABLE
@@ -31,8 +38,8 @@ ATARI_NO_KEYPRESS = $FF
 ;
 ; Inputs: none
 ; Output:
-;   STORE_CMD_ACTION
-;   STORE_CMD_DATA
+;   DATA_CMD_ACTION
+;   DATA_CMD_DATA
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC GET_COMMAND
@@ -77,14 +84,14 @@ ATARI_NO_KEYPRESS = $FF
 ;
 ; Outputs:
 ;
-;  STORE_CMD_ACTION = CMD_TOGGLE_DIE
-;  STORE_CMD_DATA = Y
+;  DATA_CMD_ACTION = CMD_TOGGLE_DIE
+;  DATA_CMD_DATA = Y
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC PROCESS_DIE_KEY
-    STY STORE_CMD_DATA        ; Store the dice # to act upon
+    STY DATA_CMD_DATA        ; Store the dice # to act upon
 
     LDA #CMD_TOGGLE_DIE
-    STA STORE_CMD_ACTION
+    STA DATA_CMD_ACTION
     RTS
 .ENDP
 
@@ -92,13 +99,13 @@ ATARI_NO_KEYPRESS = $FF
 ; Actually execute the command pattern
 ;
 ; Inputs:
-;  STORE_CMD_ACTION
+;  DATA_CMD_ACTION
 ; Returns:
 ;  none
 ; Destroys all registers.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC RUN_CMD
-    LDX STORE_CMD_ACTION
+    LDX DATA_CMD_ACTION
 
     JMP_IF_X_IS CMD_TOGGLE_DIE HANDLE_TOGGLE_DIE
     JMP_IF_X_IS CMD_ROLL_DICE HANDLE_ROLL_DICE
@@ -118,7 +125,7 @@ ATARI_NO_KEYPRESS = $FF
 ; Destroys all registers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC HANDLE_TOGGLE_DIE
-    LDY STORE_CMD_DATA
+    LDY DATA_CMD_DATA
 
     LDA #REROLL_DIE_MASK
     EOR DICE_VALUES,Y
@@ -133,13 +140,13 @@ ATARI_NO_KEYPRESS = $FF
 ;
 ; Inputs: none
 ; Outputs:
-;  STORE_CMD_ACTION
+;  DATA_CMD_ACTION
 ; Destroys
 ;  A
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC SET_ROLL_DIE_CMD
     LDA #CMD_ROLL_DICE
-    STA STORE_CMD_ACTION
+    STA DATA_CMD_ACTION
     RTS
 .ENDP
 
@@ -193,10 +200,10 @@ ATARI_NO_KEYPRESS = $FF
 
 .PROC COMPARE_TO_DEFAULT:
     LDA RAM_VALUE_LSB__TABLE,Y
-    CMP # <UNSCORED_SLOT
+    CMP # <UNSCORED_SLOT_VALUE
     BNE NOT_EQUAL    ; Low byte not $FF -> Z=0, return
     LDA RAM_VALUE_MSB__TABLE,Y
-    CMP # >UNSCORED_SLOT
+    CMP # >UNSCORED_SLOT_VALUE
     RTS
 
 NOT_EQUAL:
@@ -213,9 +220,9 @@ NOT_EQUAL:
 .PROC RESET_VALUES
     LDY #GAME_VALUES_LAST
 ?LOOP
-    LDA # <UNSCORED_SLOT
+    LDA # <UNSCORED_SLOT_VALUE
     STA RAM_VALUE_LSB__TABLE, Y
-    LDA # >UNSCORED_SLOT
+    LDA # >UNSCORED_SLOT_VALUE
     STA RAM_VALUE_MSB__TABLE, Y
     DEY
     BPL ?LOOP
@@ -316,7 +323,7 @@ GAMELOOP
     JSR DISPLAY_MESSAGE
 
     LDA #CMD_NONE           ; Erase the last command
-    STA STORE_CMD_ACTION    ; Entirely
+    STA DATA_CMD_ACTION    ; Entirely
 
     JSR SHOW_PIPS
     JSR DISPLAY_ALL_VALUES

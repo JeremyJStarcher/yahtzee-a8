@@ -53,8 +53,9 @@ LABELS_INSTR = 26
 LABELS_LAST = 26
 
 REPLACEMENT_LABELS_START = 27
-REPLACEMENT_LABELS_INSTR_START = 27
-REPLACEMENT_LABELS_LAST = 27
+REPLACEMENT_LABELS_INSTR_OR_SCORE = 27
+REPLACEMENT_LABELS_INSTR_START = 28
+REPLACEMENT_LABELS_LAST = 28
 
 GAME_VALUES_START = 0
 GAME_VALUES_S1C = $00
@@ -111,7 +112,8 @@ TITLE_LEN_MSB_TABLE
   .BYTE >11; Idx: 24 - GTT - len 11
   .BYTE >6; Idx: 25 - LROL - len 6
   .BYTE >38; Idx: 26 - INSTR - len 38
-  .BYTE >38; Idx: 27 - INSTR_START - len 38
+  .BYTE >38; Idx: 27 - INSTR_OR_SCORE - len 38
+  .BYTE >38; Idx: 28 - INSTR_START - len 38
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The length of each label, low-byte
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -144,7 +146,8 @@ TITLE_LEN_LSB_TABLE
   .BYTE <11; Idx: 24 - GTT - len 11
   .BYTE <6; Idx: 25 - LROL - len 6
   .BYTE <38; Idx: 26 - INSTR - len 38
-  .BYTE <38; Idx: 27 - INSTR_START - len 38
+  .BYTE <38; Idx: 27 - INSTR_OR_SCORE - len 38
+  .BYTE <38; Idx: 28 - INSTR_START - len 38
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The row each label appears on
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -177,7 +180,8 @@ TITLE_ROW_TABLE
   .BYTE 11; 24 - GTT
   .BYTE 11; 25 - LROL
   .BYTE 20; 26 - INSTR
-  .BYTE 20; 27 - INSTR_START
+  .BYTE 20; 27 - INSTR_OR_SCORE
+  .BYTE 20; 28 - INSTR_START
 GAME_VALUES_ROWS
   .BYTE 1; 0 - S1C
   .BYTE 2; 1 - S2C
@@ -231,7 +235,8 @@ TITLE_COL_LSB_TABLE
   .BYTE <19; 24 - GTT
   .BYTE <2; 25 - LROL
   .BYTE <1; 26 - INSTR
-  .BYTE <1; 27 - INSTR_START
+  .BYTE <1; 27 - INSTR_OR_SCORE
+  .BYTE <1; 28 - INSTR_START
 GAME_VALUES_COL_LSB
   .BYTE <14; 0 - S1C
   .BYTE <14; 1 - S2C
@@ -285,7 +290,8 @@ TITLE_COL_MSB_TABLE
   .BYTE >19; 24 - GTT
   .BYTE >2; 25 - LROL
   .BYTE >1; 26 - INSTR
-  .BYTE >1; 27 - INSTR_START
+  .BYTE >1; 27 - INSTR_OR_SCORE
+  .BYTE >1; 28 - INSTR_START
 GAME_VALUES_COL_MSB
   .BYTE >14; 0 - S1C
   .BYTE >14; 1 - S2C
@@ -339,6 +345,7 @@ TITLE_TXT_LSB_TABLE
   .BYTE <LABELS_GTT_TEXT; 0 - GTT
   .BYTE <LABELS_LROL_TEXT; 0 - LROL
   .BYTE <LABELS_INSTR_TEXT; 0 - INSTR
+  .BYTE <REPLACEMENT_LABELS_INSTR_OR_SCORE_TEXT; 0 - INSTR_OR_SCORE
   .BYTE <REPLACEMENT_LABELS_INSTR_START_TEXT; 0 - INSTR_START
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Pointer to the text MSB
@@ -372,6 +379,7 @@ TITLE_TXT_MSB_TABLE
   .BYTE >LABELS_GTT_TEXT; 0 - GTT
   .BYTE >LABELS_LROL_TEXT; 0 - LROL
   .BYTE >LABELS_INSTR_TEXT; 0 - INSTR
+  .BYTE >REPLACEMENT_LABELS_INSTR_OR_SCORE_TEXT; 0 - INSTR_OR_SCORE
   .BYTE >REPLACEMENT_LABELS_INSTR_START_TEXT; 0 - INSTR_START
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; The text of the label - encoded into either the local system encoding or
@@ -455,6 +463,8 @@ LABELS_GTT_TEXT
 LABELS_LROL_TEXT
   .BYTE $52,$6F,$6C,$6C,$20,$23
 LABELS_INSTR_TEXT
+  .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
+REPLACEMENT_LABELS_INSTR_OR_SCORE_TEXT
   .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$D2,$6F,$6C,$6C,$20,$6F,$72,$20,$D3,$63,$6F,$72,$65,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
 REPLACEMENT_LABELS_INSTR_START_TEXT
   .BYTE $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$53,$74,$61,$72,$74,$20,$CE,$65,$77,$20,$47,$61,$6D,$65,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20

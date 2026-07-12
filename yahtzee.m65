@@ -68,6 +68,12 @@ START:
 
     JSR ShowMainBody
     JSR ShowDiceLabels
+    LDA #STATE_JUST_LOADED
+    STA DATA_STATE
+    LDA #STATE_WAITING_FOR_NEW_GAME
+    STA DATA_NEXT_STATE
+
+    ; Just calling new game here to clear the data
     JSR NEW_GAME
 
     JSR GAMELOOP
