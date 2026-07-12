@@ -43,24 +43,10 @@ ATARI_NO_KEYPRESS = $FF
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .PROC GET_COMMAND
-    LDA #ATARI_NO_KEYPRESS
-    STA ATARI_LAST_KEYPRESS
-?LOOP
-    JSR GetRandom  ; Keep the randon number generator churning
+;    LDA #ATARI_NO_KEYPRESS
 
-    LDA ATARI_LAST_KEYPRESS
-    CMP #ATARI_NO_KEYPRESS
-    BEQ ?LOOP
-    JMP DECODE_KEYPRESS
-.ENDP
-
-.PROC DECODE_KEYPRESS
-    ; JSR PRINTKEY
-
-    LDA ATARI_LAST_KEYPRESS
-    CMP #KEY_R
-    BEQ SET_ROLL_DIE_CMD
-
+    LDX ATARI_LAST_KEYPRESS
+    JMP_IF_X_IS KEY_R SET_ROLL_DIE_CMD
 
     ; Get the number of possible dice
     LDY #END_DICE_KEYS_TABLE - DICE_KEYS_TABLE -1
@@ -318,17 +304,27 @@ NOT_EQUAL:
     RTS
 .ENDP
 
-GAMELOOP
     LDY #REPLACEMENT_LABELS_INSTR_START
     JSR DISPLAY_MESSAGE
 
-    LDA #CMD_NONE           ; Erase the last command
-    STA DATA_CMD_ACTION    ; Entirely
+
+.PROC GAMELOOP
 
     JSR SHOW_PIPS
     JSR DISPLAY_ALL_VALUES
 
     JSR GET_COMMAND
     JSR RUN_CMD
+    LDA #CMD_NONE           ; Erase the last command
+    CMP DATA_CMD_ACTION
+
+    LDY #ATARI_NO_KEYPRESS
+    STY ATARI_LAST_KEYPRESS
+    STA DATA_CMD_ACTION    ; Entirely
+
+
+    JSR GetRandom  ; Keep the randon number generator churning
+
 
     JMP GAMELOOP
+.ENDP
