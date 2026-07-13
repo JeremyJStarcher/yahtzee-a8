@@ -42,7 +42,6 @@ PIP_MASK        .DS 1
 .INCLUDE iomac.lib
 .INCLUDE macros.inc
 
-
 ; The current die being operated on.
 CURRENT_DIE             .DS 1
 CURRENT_PIP_ON_SCREEN   .DS 1
@@ -57,6 +56,7 @@ CURRENT_PIP_PATTERN     .BYTE 1
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
 .INCLUDE codegen/strings.m65
+.INCLUDE state.m65
 .INCLUDE gameloop.m65
 
 ; ================================================================
@@ -73,8 +73,7 @@ START:
     LDA #STATE_WAITING_FOR_NEW_GAME
     STA DATA_NEXT_STATE
 
-    ; Just calling new game here to clear the data
-    JSR NEW_GAME
+    JSR EMPTY_VALUES
 
     JSR GAMELOOP
 
@@ -283,7 +282,7 @@ SHFTPIP
     JMP ?PIPSHOW_DISPLAY
 
 ?PIP_SHOW_FILLED
-    LDY #'*'
+    LDY #'*
 
 ?PIPSHOW_DISPLAY
     STY SCRBUF+0
@@ -293,7 +292,7 @@ SHFTPIP
     RTS
 
 ?HIDEPIP
-    LDY #'-'
+    LDY #'-
     JMP ?PIPSHOW_DISPLAY
 .ENDP
 
@@ -435,7 +434,7 @@ ITSADD:
     STA MSIINT          ; restore low byte
 
     TXA                 ; get digit count (0–9)
-    ORA #'0'            ; convert to ASCII ('0' .. '9')
+    ORA #'0             ; convert to ASCII ('0' .. '9')
     ORA #$80            ; convert to ASCII
     LDX MSICTR          ; load current output position
     STA MSISTR,X        ; store digit in output buffer
@@ -486,6 +485,17 @@ MSICTR   *= *+1         ; reserve 1 byte for the output string index
 
 SCRBUF          .DS 50
 PRNBUF          .DS 50
+
+
+
+; This needs to go in the RAM section
+DATA_CMD_ACTION .DS 1
+DATA_CMD_DATA .DS 1
+DATA_STATE .DS 1
+DATA_NEXT_STATE .DS 1
+DATA_NEXT_STATE_PARAMS .DS 1
+
+LAST_KEY .DS 1
 
 
 ; ================================================================

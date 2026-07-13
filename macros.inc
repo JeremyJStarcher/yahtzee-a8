@@ -5,7 +5,14 @@
     BNE SKIP?
     JMP %$2
 SKIP?
+.ENDM
 
+.MACRO JMP_IF_Y_IS
+    ; IF_Y_IS <value> JMP <address>
+    CPY #%$1
+    BNE SKIP?
+    JMP %$2
+SKIP?
 .ENDM
 
 
@@ -100,4 +107,21 @@ Skip?
     STA RAM_VALUE_LSB__TABLE,Y
     LDA #>%2
     STA RAM_VALUE_MSB__TABLE,Y
+.ENDM
+
+
+.MACRO IF_EQ_SET_NEXT_STATE
+    BNE jjsSkip?
+    LDA #%1
+    STA DATA_NEXT_STATE
+jjsSkip?
+    NOP
+.ENDM
+
+.MACRO IF_EQ_SET_CMD
+    BNE jjsSkip?
+    LDA #%1
+    STA DATA_CMD_ACTION
+jjsSkip?
+    NOP
 .ENDM

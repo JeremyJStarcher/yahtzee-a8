@@ -1,29 +1,11 @@
-
-; This needs to go in the RAM section
-DATA_CMD_ACTION .DS 1
-DATA_CMD_DATA .DS 1
-DATA_STATE .DS 1
-DATA_NEXT_STATE .DS 1
-
-
-; Back to ROM
-STATE_JUST_LOADED = 1
-STATE_WAITING_FOR_NEW_GAME = 1
-
-
 UNSCORED_SLOT_VALUE = $AEEA
 REROLL_DIE_MASK = %10000000
-
-CMD_TOGGLE_DIE = $01
-CMD_ROLL_DICE = $02
-CMD_NONE = $FF
-
 
 DICE_KEYS_TABLE .BYTE KEY_1, KEY_2, KEY_3, KEY_4, KEY_5
 END_DICE_KEYS_TABLE
 
 ; The address of the last keypress on the keyboard.
-ATARI_LAST_KEYPRESS = $02FC
+Z_ATARI_LAST_KEYPRESS = $02FC
 ATARI_NO_KEYPRESS = $FF
 
 .PROC PRINTKEY
@@ -42,66 +24,76 @@ ATARI_NO_KEYPRESS = $FF
 ;   DATA_CMD_DATA
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.PROC GET_ATARI_KEY
+    LDY Z_ATARI_LAST_KEYPRESS
+    STY LAST_KEY
+    LDY ATARI_NO_KEYPRESS
+    STY Z_ATARI_LAST_KEYPRESS
+    RTS
+.ENDP
+
 .PROC GET_COMMAND
-;    LDA #ATARI_NO_KEYPRESS
+    JSR GET_ATARI_KEY
 
-    LDX ATARI_LAST_KEYPRESS
-    JMP_IF_X_IS KEY_R SET_ROLL_DIE_CMD
+    LDX DATA_STATE
+    LDY LAST_KEY
 
-    ; Get the number of possible dice
-    LDY #END_DICE_KEYS_TABLE - DICE_KEYS_TABLE -1
+    ;JMP_IF_Y_IS ATARI_NO_KEYPRESS EXIT?
 
-?TRY_DIE
-    LDA DICE_KEYS_TABLE,Y
-    CMP ATARI_LAST_KEYPRESS
-    BEQ PROCESS_DIE_KEY
-    DEY
-    BPL ?TRY_DIE
-
-?EXIT
+    JMP_IF_X_IS STATE_WAITING_FOR_NEW_GAME CMDS_FOR_STATE_WAITING
+    JMP_IF_X_IS STATE_IN_GAME CMDS_FOR_IN_GAME
+EXIT?
     RTS
 .ENDP
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; One of the dice key was pressed
-;
-; Inputs:
-;   Y - The index of the dice keys lookup table.
-;
-; Outputs:
-;
-;  DATA_CMD_ACTION = CMD_TOGGLE_DIE
-;  DATA_CMD_DATA = Y
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.PROC PROCESS_DIE_KEY
-    STY DATA_CMD_DATA        ; Store the dice # to act upon
-
-    LDA #CMD_TOGGLE_DIE
-    STA DATA_CMD_ACTION
+.PROC CMDS_FOR_STATE_WAITING
+    CPY #KEY_N
+    IF_EQ_SET_NEXT_STATE STATE_STARTING_GAME
     RTS
 .ENDP
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Actually execute the command pattern
-;
-; Inputs:
-;  DATA_CMD_ACTION
-; Returns:
-;  none
-; Destroys all registers.
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.PROC RUN_CMD
-    LDX DATA_CMD_ACTION
+;; Look for any commands associated with the IN-GAME state
+;;
+;; Inputs
+;;   LAST_KEY - The last key PRESSED
+;; Outputs:
+;;   DATA_NEXT_STATE as relevant
+;;
+;; Destroys
+;;    A, X
+;; Preserves Y
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC CMDS_FOR_IN_GAME
+    LDY LAST_KEY
+    CPY #KEY_R
+    IF_EQ_SET_NEXT_STATE STATE_RE_ROLL_DICE
 
-    JMP_IF_X_IS CMD_TOGGLE_DIE HANDLE_TOGGLE_DIE
-    JMP_IF_X_IS CMD_ROLL_DICE HANDLE_ROLL_DICE
+    ; Now we check to see if one of the dice-select keys are hit.
+
+    LDX #END_DICE_KEYS_TABLE - DICE_KEYS_TABLE
+?LOOP:
+    LDA DICE_KEYS_TABLE, X
+    CMP LAST_KEY
+    BEQ KEYMATCH?
+    DEX
+    BPL ?LOOP
 
     RTS
+
+KEYMATCH?:
+    LDA #STATE_TOGGLE_DIE
+    STA DATA_NEXT_STATE
+    STX DATA_NEXT_STATE_PARAMS
+
+    RTS
+
 .ENDP
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Toggle a die between selectedand not selected.
+; Toggle a die between selected and not selected.
 ;
 ; Input:
 ;   y - The index of the die to toggle.
@@ -121,20 +113,6 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Set the ROLL_DIE command
-;
-; Inputs: none
-; Outputs:
-;  DATA_CMD_ACTION
-; Destroys
-;  A
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.PROC SET_ROLL_DIE_CMD
-    LDA #CMD_ROLL_DICE
-    STA DATA_CMD_ACTION
-    RTS
-.ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Roll the DICE
@@ -156,21 +134,21 @@ ATARI_NO_KEYPRESS = $FF
     RTS
 .ENDP
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Prepare the data for a new game
+; Empty values
+; This just creates the empty score sheet
+; for the screen to display beforea new game is SET_CMD_ROLL_DIE
 ;
 ; Inputs: none
 ; Outputs: none
 ; Destroys registers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-.PROC NEW_GAME
+.PROC EMPTY_VALUES
     JSR RESET_DIE
     JSR RESET_VALUES
-
     SET_GAME_VALUE GAME_VALUES_RCT 1024
-
+    LDY #LABELS_INSTR
+    JSR DISPLAY_MESSAGE
     RTS
 .ENDP
 
@@ -304,27 +282,29 @@ NOT_EQUAL:
     RTS
 .ENDP
 
-    LDY #REPLACEMENT_LABELS_INSTR_START
-    JSR DISPLAY_MESSAGE
+.PROC DUMP_STATE
+    PPRINT "CHANGE_STATE START (CS) "
+    LDA DATA_STATE
+    JSR P_BYTEOUT
+    PPRINT " (NS)"
+    LDA DATA_NEXT_STATE
+    JSR P_BYTEOUT
+    PPRINTLN " "
+    RTS
+.ENDP
 
 
 .PROC GAMELOOP
-
-    JSR SHOW_PIPS
-    JSR DISPLAY_ALL_VALUES
+    ;JSR DUMP_STATE
+    JSR CHANGE_STATE
+    ; JSR SHOW_PIPS
 
     JSR GET_COMMAND
-    JSR RUN_CMD
-    LDA #CMD_NONE           ; Erase the last command
-    CMP DATA_CMD_ACTION
 
-    LDY #ATARI_NO_KEYPRESS
-    STY ATARI_LAST_KEYPRESS
-    STA DATA_CMD_ACTION    ; Entirely
-
+    ;LDY #ATARI_NO_KEYPRESS
+    ;STY ATARI_LAST_KEYPRESS
 
     JSR GetRandom  ; Keep the randon number generator churning
-
 
     JMP GAMELOOP
 .ENDP
