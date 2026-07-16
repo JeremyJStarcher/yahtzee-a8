@@ -17,6 +17,7 @@ RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
 SCREEN_WIDTH = 40
 NUMBER_OF_PIPS = 7
 
+ASCII_FILL_CHARACTER = "="
 
 ATASCII_ESCAPE = "␛"
 ATASCII_REQUIRES_ESCAPE = ["␛", "↑", "↓", "←", "→", "🢰", "◀", "▶"]
@@ -270,7 +271,7 @@ def replace_template(orig_text: str, _new_text: str, idx: int, template_length: 
     #     a[i + idx] = "."
 
     for i in range(template_length):
-        a[i + idx] = "."
+        a[i + idx] = ASCII_FILL_CHARACTER
 
     return "".join(a)
 
@@ -408,7 +409,7 @@ def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
             display = c
             if c in pips_digits:
                 die.pips[int(c)] = DiePip(screen_col=col, screen_row=row)
-                display = "."
+                display = ASCII_FILL_CHARACTER
 
             pos = (row * SCREEN_WIDTH) + col
             unicode_art = unicode_art[:pos] + display + unicode_art[pos + 1 :]
