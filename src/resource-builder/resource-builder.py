@@ -10,8 +10,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
-ROM_ASM_FILE_NAME = Path(__file__).with_name("strings.m65")
-RAM_ASM_FILE_NAME = Path(__file__).with_name("ram.m65")
+OUTPUT_DIRECTORY = Path("./generated")
+
+ROM_ASM_FILE_NAME = OUTPUT_DIRECTORY / "strings.m65"
+RAM_ASM_FILE_NAME = OUTPUT_DIRECTORY / "ram.m65"
 
 # The actual screen width of the Atari.  We handle margins ourselves.
 SCREEN_WIDTH = 40
@@ -872,6 +874,9 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
 
 
 def main():
+    # Ensure output directory exists before writing files
+    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
     text_collection = get_screen_frame()
 
     with open(ROM_ASM_FILE_NAME, "w", encoding="utf-8") as file:

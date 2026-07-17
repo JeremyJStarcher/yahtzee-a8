@@ -6,7 +6,7 @@ RESOURCE_CODE_DIR=./resource-builder
 
 
 rm -f yahtzee.65o
-rm -f codegen/strings.m65
+rm -rf generated
 rm -f a8*
 
 
