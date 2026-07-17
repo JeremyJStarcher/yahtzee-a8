@@ -9,7 +9,7 @@ NAV_KEYS_TABLE
     .BYTE KEY_Equal ; DOWN
     .BYTE KEY_plus ; LEFT
     .BYTE KEY_Aster ; RIGHT
-END_DICE_KEYS_TABLE
+END_NAV_KEYS_TABLE
 
 
 ; The address of the last keypress on the keyboard.

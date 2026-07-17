@@ -55,7 +55,7 @@ CURRENT_PIP_PATTERN     .BYTE 1
 
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
-.INCLUDE codegen/strings.m65
+.INCLUDE resource-builder/strings.m65
 .INCLUDE state.m65
 .INCLUDE gameloop.m65
 
@@ -476,7 +476,7 @@ ITSTABLE_LEN = * - ITSTABLE
 ; -------- Data allocations (storage for the routine) --------
 
 
-.INCLUDE codegen/ram.m65
+.INCLUDE resource-builder/ram.m65
 
 MSISTR   *= *+6         ; reserve 6 bytes for the output string (5 digits + EOL)
 MSIINT   *= *+2         ; reserve 2 bytes for the input integer (little‑endian)
