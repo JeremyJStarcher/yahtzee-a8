@@ -35,6 +35,9 @@ lint:
 	$(RUFF) check $(RESOURCE_DIR) --fix
 	$(PYREFLY) check $(RESOURCE_DIR)
 
+test:
+	PYTHONPATH=$(RESOURCE_DIR) $(VENV_PY) -m unittest discover -s $(RESOURCE_DIR)/tests -p "test_*.py"
+
 build-resources: yahtzee.65o
 
 assemble:
