@@ -8,7 +8,6 @@ Generates .BYTE tables and label lookup structures for assembly.
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
 
 OUTPUT_DIRECTORY = Path("./generated")
 
@@ -56,128 +55,55 @@ class DiePip:
 @dataclass
 class ScreenElement:
     """
-    Base class for any element positioned on screen.
+    Unified class for all positioned elements on screen.
 
-    Provides common fields shared by all positioned elements like labels,
-    scores, and dice containers.
+    Combines fields from the previous separate classes (ScreenElement, GameValue,
+    LabelText, DieContainer) into one flexible structure. All optional fields allow
+    this single type to represent any kind of screen element.
     """
 
-    key: str
+    # Base positioning and layout
+    key: str = ""
     screen_row: int = -1
     screen_col: int = -1
     length: int = 0
     asm_bytes: list[str] = field(default_factory=list)
     keyboard_code: int = -1
 
-
-class TextProcessingMixin:
-    """
-    Mixin providing unicode text processing functionality.
-
-    Handles highlight key position extraction, unicode filtering, and conversion
-    to ATASCII assembly bytes. This eliminates duplication between
-    LabelText and DieContainer classes.
-    """
-
-    def _process_text(self, unicode: str) -> tuple[str, list[int], list[str], int]:
-        """
-        Process unicode text to filter markers and convert to ATASCII bytes.
-
-        Args:
-            unicode: Input string that may contain HIGHLIGHT_KEY_MARKER characters
-
-        Returns:
-            Tuple of (filtered_text, highlight_key_positions, asm_bytes, length)
-        """
-        filtered_text, highlight_key_positions = find_highlight_idx_in_unicode(unicode)
-        asm_bytes = unicode_to_atari_hex2(filtered_text, highlight_key_positions)
-        length = len(asm_bytes)
-
-        return filtered_text, highlight_key_positions, asm_bytes, length
-
-    def _initialize_from_text(self, unicode: str) -> None:
-        """
-        Initialize instance variables from unicode text.
-
-        Processes the text to extract highlight_key_positions and generate assembly bytes,
-        then sets all relevant instance attributes. Subclasses can call this
-        in their __post_init__ to avoid code duplication.
-
-        Args:
-            unicode: Input string that may contain HIGHLIGHT_KEY_MARKER characters
-        """
-        filtered_text, highlight_key_positions, asm_bytes, length = self._process_text(
-            unicode
-        )
-
-        # Set common attributes - subclasses may override specific ones after calling this
-        self.highlight_key_positions = highlight_key_positions
-        self.unicode = filtered_text
-
-        self.asm_bytes = asm_bytes
-        self.length = length
-
-
-@dataclass
-class GameValue(ScreenElement):
-    """Represents a game value display area on screen (scores, totals, etc.)."""
-
+    # Game value specific
     default_value: int = 0xFFFF
 
-    # Inherits all fields from ScreenElement:
-    # - key
-    # - screen_row
-    # - screen_col
-    # - length
-    # - asm_bytes
-
-
-@dataclass
-class LabelText(ScreenElement, TextProcessingMixin):
-    """
-    Represents a text label with position on screen.
-
-    Extends ScreenElement with unicode text content and automatic
-    processing into ATASCII assembly bytes.
-    """
-
+    # Text/label specific
     unicode: str = ""
     linked_to: str | None = None
     highlight_key_positions: list[int] = field(default_factory=list)
 
-    def __post_init__(self):
-        """Process the unicode text to extract highlight_key_positions and generate assembly bytes."""
-        self._initialize_from_text(self.unicode)
-
-
-@dataclass
-class DieContainer(ScreenElement, TextProcessingMixin):
-    """
-    Represents a die display container with pips and optional label.
-
-    Extends ScreenElement with pip positioning data for rendering
-    dice faces, plus optional unicode text for labeling.
-    """
-
-    unicode: str = ""
+    # Dice container specific
     pips: list[DiePip] = field(default_factory=list)
     pip_fill_asm_bytes: list[str] = field(default_factory=list)
     pip_empty_asm_bytes: list[str] = field(default_factory=list)
 
     def __post_init__(self):
-        """Process the unicode text to extract highlight_key_idx and generate assembly bytes."""
-        self._initialize_from_text(self.unicode)
+        """Process the unicode text if present to extract highlights and generate assembly bytes."""
+        if self.unicode:
+            filtered_text, highlight_positions = find_highlight_idx_in_unicode(
+                self.unicode
+            )
+            self.highlight_key_positions = highlight_positions
+            self.unicode = filtered_text
+            self.asm_bytes = unicode_to_atari_hex2(filtered_text, highlight_positions)
+            self.length = len(self.asm_bytes)
 
 
 @dataclass
 class TextCollection:
     """Container for all text elements on screen."""
 
-    screen_labels: list[LabelText] = field(default_factory=list)
-    game_values: list[GameValue] = field(default_factory=list)
-    die_container: list[DieContainer] = field(default_factory=list)
-    label_replacement_text: list[LabelText] = field(default_factory=list)
-    screen_frame: LabelText | None = None
+    screen_labels: list[ScreenElement] = field(default_factory=list)
+    game_values: list[ScreenElement] = field(default_factory=list)
+    die_container: list[ScreenElement] = field(default_factory=list)
+    label_replacement_text: list[ScreenElement] = field(default_factory=list)
+    screen_frame: ScreenElement | None = None
 
 
 @dataclass
@@ -262,15 +188,6 @@ def get_screen_unicode_art() -> list[str]:
 
 def replace_template(orig_text: str, _new_text: str, idx: int, template_length: int):
     a = list(orig_text)
-    # t = list(new_text)
-
-    # length = min(len(new_text), len(orig_text))
-
-    # for i in range(length):
-    #     if i + idx >= len(orig_text):
-    #         break
-    #     a[i + idx] = t[i]
-    #     a[i + idx] = "."
 
     for i in range(template_length):
         a[i + idx] = ASCII_FILL_CHARACTER
@@ -307,85 +224,86 @@ def get_label_text() -> TextCollection:
 
     text_collection = TextCollection()
 
-    def add_it(it: LabelText | GameValue | DieContainer):
-        if isinstance(it, LabelText):
-            if it.linked_to is None:
-                text_collection.screen_labels.append(it)
-            else:
-                text_collection.label_replacement_text.append(it)
-        elif isinstance(it, GameValue):
+    def add_it(it: ScreenElement):
+        if it.default_value != 0xFFFF and not it.unicode:
+            # It's a game value (has default_value but no text content)
             text_collection.game_values.append(it)
-        elif isinstance(it, DieContainer):
+        elif it.key.startswith("DIE"):
+            # It's a die container (identified by key prefix)
             text_collection.die_container.append(it)
+        elif it.linked_to is None:
+            # Regular label without replacement target
+            text_collection.screen_labels.append(it)
         else:
-            raise ValueError(f"Unknown label type: {type(it)}")
+            # Label that replaces another label's position
+            text_collection.label_replacement_text.append(it)
 
     # Left column labels
-    add_it(LabelText(key="L1C", unicode="~A~c~e~s"))  # Left column labels
-    add_it(GameValue(key="S1C", default_value=11))
-    add_it(LabelText(key="L2C", unicode="T~wos"))
-    add_it(GameValue(key="S2C", default_value=12))
-    add_it(LabelText(key="L3C", unicode="Threes"))
-    add_it(GameValue(key="S3C", default_value=13))
-    add_it(LabelText(key="L4C", unicode="Fours"))
-    add_it(GameValue(key="S4C", default_value=14))
-    add_it(LabelText(key="L5C", unicode="Fives"))
-    add_it(GameValue(key="S5C", default_value=15))
-    add_it(LabelText(key="L6C", unicode="Sixes"))
-    add_it(GameValue(key="S6C", default_value=111))
-    add_it(LabelText(key="LTS", unicode="Top Score"))
-    add_it(GameValue(key="STS", default_value=113))
-    add_it(LabelText(key="LTB", unicode="Upper Bonus"))
-    add_it(GameValue(key="STB", default_value=1134))
-    add_it(LabelText(key="LUT", unicode="Upper Total"))
-    add_it(GameValue(key="SUT", default_value=113))
+    add_it(ScreenElement(key="L1C", unicode="~A~c~e~s"))  # Left column labels
+    add_it(ScreenElement(key="S1C", default_value=11))
+    add_it(ScreenElement(key="L2C", unicode="T~wos"))
+    add_it(ScreenElement(key="S2C", default_value=12))
+    add_it(ScreenElement(key="L3C", unicode="Threes"))
+    add_it(ScreenElement(key="S3C", default_value=13))
+    add_it(ScreenElement(key="L4C", unicode="Fours"))
+    add_it(ScreenElement(key="S4C", default_value=14))
+    add_it(ScreenElement(key="L5C", unicode="Fives"))
+    add_it(ScreenElement(key="S5C", default_value=15))
+    add_it(ScreenElement(key="L6C", unicode="Sixes"))
+    add_it(ScreenElement(key="S6C", default_value=111))
+    add_it(ScreenElement(key="LTS", unicode="Top Score"))
+    add_it(ScreenElement(key="STS", default_value=113))
+    add_it(ScreenElement(key="LTB", unicode="Upper Bonus"))
+    add_it(ScreenElement(key="STB", default_value=1134))
+    add_it(ScreenElement(key="LUT", unicode="Upper Total"))
+    add_it(ScreenElement(key="SUT", default_value=113))
 
     # Right column labels
-    add_it(LabelText(key="L3K", unicode="3 of a Kind"))
-    add_it(GameValue(key="S3K", default_value=143))
-    add_it(LabelText(key="L4K", unicode="4 of a Kind"))
-    add_it(GameValue(key="S4K", default_value=11))
-    add_it(LabelText(key="LFH", unicode="Full House"))
-    add_it(GameValue(key="SFH", default_value=11))
-    add_it(LabelText(key="LSS", unicode="S Straight"))
-    add_it(GameValue(key="SSS", default_value=11))
-    add_it(LabelText(key="LLS", unicode="L Straight"))
-    add_it(GameValue(key="SLS", default_value=11))
-    add_it(LabelText(key="L5K", unicode="5 of a Kind"))
-    add_it(GameValue(key="S5K", default_value=11))
-    add_it(LabelText(key="LCH", unicode="Chance"))
-    add_it(GameValue(key="SCH", default_value=11))
-    add_it(LabelText(key="L5B", unicode="5K Bonus"))
-    add_it(GameValue(key="S5B", default_value=11))
-    add_it(LabelText(key="LLT", unicode="Lower Total"))
-    add_it(GameValue(key="SLT", default_value=11))
+    add_it(ScreenElement(key="L3K", unicode="3 of a Kind"))
+    add_it(ScreenElement(key="S3K", default_value=143))
+    add_it(ScreenElement(key="L4K", unicode="4 of a Kind"))
+    add_it(ScreenElement(key="S4K", default_value=11))
+    add_it(ScreenElement(key="LFH", unicode="Full House"))
+    add_it(ScreenElement(key="SFH", default_value=11))
+    add_it(ScreenElement(key="LSS", unicode="S Straight"))
+    add_it(ScreenElement(key="SSS", default_value=11))
+    add_it(ScreenElement(key="LLS", unicode="L Straight"))
+    add_it(ScreenElement(key="SLS", default_value=11))
+    add_it(ScreenElement(key="L5K", unicode="5 of a Kind"))
+    add_it(ScreenElement(key="S5K", default_value=11))
+    add_it(ScreenElement(key="LCH", unicode="Chance"))
+    add_it(ScreenElement(key="SCH", default_value=11))
+    add_it(ScreenElement(key="L5B", unicode="5K Bonus"))
+    add_it(ScreenElement(key="S5B", default_value=11))
+    add_it(ScreenElement(key="LLT", unicode="Lower Total"))
+    add_it(ScreenElement(key="SLT", default_value=11))
 
     # Bottom labels
-    add_it(LabelText(key="GTT", unicode="Grand Total"))
-    add_it(GameValue(key="SGT", default_value=9999))
+    add_it(ScreenElement(key="GTT", unicode="Grand Total"))
+    add_it(ScreenElement(key="SGT", default_value=9999))
 
-    add_it(LabelText(key="LROL", unicode="Roll #"))
-    add_it(GameValue(key="RCT", default_value=11))
+    add_it(ScreenElement(key="LROL", unicode="Roll #"))
+    add_it(ScreenElement(key="RCT", default_value=11))
 
-    add_it(DieContainer(key="DIE0", unicode="  ~1  "))
-    add_it(DieContainer(key="DIE1", unicode="  ~2  "))
-    add_it(DieContainer(key="DIE2", unicode="  ~3  "))
-    add_it(DieContainer(key="DIE3", unicode="  ~4  "))
-    add_it(DieContainer(key="DIE4", unicode="  ~5  "))
+    add_it(ScreenElement(key="DIE0", unicode="  ~1  "))
+    add_it(ScreenElement(key="DIE1", unicode="  ~2  "))
+    add_it(ScreenElement(key="DIE2", unicode="  ~3  "))
+    add_it(ScreenElement(key="DIE3", unicode="  ~4  "))
+    add_it(ScreenElement(key="DIE4", unicode="  ~5  "))
 
     instr_label_width = 38
 
     l1 = center_string("", instr_label_width)
-    add_it(LabelText(key="INSTR", unicode=l1))
-    l1 = center_string("~Roll or ~Score", instr_label_width)
-    add_it(LabelText(key="INSTR_OR_SCORE", unicode=l1, linked_to="INSTR"))
-    l2 = center_string("Start ~New Game", instr_label_width)
-    add_it(LabelText(key="INSTR_START", unicode=l2, linked_to="INSTR"))
+    add_it(ScreenElement(key="INSTR", unicode=l1))
+    l1 = center_string("~Roll or  ~Score", instr_label_width)
+    add_it(ScreenElement(key="INSTR_OR_SCORE", unicode=l1, linked_to="INSTR"))
+    l2 = center_string("Start  ~New Game", instr_label_width)
+    add_it(ScreenElement(key="INSTR_START", unicode=l2, linked_to="INSTR"))
 
     return text_collection
 
 
-def add_dice_boxes(die: DieContainer, unicode_art: str) -> str:
+def add_dice_boxes(die: ScreenElement, unicode_art: str) -> str:
 
     small_die = [
         "┌───┐",
@@ -445,7 +363,7 @@ def get_screen_frame() -> TextCollection:
             if label.screen_row == ai:
                 replacement: str = SCREEN_PLACE_HOLDER * (len(record.key) + 1)
 
-                if isinstance(record, (LabelText, DieContainer)):
+                if record.unicode:
                     replacement = record.unicode
 
                 unicode_art_lines[ai] = replace_template(
@@ -461,7 +379,7 @@ def get_screen_frame() -> TextCollection:
     for die in label_text_info.die_container:
         atari_unicode_art = add_dice_boxes(die, atari_unicode_art)
 
-    label = LabelText(key="MAIN", unicode=atari_unicode_art)
+    label = ScreenElement(key="MAIN", unicode=atari_unicode_art)
     label.screen_col = 0
     label.screen_row = 0
 
@@ -551,7 +469,7 @@ def unicode_to_atari_hex2(
     return result
 
 
-def create_ram_region(prefix: str, labels: list[GameValue]) -> list[str]:
+def create_ram_region(prefix: str, labels: list[ScreenElement]) -> list[str]:
     header = []
     footer = []
 
@@ -574,7 +492,7 @@ def create_ram_region(prefix: str, labels: list[GameValue]) -> list[str]:
     return header + value_msb + value_lsb + footer
 
 
-def create_pip_region(dice_containers: list[DieContainer]) -> list[str]:
+def create_pip_region(dice_containers: list[ScreenElement]) -> list[str]:
 
     pip_header: list[str] = []
     pip_header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
@@ -605,7 +523,7 @@ def create_pip_region(dice_containers: list[DieContainer]) -> list[str]:
     return pip_header + pip_list + pip_ptr_lsb + pip_ptr_msb
 
 
-def create_dice_region(dice_containers: list[DieContainer]) -> list[str]:
+def create_dice_region(dice_containers: list[ScreenElement]) -> list[str]:
     die_header: list[str] = []
     die_header.append("; the value of each die")
     die_header.append("DICE_VALUES")
@@ -645,7 +563,7 @@ class ScreenElements:
 
 def add_game_values_to_region(
     prefix: str,
-    labels: list[GameValue],
+    labels: list[ScreenElement],
     h: ScreenElements,
 ) -> None:
 
@@ -694,7 +612,7 @@ def complete_replaement_text(text_collection: TextCollection) -> None:
 
 def add_text_to_region(
     prefix: str,
-    labels: list[LabelText | GameValue | DieContainer],
+    labels: list[ScreenElement],
     h: ScreenElements,
 ) -> None:
 
@@ -832,30 +750,16 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
         ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
     )
 
-    # Cast required because mypy doesn't narrow list subclasses automatically
-    labels_list: list[LabelText | GameValue | DieContainer] = cast(
-        list[LabelText | GameValue | DieContainer], text_collection.screen_labels
-    )
-
-    label_replacement_list: list[LabelText | GameValue | DieContainer] = cast(
-        list[LabelText | GameValue | DieContainer],
-        text_collection.label_replacement_text,
-    )
-
-    dice_list: list[LabelText | GameValue | DieContainer] = cast(
-        list[LabelText | GameValue | DieContainer], text_collection.die_container
-    )
-
-    frame_list: list[LabelText | GameValue | DieContainer] = cast(
-        list[LabelText | GameValue | DieContainer], [text_collection.screen_frame]
-    )
-
     complete_replaement_text(text_collection=text_collection)
 
-    add_text_to_region("FRAME", frame_list, h)
-    add_text_to_region("DICE", dice_list, h)
-    add_text_to_region("LABELS", labels_list, h)
-    add_text_to_region("REPLACEMENT_LABELS", label_replacement_list, h)
+    add_text_to_region(
+        "FRAME",
+        [text_collection.screen_frame] if text_collection.screen_frame else [],
+        h,
+    )
+    add_text_to_region("DICE", text_collection.die_container, h)
+    add_text_to_region("LABELS", text_collection.screen_labels, h)
+    add_text_to_region("REPLACEMENT_LABELS", text_collection.label_replacement_text, h)
 
     add_game_values_to_region("GAME_VALUES", text_collection.game_values, h)
 

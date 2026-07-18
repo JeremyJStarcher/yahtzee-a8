@@ -448,7 +448,7 @@ ITSADD:
 
     ; -------- Handle the last digit (units: 0–9) --------
     LDA MSIINT          ; remainder is now 0..9 (low byte; high byte is 0)
-    ORA #'0'            ; convert to ASCII
+    ORA #'0             ; convert to ASCII
     ORA #$80            ; convert to ASCII
 
     LDX MSICTR          ; current output position
