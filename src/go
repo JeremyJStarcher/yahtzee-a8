@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
 
-set -e
-
-RESOURCE_CODE_DIR=./resource-builder
-
-
-rm -f yahtzee.65o
-rm -rf generated
-rm -f a8*
-
-
-. ./venv/.venv/bin/activate
-ruff format $RESOURCE_CODE_DIR || (echo "Python formatter failed"; exit 1)
-ruff check $RESOURCE_CODE_DIR --fix  || (echo "ruff check failed"; exit 1)
-pyrefly check $RESOURCE_CODE_DIR  || (echo "pyrefly failed"; exit 1)
-
-
-python ${RESOURCE_CODE_DIR}/resource-builder.py  || (echo "Resource builder failed"; exit 1)
-../../code/atasm -xd2.atr -g/tmp/file.lst  ./yahtzee.m65 || (echo "atasm failed"; exit 1)
-../../code/atari800 yahtzee.65o  || (echo "atari800 emulator failed"; exit 1)
+# Thin wrapper to keep `./go` compatibility; delegates to Makefile.
+exec make "$@"

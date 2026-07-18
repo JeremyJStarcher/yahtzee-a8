@@ -3,3 +3,4 @@ d2.atr
 yahtzee.65o
 .venv/
 codegen/__pycache__/
+*.pyc
