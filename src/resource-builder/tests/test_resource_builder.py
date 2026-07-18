@@ -31,7 +31,9 @@ class ResourceBuilderTests(unittest.TestCase):
     def test_unicode_to_atari_hex2_basic(self):
         expected_a = rb.byte_as_hex(rb.ATASCII_MAP["A"] + 0x80)
         expected_exc = rb.byte_as_hex(rb.ATASCII_MAP["!"])
-        self.assertEqual(rb.unicode_to_atari_hex2("A!", [0]), [expected_a, expected_exc])
+        self.assertEqual(
+            rb.unicode_to_atari_hex2("A!", [0]), [expected_a, expected_exc]
+        )
 
     def test_unicode_to_atari_hex2_requires_escape(self):
         output = rb.unicode_to_atari_hex2("←", [])
