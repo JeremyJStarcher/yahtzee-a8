@@ -56,6 +56,7 @@ CURRENT_PIP_PATTERN     .BYTE 1
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
 .INCLUDE generated/strings.m65
+.INCLUDE generated/state.m65
 .INCLUDE state.m65
 .INCLUDE gameloop.m65
 

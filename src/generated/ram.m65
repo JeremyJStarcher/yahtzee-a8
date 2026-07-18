@@ -1,4 +1,4 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 START_REGION_RAM
 RAM_VALUE_MSB__TABLE
 RAM_VALUE_MSB_S1C  .BYTE >11
@@ -43,7 +43,7 @@ RAM_VALUE_LSB_SLT  .BYTE <11
 RAM_VALUE_LSB_SGT  .BYTE <9999
 RAM_VALUE_LSB_RCT  .BYTE <11
 END_REGION_RAM
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; the value of each die
 DICE_VALUES
 DICE_0_VALUE  .BYTE 0; die 0

@@ -58,7 +58,7 @@ class ResourceBuilderTests(unittest.TestCase):
         self.assertEqual(labels[0].template_length, 1 + len("TEST") + 4)
 
     def test_get_screen_frame_assigns_positions(self):
-        frame = rb.get_screen_frame()
+        frame = rb.get_resource_collection()
         self.assertIsNotNone(frame.screen_frame)
         self.assertGreater(len(frame.game_values), 0)
         self.assertEqual(len(frame.screen_elements), 5)
@@ -67,7 +67,7 @@ class ResourceBuilderTests(unittest.TestCase):
 
     def test_create_ram_region(self):
         label = rb.ScreenElement(key="TST", default_value=0x1234)
-        region = rb.create_ram_region("RAM", [label])
+        region = rb.generate_ram_region("RAM", [label])
         self.assertIn("START_REGION_RAM", region)
         self.assertIn("END_REGION_RAM", region)
         self.assertIn("RAM_VALUE_LSB_TST  .BYTE <4660", region)

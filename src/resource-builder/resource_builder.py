@@ -9,10 +9,13 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+ASM_BANNER = ";" * 40 + ""
+
 OUTPUT_DIRECTORY = Path("./generated")
 
 ROM_ASM_FILE_NAME = OUTPUT_DIRECTORY / "strings.m65"
 RAM_ASM_FILE_NAME = OUTPUT_DIRECTORY / "ram.m65"
+STATES_ASM_FILE_NAME = OUTPUT_DIRECTORY / "state.m65"
 
 # The actual screen width of the Atari.  We handle margins ourselves.
 SCREEN_WIDTH = 40
@@ -42,6 +45,14 @@ HIGHLIGHT_KEY_MARKER = "~"
 SCREEN_PLACE_HOLDER = "▂"
 
 ATASCII_MAP = {char: idx for idx, char in enumerate(ATASCII)}
+
+
+@dataclass
+class StateData:
+    name: str
+    has_enter_state: bool
+    has_leave_state: bool
+    has_busy_state: bool
 
 
 @dataclass
@@ -96,7 +107,7 @@ class ScreenElement:
 
 
 @dataclass
-class TextCollection:
+class ResourceCollection:
     """Container for all positioned screen elements."""
 
     screen_labels: list[ScreenElement] = field(default_factory=list)
@@ -104,6 +115,7 @@ class TextCollection:
     screen_elements: list[ScreenElement] = field(default_factory=list)
     label_replacement_text: list[ScreenElement] = field(default_factory=list)
     screen_frame: ScreenElement | None = None
+    states: list[StateData] = field(default_factory=list)
 
 
 @dataclass
@@ -219,24 +231,24 @@ def center_string(unicode: str, width: int) -> str:
     return (" " * left_spaces) + unicode + (" " * right_spaces)
 
 
-def get_label_text() -> TextCollection:
+def get_label_text() -> ResourceCollection:
     """Define all labels with their display text."""
 
-    text_collection = TextCollection()
+    resource_collection = ResourceCollection()
 
     def add_it(it: ScreenElement):
         if it.default_value != 0xFFFF and not it.unicode:
             # It's a game value (has default_value but no text content)
-            text_collection.game_values.append(it)
+            resource_collection.game_values.append(it)
         elif it.key.startswith("DIE"):
             # It's a die container (identified by key prefix)
-            text_collection.screen_elements.append(it)
+            resource_collection.screen_elements.append(it)
         elif it.linked_to is None:
             # Regular label without replacement target
-            text_collection.screen_labels.append(it)
+            resource_collection.screen_labels.append(it)
         else:
             # Label that replaces another label's position
-            text_collection.label_replacement_text.append(it)
+            resource_collection.label_replacement_text.append(it)
 
     # Left column labels
     add_it(ScreenElement(key="L1C", unicode="~A~c~e~s"))  # Left column labels
@@ -300,7 +312,7 @@ def get_label_text() -> TextCollection:
     l2 = center_string("Start  ~New Game", instr_label_width)
     add_it(ScreenElement(key="INSTR_START", unicode=l2, linked_to="INSTR"))
 
-    return text_collection
+    return resource_collection
 
 
 def add_dice_boxes(die: ScreenElement, unicode_art: str) -> str:
@@ -336,7 +348,83 @@ def add_dice_boxes(die: ScreenElement, unicode_art: str) -> str:
     return unicode_art
 
 
-def get_screen_frame() -> TextCollection:
+"""
+    ;JMP_IF_X_IS STATE_WAITING_FOR_NEW_GAME ENTER_STATE_WAITING
+    ;JMP_IF_X_IS STATE_STARTING_GAME ENTER_NEW_GAME
+    ;JMP_IF_X_IS STATE_RE_ROLL_DICE ENTER_STATE_RE_ROLL
+    ;JMP_IF_X_IS STATE_REDRAW_DICE ENTER_STATE_REDRAW_DICE
+    ;JMP_IF_X_IS STATE_TOGGLE_DIE ENTER_STATE_TOGGLE_DIE
+"""
+
+
+def add_state_list(resource_collection: ResourceCollection) -> None:
+    resource_collection.states.append(
+        StateData(
+            name="NONE",
+            has_busy_state=False,
+            has_enter_state=False,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="JUST_LOADED",
+            has_busy_state=False,
+            has_enter_state=False,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="WAITING_FOR_NEW_GAME",
+            has_busy_state=False,
+            has_enter_state=True,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="IN_GAME",
+            has_busy_state=False,
+            has_enter_state=False,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="RE_ROLL_DICE",
+            has_busy_state=False,
+            has_enter_state=True,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="STARTING_GAME",
+            has_busy_state=False,
+            has_enter_state=True,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="REDRAW_DICE",
+            has_busy_state=False,
+            has_enter_state=True,
+            has_leave_state=False,
+        )
+    )
+    resource_collection.states.append(
+        StateData(
+            name="TOGGLE_DIE",
+            has_busy_state=False,
+            has_enter_state=True,
+            has_leave_state=False,
+        )
+    )
+
+
+def get_resource_collection() -> ResourceCollection:
     unicode_art_lines = get_screen_unicode_art()
 
     ex = LabelExtractor(atari_unicode_art_lines=unicode_art_lines)
@@ -383,13 +471,15 @@ def get_screen_frame() -> TextCollection:
     label.screen_col = 0
     label.screen_row = 0
 
-    ret: TextCollection = TextCollection(
+    ret: ResourceCollection = ResourceCollection(
         screen_frame=label,
         screen_labels=label_text_info.screen_labels,
         game_values=label_text_info.game_values,
         screen_elements=label_text_info.screen_elements,
         label_replacement_text=label_text_info.label_replacement_text,
     )
+
+    add_state_list(ret)
 
     return ret
 
@@ -469,11 +559,11 @@ def unicode_to_atari_hex2(
     return result
 
 
-def create_ram_region(prefix: str, labels: list[ScreenElement]) -> list[str]:
+def generate_ram_region(prefix: str, labels: list[ScreenElement]) -> list[str]:
     header = []
     footer = []
 
-    header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    header.append(ASM_BANNER)
     header.append(f"START_REGION_{prefix}")
 
     lsb_name = "_VALUE_LSB_"
@@ -487,7 +577,7 @@ def create_ram_region(prefix: str, labels: list[ScreenElement]) -> list[str]:
         value_msb.append(f"{prefix}{msb_name}{label.key}  .BYTE >{label.default_value}")
 
     footer.append(f"END_REGION_{prefix}")
-    footer.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    footer.append(ASM_BANNER)
 
     return header + value_msb + value_lsb + footer
 
@@ -496,9 +586,9 @@ def create_pip_region(screen_elements: list[ScreenElement]) -> list[str]:
     """Create assembly region for pip location data."""
 
     pip_header: list[str] = []
-    pip_header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    pip_header.append(ASM_BANNER)
     pip_header.append("; The location of each pip on each die")
-    pip_header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    pip_header.append(ASM_BANNER)
 
     pip_list: list[str] = []
     pip_ptr_lsb: list[str] = []
@@ -537,20 +627,16 @@ def create_dice_region(screen_elements: list[ScreenElement]) -> list[str]:
 
 
 def add_auto_generated_notes(l1: list[str]) -> None:
-    l1.append(
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    )
+    l1.append(ASM_BANNER)
     l1.append(
         ";; This file is auto-generated and you should not try to modify it by hand. ;;"
     )
-    l1.append(
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    )
+    l1.append(ASM_BANNER)
     l1.append("")
 
 
 @dataclass
-class ScreenElements:
+class M6502Output:
     offset_counter: int = 0
     header: list[str] = field(default_factory=list)
     equates: list[str] = field(default_factory=list)
@@ -567,8 +653,12 @@ class ScreenElements:
 def add_game_values_to_region(
     prefix: str,
     labels: list[ScreenElement],
-    h: ScreenElements,
+    h: M6502Output,
 ) -> None:
+    h.equates.append("")
+    h.equates.append(ASM_BANNER)
+    h.equates.append("; GAME VALUE EQUATES")
+    h.equates.append(ASM_BANNER)
 
     # We are going to reset the offset_counter, because these values are completely isolated from
     # the other values.
@@ -592,13 +682,13 @@ def add_game_values_to_region(
     h.equates.append("")
 
 
-def complete_replaement_text(text_collection: TextCollection) -> None:
+def complete_replaement_text(resource_collection: ResourceCollection) -> None:
 
-    for replacement_label in text_collection.label_replacement_text:
+    for replacement_label in resource_collection.label_replacement_text:
         label = next(
             (
                 p
-                for p in text_collection.screen_labels
+                for p in resource_collection.screen_labels
                 if p.key == replacement_label.linked_to
             ),
             None,
@@ -616,7 +706,7 @@ def complete_replaement_text(text_collection: TextCollection) -> None:
 def add_text_to_region(
     prefix: str,
     labels: list[ScreenElement],
-    h: ScreenElements,
+    h: M6502Output,
 ) -> None:
 
     h.equates.append(f"{prefix}_START = {h.offset_counter}")
@@ -655,116 +745,107 @@ def add_text_to_region(
     h.equates.append("")
 
 
-def create_label_text_region(prefix: str, text_collection: TextCollection) -> list[str]:
+def generate_label_text_region(
+    prefix: str, resource_collection: ResourceCollection
+) -> list[str]:
     """Create assembly region for label text data from a TextCollection."""
 
-    h: ScreenElements = ScreenElements()
+    h: M6502Output = M6502Output()
     h.header = []
 
     add_auto_generated_notes(h.header)
 
-    h.header.append(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+    h.header.append(ASM_BANNER)
     h.header.append(f"; REGION_{prefix}")
 
     h.equates = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; Equates to locate a specific label by its ID.",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
     ]
 
     h.len_lsb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; The length of each label, low-byte",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_LEN_LSB_TABLE",
     ]
     h.len_msb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; The length of each label, high-byte",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_LEN_MSB_TABLE",
     ]
 
     h.pos_row = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; The row each label appears on",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_ROW_TABLE",
     ]
 
     h.pos_col_lsb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; The column each label appears on (LSB)",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_COL_LSB_TABLE",
     ]
     h.pos_col_msb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; The column each label appears on (MSB)",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_COL_MSB_TABLE",
     ]
 
     h.out_text = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; The text of the label - encoded into either the local system encoding or",
         "; screen memory code",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_TEXT",
     ]
 
     h.txt_lsb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; Pointer to the text LSB",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_TXT_LSB_TABLE",
     ]
     h.txt_msb = [
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "; Pointer to the text MSB",
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+        ASM_BANNER,
         "",
         f"{prefix}_TXT_MSB_TABLE",
     ]
 
     h.equates.append("")
-    h.equates.append(
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    )
-    h.equates.append("; GAME VALUE EQUATES")
-    h.equates.append(
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    )
-
-    h.equates.append("")
-    h.equates.append(
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    )
+    h.equates.append(ASM_BANNER)
     h.equates.append("; LABEL EQUATES")
-    h.equates.append(
-        ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    )
+    h.equates.append(ASM_BANNER)
 
-    complete_replaement_text(text_collection=text_collection)
+    complete_replaement_text(resource_collection=resource_collection)
 
     add_text_to_region(
         "FRAME",
-        [text_collection.screen_frame] if text_collection.screen_frame else [],
+        [resource_collection.screen_frame] if resource_collection.screen_frame else [],
         h,
     )
-    add_text_to_region("DICE", text_collection.screen_elements, h)
-    add_text_to_region("LABELS", text_collection.screen_labels, h)
-    add_text_to_region("REPLACEMENT_LABELS", text_collection.label_replacement_text, h)
+    add_text_to_region("DICE", resource_collection.screen_elements, h)
+    add_text_to_region("LABELS", resource_collection.screen_labels, h)
+    add_text_to_region(
+        "REPLACEMENT_LABELS", resource_collection.label_replacement_text, h
+    )
 
-    add_game_values_to_region("GAME_VALUES", text_collection.game_values, h)
+    add_game_values_to_region("GAME_VALUES", resource_collection.game_values, h)
 
     return (
         h.header
@@ -780,20 +861,53 @@ def create_label_text_region(prefix: str, text_collection: TextCollection) -> li
     )
 
 
+def generate_state_list_region(
+    prefix: str, resource_collection: ResourceCollection
+) -> list[str]:
+    equates = []
+    lsb = []
+    msb = []
+
+    equates.append(ASM_BANNER)
+    equates.append(f"; REGION_{prefix}")
+
+    lsb.append(ASM_BANNER)
+    lsb.append("STATE_LSB_TABLE")
+    msb.append(ASM_BANNER)
+    msb.append("STATE_MSB_TABLE")
+
+    for i, state in enumerate(resource_collection.states):
+        equates.append(f"STATE_{state.name} = {i}")
+
+        if state.has_enter_state:
+            fname = f"ENTER_{state.name}"
+            lsb.append(f"    .BYTE <{fname}")
+            msb.append(f"    .BYTE >{fname}")
+        else:
+            lsb.append("    .BYTE <CHANGE_STATE_NO")
+            msb.append("    .BYTE >CHANGE_STATE_NO")
+
+    return equates + lsb + msb
+
+
 def main():
     # Ensure output directory exists before writing files
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-    text_collection = get_screen_frame()
+    resource_collection = get_resource_collection()
+
+    with open(STATES_ASM_FILE_NAME, "w", encoding="utf-8") as file:
+        out = generate_state_list_region("STATES", resource_collection)
+        file.write("\n".join(out))
 
     with open(ROM_ASM_FILE_NAME, "w", encoding="utf-8") as file:
-        out = create_label_text_region("TITLE", text_collection)
-        out.extend(create_pip_region(text_collection.screen_elements))
+        out = generate_label_text_region("TITLE", resource_collection)
+        out.extend(create_pip_region(resource_collection.screen_elements))
         file.write("\n".join(out))
 
     with open(RAM_ASM_FILE_NAME, "w", encoding="utf-8") as file:
-        out = create_ram_region("RAM", text_collection.game_values)
-        out.extend(create_dice_region(text_collection.screen_elements))
+        out = generate_ram_region("RAM", resource_collection.game_values)
+        out.extend(create_dice_region(resource_collection.screen_elements))
         file.write("\n".join(out))
 
 
