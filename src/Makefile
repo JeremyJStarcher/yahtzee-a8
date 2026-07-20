@@ -10,6 +10,9 @@ RESOURCE_DIR := $(ROOT)/resource-builder
 ATASM := $(ROOT)/../../code/atasm
 ATARI800 := $(ROOT)/../../code/atari800
 
+A8DISK := $(ROOT)/../disks/a8.atr
+A8BIN := AUTORUN.SYS
+
 .PHONY: all run lint test build-resources assemble clean ensure-venv
 
 # This Makefile REQUIRES a Python virtualenv at `venv/.venv`.
@@ -30,7 +33,11 @@ ensure-venv:
 all: run
 
 run: yahtzee.65o
-	$(ATARI800) yahtzee.65o
+	$(ATARI800)  ${A8BIN}
+
+run-disk: yahtzee.65o
+	$(ATARI800) ${A8DISK}
+
 
 yahtzee.65o: yahtzee.m65 $(RESOURCE_DIR)/resource_builder.py | ensure-venv
 	rm -f yahtzee.65o
@@ -38,7 +45,7 @@ yahtzee.65o: yahtzee.m65 $(RESOURCE_DIR)/resource_builder.py | ensure-venv
 	rm -f a8*
 	$(MAKE) lint
 	$(VENV_PY) $(RESOURCE_DIR)/resource_builder.py
-	$(ATASM) -xd2.atr -g/tmp/file.lst ./yahtzee.m65
+	$(ATASM) -x${A8DISK} -g/tmp/file.lst  -o${A8BIN} ./yahtzee.m65
 
 lint: | ensure-venv
 	$(RUFF) format $(RESOURCE_DIR)
@@ -54,6 +61,6 @@ assemble:
 	$(ATASM) -xd2.atr -g/tmp/file.lst ./yahtzee.m65
 
 clean:
-	rm -f yahtzee.65o
+	rm -f ${A8BIN}
 	rm -rf generated
 	rm -f a8*
