@@ -23,6 +23,8 @@ output_file="/tmp/all.txt"
 > "$output_file" || { echo "Error: cannot write to $output_file" >&2; exit 1; }
 
 # Find all regular files, process them one by one
+ignore_file="$target_dir/.concatfiles"
+
 find "$target_dir" -type f -print0 | while IFS= read -r -d '' file; do
     # Compute relative path from target_dir
     rel_path="${file#$target_dir/}"
@@ -31,6 +33,45 @@ find "$target_dir" -type f -print0 | while IFS= read -r -d '' file; do
     # but guard against it.
     if [ "$rel_path" = "$file" ]; then
         rel_path="$(basename "$file")"
+    fi
+
+    skip=0
+
+    # Skip dotfiles and hidden paths anywhere in the tree
+    case "$rel_path" in
+        .*|*/.*)
+            skip=1
+            ;;
+    esac
+
+    if [ "$skip" -eq 1 ]; then
+        continue
+    fi
+
+    if [ -f "$ignore_file" ]; then
+        while IFS= read -r pattern; do
+            case "$pattern" in
+                ''|'#'*)
+                    continue
+                    ;;
+            esac
+
+            case "$rel_path" in
+                $pattern)
+                    skip=1
+                    break
+                    ;;
+            esac
+        done < "$ignore_file"
+    fi
+
+    if [ "$skip" -eq 1 ]; then
+        continue
+    fi
+
+    # Skip binary files
+    if ! grep -Iq . "$file"; then
+        continue
     fi
 
     # Write the opening tag, the file content, and the closing tag

@@ -1,0 +1,9 @@
+# Ignore files matching these patterns when concatenating
+*.bin
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.zip
+*.atr
