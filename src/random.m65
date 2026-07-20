@@ -1,0 +1,57 @@
+
+; ****************************************************************
+; This is the 8-bit random number generator subroutine that uses
+; the Galois linear feedback shift register (LFSR) approach.
+; This generates and returns a number between 0-255.
+; Have two of these to avoid dependencies between powerups and
+; mutations.
+; Inputs: none
+; Returns:
+; A - the new random number between 1 and HIGHEST-DICE-face
+;   To return something else, that bitmask would also need fixed.
+; Preserves registers
+; ****************************************************************
+
+
+GetRandom
+    INC RandomFlip
+    LDA RandomFlip
+    LSR
+    BCS ?GenRandom1
+
+    JSR ?GetRandomPU
+    JMP ?GenRandom2
+
+?GenRandom1
+    JSR ?GetRandomMut
+?GenRandom2
+    AND #%00000111
+    CMP #HIGHEST_DICE_FACE+1
+    BCS GetRandom
+
+    CMP #$00
+    BEQ GetRandom
+    RTS
+
+?GetRandomPU             ; this is for powerups
+    lda RandomPU    ; load the accumulator with a seed
+    lsr             ; logical shift right
+    bcc ?SkipEor1    ; branch on carry clear
+    eor #$D4        ; exclusive OR (i.e. XOR) function
+
+?SkipEor1
+
+   	sta RandomPU      ; store the random number in variable
+   	rts               ; return from subroutine
+
+?GetRandomMut              ; this is for mutation flag
+
+   	lda RandomMut   ; load the accumulator with a seed
+    lsr             ; logical shift right
+    bcc ?SkipEor2      ; branch on carry clear
+    eor #$A9          ; exclusive OR (i.e. XOR) function
+     ; $A9 generates inverse sequence
+
+?SkipEor2
+   	sta RandomMut     ; store the random number in variable
+   	rts               ; return from subroutine

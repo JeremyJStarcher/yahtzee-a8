@@ -252,37 +252,3 @@ SKIPTEXT?
         POPALL
         RTS
 .ENDP
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; A   - LOWER NIBBLE VALUE TO PRINT TO PRINTER
-;
-; Return: none
-; We chose the method that uses a lookup table for the hex digits
-; instead of calculating to make this code truly portable across
-; all systems, regardess of what character encoding they use.
-; ASCII/Atari ASCII/Anything else
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-.PROC P_NIBBLE_OUT
-        PUSHALL
-
-        TAX
-        LDA ?HEXCHARS,X
-        STA PRNBUF + 0
-
-        LDA #<PRNBUF
-        STA DBG_PTR_L
-        LDA #>PRNBUF
-        STA DBG_PTR_H
-
-        LDA # <$01 ; Just one byte to print
-        STA DBG_LEN_L
-        LDA # >$01
-        STA DBG_LEN_H
-
-        JSR HW_PRINT
-        POPALL
-        RTS
-
-?HEXCHARS:
-         .BYTE "0123456789ABCDEF"
-.ENDP

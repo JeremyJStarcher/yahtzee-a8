@@ -1,0 +1,87 @@
+
+; ----------------------------------------------------------------------
+; Func: INT2STR
+; Desc: Converts a 16-bit unsigned integer (0–65535) into a fixed-width
+;       5-digit decimal string, right-padded with leading zeros, followed
+;       by an EOL (End-Of-Line) terminator.
+;
+; Input:  The 16-bit value is stored at memory location MSIINT (little‑endian).
+; Output: The resulting ASCII string is written to MSISTR (6 bytes:
+;         5 digits + EOL).
+;
+; Clobbers: A, X, Y, MSIINT (overwritten with remainder), MSICTR.
+; ----------------------------------------------------------------------
+
+.PROC INT2STR
+
+    ; -------- Initialization --------
+    LDY #0              ; Y will be the index into the divisor table (ITSTABLE)
+    STY MSICTR          ; MSICTR = 0  → output string index
+
+ITSNEXT:
+    LDX #0              ; X = digit counter for current power‑of‑10 (resets each divisor)
+
+    ; -------- Division loop: subtract the current divisor repeatedly --------
+ITSSLP:
+    LDA MSIINT          ; low byte of remainder
+    SEC                 ; set borrow for subtraction
+    SBC ITSTABLE,Y      ; subtract low byte of current divisor
+    STA MSIINT          ; store low byte temporarily
+
+    LDA MSIINT+1        ; high byte of remainder
+    INY                 ; Y now points to high byte of the divisor
+    SBC ITSTABLE,Y      ; subtract high byte with borrow
+
+    BCC ITSADD          ; if borrow occurred → divisor too large, undo last subtraction
+
+    ; ---- Subtraction succeeded (we can subtract one more time) ----
+    STA MSIINT+1        ; store high byte of new remainder
+    INX                 ; increment digit count (how many times this divisor fits)
+    DEY                 ; Y back to low byte of the same divisor
+    CLC                 ; clear carry (so the next SBC works correctly)
+    BCC ITSSLP          ; unconditional branch (CLC ensures carry=0 → branch taken)
+                        ; try subtracting again with the same divisor
+
+    ; ---- Subtraction failed (borrow set) → revert the last subtraction ----
+ITSADD:
+    DEY                 ; Y is currently at high‑byte index → decrement to low byte
+    LDA MSIINT          ; reload low byte of remainder (which was overwritten)
+    ADC ITSTABLE,Y      ; add back the low byte of divisor (carry is set from BCC)
+    STA MSIINT          ; restore low byte
+
+    TXA                 ; get digit count (0–9)
+    ORA #'0             ; convert to ASCII ('0' .. '9')
+    ORA #$80            ; convert to ASCII
+    LDX MSICTR          ; load current output position
+    STA MSISTR,X        ; store digit in output buffer
+    INC MSICTR          ; advance output position
+
+    ; ---- Move to the next divisor (1000, 100, 10) ----
+    INY                 ; Y was low byte → increment to high byte
+    INY                 ; increment again → low byte of next divisor
+    CPY #ITSTABLE_LEN   ; table has 4 entries × 2 bytes = 8 bytes total
+    BCC ITSNEXT         ; if Y < 8, process next divisor
+
+    ; -------- Handle the last digit (units: 0–9) --------
+    LDA MSIINT          ; remainder is now 0..9 (low byte; high byte is 0)
+    ORA #'0             ; convert to ASCII
+    ORA #$80            ; convert to ASCII
+
+    LDX MSICTR          ; current output position
+    STA MSISTR,X        ; store units digit
+
+    INX                 ; move past the last digit
+    LDA #EOL            ; load end‑of‑line terminator (e.g. 0 or newline)
+    STA MSISTR,X        ; terminate the string
+
+    RTS                 ; return to caller
+
+; -------- Lookup table: powers of 10 (16‑bit, little‑endian) --------
+ITSTABLE:
+    .WORD 10000
+    .WORD 1000
+    .WORD 100
+    .WORD 10
+ITSTABLE_LEN = * - ITSTABLE
+
+.ENDP

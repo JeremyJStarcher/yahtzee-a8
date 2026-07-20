@@ -1,0 +1,297 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; All game IO is kept in this file.
+; 
+; For output:
+; All output is configured by the
+; structure in 'MAKE_OUTPUT_CONTROL'
+;
+; It is up to the HW_DISPLAY, the
+; platform specific handler, to
+; display the message in whatever
+; method is appropriate.
+;
+; All IO should -- at all times --
+; preserve ALL registers and processor
+; flags. This allowsoth print and
+; display to be used anywhere for 
+; debugging.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the various screen labels
+; Takes positioning and text data from the precomputed
+; tables.
+; Input:
+;   Y = The index of the message to print
+; Returns: none
+; Preservers all registers.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.PROC DISPLAY_MESSAGE
+    PUSHALL        ; Save all registers
+
+    ; Address of the text buffer to print.
+    LDA TITLE_TXT_LSB_TABLE,Y
+    STA SCR_PTR_L
+    LDA TITLE_TXT_MSB_TABLE,Y
+    STA SCR_PTR_H
+
+    ; Length of the text buffer.
+    LDA TITLE_LEN_LSB_TABLE,Y
+    STA SCR_LEN_L
+    LDA TITLE_LEN_MSB_TABLE,Y
+    STA SCR_LEN_H
+
+    ; Set cursor position
+    LDA TITLE_ROW_TABLE,Y
+    STA SCR_ROW
+
+    LDA TITLE_COL_LSB_TABLE, Y
+    STA SCR_COL_L
+    LDA TITLE_COL_MSB_TABLE, Y
+    STA SCR_COL_H
+
+    JSR HW_DISPLAY
+
+    POPALL         ; Restore all registers
+    RTS
+.ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the main body
+;
+; Input: none
+; Returns: none
+; Destroys registers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.PROC ShowMainBody
+    LDY #FRAME_START
+    JSR DISPLAY_MESSAGE
+    SHOW_RANGE LABELS_START LABELS_LAST
+    RTS
+.ENDP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the various screen labels
+;
+; Input: none
+; Returns: none
+; Destroys registers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC ShowDiceLabels
+    SHOW_RANGE2 DICE_START DICE_LAST
+    RTS
+.ENDP
+
+
+
+; "┌───┐",
+; "|0 1|",
+; "|234|",
+; "|5 6|",
+; "└───┘",
+
+;; This is the binary pattern for each die face and the pips that would be activated.
+PIP_PATTERNS
+    .BYTE %00000000
+    .BYTE %00010000
+    .BYTE %01000100
+    .BYTE %01010100
+    .BYTE %11000110
+    .BYTE %11010110
+    .BYTE %11101110
+
+; Quick lookup table to match a pip number to the pattern above.
+; A multi-bitshift lookup table rather than looping.
+SHFTPIP
+    .BYTE %00000001
+    .BYTE %00000010
+    .BYTE %00000100
+    .BYTE %00001000
+    .BYTE %00010000
+    .BYTE %00100000
+    .BYTE %01000000
+    .BYTE %10000000
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Show all of the pips
+;;
+;; Inputs: none
+;; Returns: none
+;; Destroys all registers
+;;
+;; We loop through all of the pips in our pips data.
+;; This contains the position values for ALL pips on
+;; ALL dice.
+;;
+;; Every time we count down one dice worth of pips,
+;; we increment which die we are looking at.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.PROC SHOW_PIPS
+    ;; Set things up for the first pip on the first die
+
+    LDY #$00
+    STY CURRENT_DIE
+    LDA PIP_PATTERNS,Y
+    STA CURRENT_PIP_PATTERN
+
+    LDA PIP_PTR_LSB,Y
+    STA PIP_PTR
+    LDA PIP_PTR_MSB,Y
+    STA PIP_PTR +1
+
+    LDA #$00
+    STA CURRENT_PIP_ON_SCREEN
+
+    LDX #NUMBER_OF_DICE
+?NEXT_DIE
+    LDY #NUMBER_OF_PIPS
+?NEXT_PIP
+    STY CURRENT_PIP_ON_DIE
+    JSR SHOWPIP
+    DEY
+    BNE ?NEXT_PIP
+    INC CURRENT_DIE
+    DEX
+    BNE ?NEXT_DIE
+    RTS
+.ENDP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Used internally by SHOW_PIPS. Should never be called alone
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC SHOWPIP
+    PUSHALL        ; Save all registers
+
+    PREP_DISPLAY
+
+    LDA #<SCRBUF
+    STA SCR_PTR_L
+    LDA #>SCRBUF
+    STA SCR_PTR_H
+
+    LDA #$01
+    STA SCR_LEN_L
+    LDA #$00
+    STA SCR_LEN_H
+
+    LDY CURRENT_PIP_ON_SCREEN
+
+    LDA (PIP_PTR),Y
+    STA SCR_ROW
+
+    ; Next byte
+    INY
+    LDA (PIP_PTR),Y
+    STA SCR_COL_L
+    INY
+    LDA (PIP_PTR),Y
+    STA SCR_COL_H
+    INY
+    STY CURRENT_PIP_ON_SCREEN
+
+    ; Get the pattern for the current dice value
+    LDX CURRENT_DIE
+    LDA DICE_VALUES,X
+    ; High bit is used to tell when a dice is ready to be re-rolled, so strip that out for for lookup reasons
+    AND #%01111111                          ; Strip out the high bit from the calculations
+    TAX
+    LDA PIP_PATTERNS,X
+    STA PIP_MASK
+
+    ; No doubt this can be combined with above
+
+    LDX CURRENT_DIE
+    LDA DICE_VALUES,X
+    AND #%10000000                          ; Check to see if that high bit is set.
+    BNE ?HIDEPIP                           ; Dice is selected
+
+    ; Get the pattern for the current dice value
+    LDY CURRENT_PIP_ON_DIE
+    LDA SHFTPIP,Y
+    BIT PIP_MASK
+    BNE ?PIP_SHOW_FILLED
+
+    LDY #32
+    JMP ?PIPSHOW_DISPLAY
+
+?PIP_SHOW_FILLED
+    LDY #'*
+
+?PIPSHOW_DISPLAY
+    STY SCRBUF+0
+    JSR HW_DISPLAY
+
+    POPALL         ; Restore all registers
+    RTS
+
+?HIDEPIP
+    LDY #'-
+    JMP ?PIPSHOW_DISPLAY
+.ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Print the current byte in HEX format
+; Inputs
+;   A - The byte to print
+; Returns: none
+; Preserves all registers.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC P_BYTEOUT
+    PHA        ; Save the byte to retrieve at the end
+    PHA        ; save the byte
+    LSR A      ; Shift the high nibble to the low nibble
+    LSR A      ;
+    LSR A      ;
+    LSR A      ;
+    JSR P_NIBBLE_OUT ;
+    PLA        ; Restore the saved byte
+    AND #$0F   ; Now get the lower nibble
+    JSR P_NIBBLE_OUT ; And print
+    PLA        ; retrieve the byte
+    RTS
+.ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; A   - LOWER NIBBLE VALUE TO PRINT TO PRINTER
+;
+; Return: none
+; Preserves all registers.
+;
+; We chose the method that uses a lookup table for the hex digits
+; instead of calculating to make this code truly portable across
+; all systems, regardess of what character encoding they use.
+; ASCII/Atari ASCII/Anything else
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.PROC P_NIBBLE_OUT
+        PUSHALL
+
+        TAX
+        LDA ?HEXCHARS,X
+        STA PRNBUF + 0
+
+        LDA #<PRNBUF
+        STA DBG_PTR_L
+        LDA #>PRNBUF
+        STA DBG_PTR_H
+
+        LDA # <$01 ; Just one byte to print
+        STA DBG_LEN_L
+        LDA # >$01
+        STA DBG_LEN_H
+
+        JSR HW_PRINT
+        POPALL
+        RTS
+
+?HEXCHARS:
+         .BYTE "0123456789ABCDEF"
+.ENDP
