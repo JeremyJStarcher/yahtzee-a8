@@ -53,8 +53,6 @@ SKIP?
 ;; I'm not worried about them being bloated as long as they are easy to use.
 
 .MACRO MAKE_OUTPUT_CONTROL
-%$1_IOCB        .BYTE %$2
-%$1_IOCB        .BYTE 1
 %$1_ROW         .BYTE 1
 %$1_COL_L       .BYTE 1
 %$1_COL_H       .BYTE 1

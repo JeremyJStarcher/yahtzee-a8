@@ -37,6 +37,7 @@ PIP_MASK        .DS 1
 ; Free 0-page address (USED BY BASIC)
 ; $CB - $D1
 
+    *=$2000
 
 .INCLUDE sysequ.m65
 .INCLUDE iomac.lib
@@ -48,10 +49,9 @@ CURRENT_PIP_ON_SCREEN   .DS 1
 CURRENT_PIP_ON_DIE      .DS 1
 CURRENT_PIP_PATTERN     .BYTE 1
 
-    MAKE_OUTPUT_CONTROL SCR E_IOCB2
-    MAKE_OUTPUT_CONTROL DBG P_IOCB3
+    MAKE_OUTPUT_CONTROL SCR
+    MAKE_OUTPUT_CONTROL DBG
 
-    *=$2000
 
 .INCLUDE hardware/a8/atari_keys.m65
 .INCLUDE hardware/a8/io.m65
