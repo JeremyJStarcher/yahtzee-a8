@@ -13,25 +13,51 @@ from pylib import video_display as vd
 
 try:
     from py65.devices.mpu6502 import MPU
-    from py65.memory import ObservableMemory
 except ImportError as e:
     print(f"ERROR: Missing dependency: {e}")
     print("Please install py65: pip install py65")
     sys.exit(1)
 
 
+class SystemBus:
+    """Custom system bus using Python's dunder methods for memory access.
+    
+    Memory layout:
+    - $0000-$7FFF: RAM (32KB)
+    - $8000-$BFFF: Unmapped (returns $EA on read, no-op on write)
+    - $C000-$FFFF: ROM (16KB)
+    """
+
+    def __init__(self):
+        self.ram = bytearray(0x8000)      # 32KB RAM ($0000-$7FFF)
+        self.rom = bytearray(0x4000)      # 16KB ROM ($C000-$FFFF)
+
+    def __getitem__(self, address):
+        return 0xEA
+        if address < 0x8000:
+            return self.ram[address]
+        elif 0xC000 <= address <= 0xFFFF:
+            return self.rom[address - 0xC000]
+        else:
+            # Unmapped space returns NOP instruction ($EA)
+            return 0xEA
+
+    def __setitem__(self, address, value):
+        if address < 0x8000:
+            self.ram[address] = value
+        elif 0xC000 <= address <= 0xFFFF:
+            pass  # Ignore writes to ROM
+
+
 class Cpu6502Module:
     """Simple wrapper for the py65 6502 emulator."""
 
-    def __init__(self, size=0x10000):
-        # Build NOP-filled memory ($EA = NOP opcode)
-        nop_filled_memory = [0xea] * size
-
-        # Wrap it with observable memory so the MPU can use it
-        self.memory = ObservableMemory(nop_filled_memory)
+    def __init__(self):
+        # Create system bus with RAM and ROM using dunder methods
+        self.bus = SystemBus()
 
         # Create CPU starting at $0000
-        self.cpu = MPU(memory=self.memory, pc=0x0000)
+        self.cpu = MPU(memory=self.bus, pc=0x0000)
 
     def step(self) -> None:
         """Execute one instruction."""
@@ -49,8 +75,8 @@ class FConsole:
         self._create_video_window()
         self._create_debug_window()
 
-        # Initialize 6502 module (all memory reads return NOP/$EA)
-        self.cpu_module = Cpu6502Module(size=0x10000)
+        # Initialize 6502 module (RAM and ROM with $EA for unmapped space)
+        self.cpu_module = Cpu6502Module()
 
     def _create_video_window(self) -> None:
         """Create the primary video output window."""
