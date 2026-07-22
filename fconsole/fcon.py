@@ -3,13 +3,39 @@
 Fconsole - Official Emulator Start Script
 
 Opens video output (vout) and debug output (dout) windows,
-runs a bouncing asterisk demo on the video display.
+runs a simple 6502 emulator demo via py65 on the video display.
 """
 
 import sys
 import tkinter as tk
 
 from pylib import video_display as vd
+
+try:
+    from py65.devices.mpu6502 import MPU
+    from py65.memory import ObservableMemory
+except ImportError as e:
+    print(f"ERROR: Missing dependency: {e}")
+    print("Please install py65: pip install py65")
+    sys.exit(1)
+
+
+class Cpu6502Module:
+    """Simple wrapper for the py65 6502 emulator."""
+
+    def __init__(self, size=0x10000):
+        # Build NOP-filled memory ($EA = NOP opcode)
+        nop_filled_memory = [0xea] * size
+
+        # Wrap it with observable memory so the MPU can use it
+        self.memory = ObservableMemory(nop_filled_memory)
+
+        # Create CPU starting at $0000
+        self.cpu = MPU(memory=self.memory, pc=0x0000)
+
+    def step(self) -> None:
+        """Execute one instruction."""
+        self.cpu.step()
 
 
 class FConsole:
@@ -19,31 +45,22 @@ class FConsole:
         # Track running state
         self.running = True
 
-        # Bouncing star state: position and velocity
-        self.star_x = 0
-        self.star_y = 0
-        self.vel_x = 1
-        self.vel_y = 1
-
         # Create windows
         self._create_video_window()
         self._create_debug_window()
+
+        # Initialize 6502 module (all memory reads return NOP/$EA)
+        self.cpu_module = Cpu6502Module(size=0x10000)
 
     def _create_video_window(self) -> None:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
-        # 24 rows x 40 columns, scale=2 for visibility
+        # 24 rows x 40 columns, scale=3 for visibility
         self.vout = vd.Video(rows=24, columns=40, scale=3)
 
         # Override the default title to match requirement
         self.vout._root.title("fcon - vout")
-
-        # Initialize star at center of screen
-        cols = 40
-        rows = 24
-        self.star_x = cols // 2
-        self.star_y = rows // 2
 
         # Set up close handler
         self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -71,8 +88,6 @@ class FConsole:
         self._original_stderr = sys.stderr
         sys.stdout = self._DebugWriter(self.debug_text)
         sys.stderr = self._DebugWriter(self.debug_text)
-
-        # Don't block on this window's mainloop - we'll run it separately
 
     class _DebugWriter:
         """Helper class to redirect output to a Tkinter Text widget."""
@@ -109,37 +124,74 @@ class FConsole:
             """Mark writer as closed to prevent further writes."""
             self.alive = False
 
-    def _update_bounce(self) -> None:
-        """Update star position with bouncing logic."""
+    def _update_cpu_step(self) -> None:
+        """Advance the 6502 CPU one instruction per tick and show state."""
         cols = 40
         rows = 24
 
-        # Erase old position (set to space)
-        self.vout.set_screen(self.star_y * cols + self.star_x, ord(' '))
+        # Execute one NOP at a time from $0000
+        self.cpu_module.step()
 
-        # Move star
-        self.star_x += self.vel_x
-        self.star_y += self.vel_y
+        # Show the current PC in hex so we can verify it advances
+        pc = self.cpu_module.cpu.pc
+        pc_str = f"{pc:04X}"
 
-        # Bounce off horizontal walls
-        if self.star_x <= 0 or self.star_x >= cols - 1:
-            self.vel_x *= -1
-            self.star_x = max(0, min(cols - 1, self.star_x))
+        for i, ch in enumerate(pc_str):
+            row = 1
+            col = 2 + i
+            self.vout.set_screen(row * cols + col, ord(ch))
 
-        # Bounce off vertical walls
-        if self.star_y <= 0 or self.star_y >= rows - 1:
-            self.vel_y *= -1
-            self.star_y = max(0, min(rows - 1, self.star_y))
+        label = "PC"
+        for i, ch in enumerate(label):
+            row = 1
+            col = i
+            self.vout.set_screen(row * cols + col, ord(ch))
 
-        # Draw new position
-        self.vout.set_screen(self.star_y * cols + self.star_x, ord('*'))
+        separator = "----------"
+        for i, ch in enumerate(separator):
+            row = 3
+            col = i
+            self.vout.set_screen(row * cols + col, ord(ch))
+
+        note = "ALL MEM=$EA (NOP)"
+        for i, ch in enumerate(note):
+            row = 5
+            col = i
+            self.vout.set_screen(row * cols + col, ord(ch))
+
+        regs_label = "  A  X  Y  SP NV-BDIZC"
+        for i, ch in enumerate(regs_label):
+            row = 7
+            col = i
+            self.vout.set_screen(row * cols + col, ord(ch))
+
+        reg_vals = (
+            f"  "
+            f"{self.cpu_module.cpu.a:02X} "
+            f"{self.cpu_module.cpu.x:02X} "
+            f"{self.cpu_module.cpu.y:02X} "
+            f"{self.cpu_module.cpu.sp:02X} "
+            f"{(self.cpu_module.cpu.p >> 7) & 1}"
+            f"{(self.cpu_module.cpu.p >> 6) & 1}"
+            f"{(self.cpu_module.cpu.p >> 5) & 1}"
+            f"-"
+            f"{(self.cpu_module.cpu.p >> 3) & 1}"
+            f"{(self.cpu_module.cpu.p >> 2) & 1}"
+            f"{(self.cpu_module.cpu.p >> 1) & 1}"
+            f"{self.cpu_module.cpu.p & 1}"
+        )
+        for i, ch in enumerate(reg_vals):
+            row = 8
+            col = i
+            self.vout.set_screen(row * cols + col, ord(ch))
 
         # Refresh display
         self.vout.refresh_screen()
 
-        # Schedule next frame (~15 FPS for visible smooth animation)
+        # Schedule next frame (~15 FPS)
         if self.running:
-            self.vout._root.after(66, self._update_bounce)
+            # self.vout._root.after(66, self._update_cpu_step)
+            self.vout._root.after(0, self._update_cpu_step)
 
     def _on_close(self) -> None:
         """Handle vout window close."""
@@ -168,14 +220,13 @@ class FConsole:
         print("FCONSOLE EMULATOR")
         print("=" * 60)
         print(f"Video: {self.vout._rows} rows x {self.vout._columns} columns")
-        print("Animation: Bouncing asterisk demo")
+        print("Mode : py65 6502 (memory filled with $EA NOPs)")
         print("\nClose the 'vout' window to exit.\n")
 
-        # Start animation
-        self._update_bounce()
+        # Start CPU stepping animation
+        self._update_cpu_step()
 
         # Run both windows in their respective event loops
-        # We need to handle both Tkinter instances
         self._run_event_loops()
 
     def _run_event_loops(self) -> None:
