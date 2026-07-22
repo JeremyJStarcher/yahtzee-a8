@@ -8,13 +8,14 @@ runs a bouncing asterisk demo on the video display.
 
 import sys
 import tkinter as tk
-import video_display as vd
+
+from pylib import video_display as vd
 
 
 class FConsole:
     """Main emulator controller managing both output windows."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Track running state
         self.running = True
 
@@ -28,7 +29,7 @@ class FConsole:
         self._create_video_window()
         self._create_debug_window()
 
-    def _create_video_window(self):
+    def _create_video_window(self) -> None:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
@@ -47,7 +48,7 @@ class FConsole:
         # Set up close handler
         self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def _create_debug_window(self):
+    def _create_debug_window(self) -> None:
         """Create the debug output text window."""
         print("Opening debug output window (dout)...")
 
@@ -76,12 +77,12 @@ class FConsole:
     class _DebugWriter:
         """Helper class to redirect output to a Tkinter Text widget."""
 
-        def __init__(self, text_widget):
+        def __init__(self, text_widget) -> None:
             self.text_widget = text_widget
             self.buffer = ""
             self.alive = True
 
-        def write(self, message):
+        def write(self, message) -> None:
             if not self.alive:
                 return
             self.buffer += message
@@ -91,7 +92,7 @@ class FConsole:
             except tk.TclError:
                 self.alive = False
 
-        def _flush(self):
+        def _flush(self) -> None:
             if not self.alive or not self.buffer:
                 return
             try:
@@ -101,20 +102,20 @@ class FConsole:
             except (tk.TclError, AttributeError):
                 self.alive = False
 
-        def flush(self):
+        def flush(self) -> None:
             pass
 
-        def close(self):
+        def close(self) -> None:
             """Mark writer as closed to prevent further writes."""
             self.alive = False
 
-    def _update_bounce(self):
+    def _update_bounce(self) -> None:
         """Update star position with bouncing logic."""
         cols = 40
         rows = 24
 
         # Erase old position (set to space)
-        self.vout.setScreen(self.star_y * cols + self.star_x, ord(' '))
+        self.vout.set_screen(self.star_y * cols + self.star_x, ord(' '))
 
         # Move star
         self.star_x += self.vel_x
@@ -131,16 +132,16 @@ class FConsole:
             self.star_y = max(0, min(rows - 1, self.star_y))
 
         # Draw new position
-        self.vout.setScreen(self.star_y * cols + self.star_x, ord('*'))
+        self.vout.set_screen(self.star_y * cols + self.star_x, ord('*'))
 
         # Refresh display
-        self.vout.refreshScreen()
+        self.vout.refresh_screen()
 
         # Schedule next frame (~15 FPS for visible smooth animation)
         if self.running:
             self.vout._root.after(66, self._update_bounce)
 
-    def _on_close(self):
+    def _on_close(self) -> None:
         """Handle vout window close."""
         self.running = False
 
@@ -161,7 +162,7 @@ class FConsole:
         except Exception:
             pass
 
-    def run(self):
+    def run(self) -> None:
         """Start the main emulator loop."""
         print("=" * 60)
         print("FCONSOLE EMULATOR")
@@ -177,7 +178,7 @@ class FConsole:
         # We need to handle both Tkinter instances
         self._run_event_loops()
 
-    def _run_event_loops(self):
+    def _run_event_loops(self) -> None:
         """Run both Tkinter event loops cooperatively."""
         while self.running:
             try:

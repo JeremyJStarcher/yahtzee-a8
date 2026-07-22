@@ -5,16 +5,15 @@ Demonstration of Bitmapped Font Rendering
 Shows the difference between Unicode fallback and true 8-bit bitmap fonts.
 """
 
-import sys
 import argparse
 
 # Import tkinter first (needed by video_display)
 import tkinter as tk
 
-import video_display as vd
+from . import video_display as vd
 
 
-def demo_all_chars():
+def demo_all_chars() -> None:
     """Display all 256 characters in a grid."""
     print("Creating character set display...")
 
@@ -30,17 +29,17 @@ def demo_all_chars():
 
     # Fill screen with character indices
     for i in range(min(256, rows * columns)):
-        video.setScreen(i, i)
+        video.set_screen(i, i)
 
         # Set contrasting colors - alternate color schemes
         if (i // columns) % 2 == 0:
             # Even rows: Blue background, Yellow text
-            video.setColor(i, 0x67)
+            video.set_color(i, 0x67)
         else:
             # Odd rows: Black background, Cyan text
-            video.setColor(i, 0x03)
+            video.set_color(i, 0x03)
 
-    video.refreshScreen()
+    video.refresh_screen()
 
     print("\nYou should see:")
     print("  - All 256 ASCII/ATASCII characters rendered as pixel art")
@@ -54,7 +53,7 @@ def demo_all_chars():
         pass
 
 
-def demo_text_comparison():
+def demo_text_comparison() -> None:
     """Compare bitmap vs Unicode rendering."""
     print("\n\n=== BITMAP FONT DEMO ===")
     print("This will show 'Hello World' using true bitmapped fonts")
@@ -69,15 +68,15 @@ def demo_text_comparison():
 
     # Row 0: Regular text with default colors
     for i, char in enumerate(message[:columns]):
-        video.setScreen(columns + i, ord(char))
+        video.set_screen(columns + i, ord(char))
 
     # Row 1: Same text but inverted colors (white on black)
     for i, char in enumerate(message[:columns]):
         offset = columns * 2 + i
-        video.setScreen(offset, ord(char))
-        video.setColor(offset, 0x01)  # White bg, Black fg (inverted!)
+        video.set_screen(offset, ord(char))
+        video.set_color(offset, 0x01)  # White bg, Black fg (inverted!)
 
-    video.refreshScreen()
+    video.refresh_screen()
 
     print(f"\nDisplay shows '{message.strip()}' twice:")
     print("  - Top row: Blue background, Yellow text (default C64 colors)")
@@ -92,7 +91,7 @@ def demo_text_comparison():
         pass
 
 
-def demo_graphics_chars():
+def demo_graphics_chars() -> None:
     """Show off graphics/box-drawing characters."""
     print("\n\n=== GRAPHICS CHARACTERS ===")
     print("Showing ATASCII special graphics characters...")
@@ -107,53 +106,53 @@ def demo_graphics_chars():
     # Top border (row 1, cols 2-37)
     for col in range(2, columns - 2):
         offset = columns + col
-        video.setScreen(offset, 0x12)  # ─
-        video.setColor(offset, 0x67)
+        video.set_screen(offset, 0x12)  # ─
+        video.set_color(offset, 0x67)
 
     # Bottom border (row rows-2, cols 2-37)
     for col in range(2, columns - 2):
         offset = columns * (rows - 2) + col
-        video.setScreen(offset, 0x12)  # ─
-        video.setColor(offset, 0x67)
+        video.set_screen(offset, 0x12)  # ─
+        video.set_color(offset, 0x67)
 
     # Left border (col 2, rows 2 to rows-3)
     for row in range(2, rows - 2):
         offset = row * columns + 2
-        video.setScreen(offset, 0x1D)  # │
-        video.setColor(offset, 0x6F)  # Orange on blue
+        video.set_screen(offset, 0x1D)  # │
+        video.set_color(offset, 0x6F)  # Orange on blue
 
     # Right border (col columns-3, rows 2 to rows-3)
     for row in range(2, rows - 2):
         offset = row * columns + (columns - 3)
-        video.setScreen(offset, 0x1D)  # │
-        video.setColor(offset, 0x6F)  # Orange on blue
+        video.set_screen(offset, 0x1D)  # │
+        video.set_color(offset, 0x6F)  # Orange on blue
 
     # Corners
     # Top-left: 0x11 = ┌
-    video.setScreen(columns + 2, 0x11)
-    video.setColor(columns + 2, 0xE7)  # Light green on yellow!
+    video.set_screen(columns + 2, 0x11)
+    video.set_color(columns + 2, 0xE7)  # Light green on yellow!
 
     # Top-right: 0x17 = ┐
-    video.setScreen(columns + (columns - 3), 0x17)
-    video.setColor(columns + (columns - 3), 0xE7)
+    video.set_screen(columns + (columns - 3), 0x17)
+    video.set_color(columns + (columns - 3), 0xE7)
 
     # Bottom-left: 0x16 = └
-    video.setScreen(columns * (rows - 2) + 2, 0x16)
-    video.setColor(columns * (rows - 2) + 2, 0xE7)
+    video.set_screen(columns * (rows - 2) + 2, 0x16)
+    video.set_color(columns * (rows - 2) + 2, 0xE7)
 
     # Bottom-right: 0x19 = ┘
-    video.setScreen(columns * (rows - 2) + (columns - 3), 0x19)
-    video.setColor(columns * (rows - 2) + (columns - 3), 0xE7)
+    video.set_screen(columns * (rows - 2) + (columns - 3), 0x19)
+    video.set_color(columns * (rows - 2) + (columns - 3), 0xE7)
 
     # Fill center with some content
     for row in range(4, rows - 4):
         for col in range(5, columns - 5):
             if (row + col) % 3 == 0:
                 offset = row * columns + col
-                video.setScreen(offset, ord('X'))
-                video.setColor(offset, 0x54)  # Purple on green
+                video.set_screen(offset, ord('X'))
+                video.set_color(offset, 0x54)  # Purple on green
 
-    video.refreshScreen()
+    video.refresh_screen()
 
     print("\nYou should see:")
     print("  - A box drawn using ATASCII line-drawing characters")

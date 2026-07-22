@@ -7,7 +7,9 @@ and color memory.
 """
 
 import tkinter as tk
-from font_parser import load_font
+from tkinter import Canvas
+
+from .font_parser import load_font
 
 
 class Video:
@@ -26,11 +28,11 @@ class Video:
     ]
 
     # Bitmapped font data (loaded from atascii.yaff)
-    _font_glyphs = None
+    _font_glyphs: dict[int, bytearray] | None = None
 
     # Character dimensions in pixels
-    CHAR_WIDTH = 8
-    CHAR_HEIGHT = 8
+    CHAR_WIDTH: int = 8
+    CHAR_HEIGHT: int = 8
 
     # Commodore 64 color palette (16 colors)
     C64_COLORS = [
@@ -55,7 +57,7 @@ class Video:
     # Default color: Background=Blue(6), Foreground=Yellow(7)
     DEFAULT_COLOR = 0x67
 
-    def __init__(self, rows, columns, scale=1, border=1):
+    def __init__(self, rows, columns, scale: int=1, border: int=1) -> None:
         """
         Create a new video display instance.
 
@@ -88,6 +90,8 @@ class Video:
         self._columns = columns
         self._scale = scale
         self._border = border
+        self._root: tk.Tk
+        self._canvas: Canvas
 
         # Load bitmapped font if not already loaded
         if Video._font_glyphs is None:
@@ -127,15 +131,15 @@ class Video:
         self._cell_rects = {}
 
         # Initial draw
-        self.refreshScreen()
+        self.refresh_screen()
 
     @property
-    def scale(self):
+    def scale(self) -> int:
         """Get the current scaling factor."""
         return self._scale
 
     @scale.setter
-    def scale(self, value):
+    def scale(self, value) -> None:
         """
         Set a new scaling factor.
 
@@ -160,9 +164,9 @@ class Video:
             self._canvas.config(width=width, height=height)
 
             # Force redraw on next refresh
-            self.refreshScreen()
+            self.refresh_screen()
 
-    def _validate_offset(self, offset):
+    def _validate_offset(self, offset) -> bool:
         """
         Validate that an offset is within valid range.
 
@@ -185,7 +189,7 @@ class Video:
 
         return True
 
-    def setScreen(self, offset, character):
+    def set_screen(self, offset, character) -> None:
         """
         Set a character in screen memory.
 
@@ -207,7 +211,7 @@ class Video:
             self._screen_memory[offset] = char_byte
             self._dirty = True
 
-    def getScreen(self, offset):
+    def get_screen(self, offset):
         """
         Get a character from screen memory.
 
@@ -224,7 +228,7 @@ class Video:
         self._validate_offset(offset)
         return self._screen_memory[offset]
 
-    def setColor(self, offset, color):
+    def set_color(self, offset, color) -> None:
         """
         Set a color byte in color memory.
 
@@ -247,7 +251,7 @@ class Video:
             self._color_memory[offset] = color_byte
             self._dirty = True
 
-    def getColor(self, offset):
+    def get_color(self, offset):
         """
         Get a color byte from color memory.
 
@@ -264,7 +268,7 @@ class Video:
         self._validate_offset(offset)
         return self._color_memory[offset]
 
-    def _get_char_display(self, char_byte):
+    def _get_char_display(self, char_byte: int) -> str:
         """
         Convert a character byte to displayable string.
 
@@ -282,7 +286,7 @@ class Video:
         else:
             return "?"
 
-    def _draw_bitmap_char(self, canvas, x, y, char_byte, fg_color, bg_color, scale):
+    def _draw_bitmap_char(self, canvas: Canvas, x: int, y: int, char_byte: int, fg_color: str, bg_color: str, scale: int) -> bool:
         """
         Draw a single character using bitmap data from font file.
 
@@ -324,7 +328,7 @@ class Video:
         # Draw foreground pixels where bits are set
         pixel_size = max(1, scale)
         for row in range(self.CHAR_HEIGHT):
-            byte_val = glyph_data[row]
+            byte_val: int = glyph_data[row]
             for col in range(self.CHAR_WIDTH):
                 # Check if this pixel should be drawn
                 bit_position = 7 - col  # MSB first
@@ -341,7 +345,7 @@ class Video:
 
         return True
 
-    def _get_colors(self, color_byte):
+    def _get_colors(self, color_byte: int) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
         """
         Extract background and foreground colors from color byte.
 
@@ -363,7 +367,7 @@ class Video:
 
         return bg_color, fg_color
 
-    def refreshScreen(self):
+    def refresh_screen(self) -> None:
         """
         Refresh the display by redrawing all cells.
 
@@ -456,16 +460,11 @@ class Video:
         except tk.TclError:
             pass  # Window was closed
 
-    def close(self):
+    def close(self) -> None:
         """Close the display and clean up resources."""
         if hasattr(self, '_root') and self._root is not None:
             try:
                 self._root.destroy()
-            except tk.TclError:
+            except Exception:
                 pass
-            finally:
-                self._root = None
-                self._canvas = None
-                self._cell_rects.clear()
-
 

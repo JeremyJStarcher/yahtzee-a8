@@ -157,18 +157,18 @@ This is:
 # Public API
 
 ``` python
-setScreen(offset, character)
-setColor(offset, color)
+set_screen(offset, character)
+set_color(offset, color)
 
-getScreen(offset)
-getColor(offset)
+get_screen(offset)
+get_color(offset)
 
-refreshScreen()
+refresh_screen()
 
 close()
 ```
 
-`setScreen()` and `setColor()` only modify memory and mark the cell
+`set_screen()` and `set_color()` only modify memory and mark the cell
 dirty.
 
 They **must not** redraw immediately.
@@ -186,7 +186,7 @@ value & 0xFF
 The emulator controls presentation by calling:
 
 ``` python
-refreshScreen()
+refresh_screen()
 ```
 
 This method must:
@@ -245,10 +245,10 @@ Typical emulator loop:
 ``` python
 cpu.execute()
 
-video.setScreen(...)
-video.setColor(...)
+video.set_screen(...)
+video.set_color(...)
 
-video.refreshScreen()
+video.refresh_screen()
 ```
 
 This keeps the emulator architecture simple while leaving room for

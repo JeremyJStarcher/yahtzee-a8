@@ -13,8 +13,8 @@
 
 ### Screen Memory
 - [x] Initialized to 0x20 (space character)
-- [x] setScreen() method - Modifies memory only, marks dirty
-- [x] getScreen() method - Returns byte value
+- [x] set_screen() method - Modifies memory only, marks dirty
+- [x] get_screen() method - Returns byte value
 - [x] Values masked with 0xFF
 
 ### Color Memory 
@@ -22,8 +22,8 @@
 - [x] Bits 3-0: Foreground color
 - [x] C64_COLORS palette (16 colors RGB tuples)
 - [x] DEFAULT_COLOR = 0x67 (Blue bg / Yellow fg)
-- [x] setColor() method - Modifies memory only, marks dirty
-- [x] getColor() method - Returns byte value
+- [x] set_color() method - Modifies memory only, marks dirty
+- [x] get_color() method - Returns byte value
 - [x] Values masked with 0xFF
 
 ### Character Set
@@ -33,7 +33,7 @@
 - [x] Space at index 0x20
 
 ### Display & Rendering
-- [x] refreshScreen() method implemented
+- [x] refresh_screen() method implemented
 - [x] Redraws display when called
 - [x] Processes Tkinter events via update_idletasks()
 - [x] Safe to call when nothing changed (dirty flag optimization)

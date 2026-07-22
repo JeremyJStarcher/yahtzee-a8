@@ -8,10 +8,11 @@ and includes demonstration functions showing various display capabilities.
 
 import sys
 import tkinter as tk
-import video_display as vd
+
+from . import video_display as vd
 
 
-def hello_world():
+def hello_world() -> None:
     """Simple demonstration - displays 'Hello World' on a Video display."""
 
     # Create a video display (24 columns x 1 row is enough for "Hello World")
@@ -25,10 +26,10 @@ def hello_world():
     for i, char in enumerate(message):
         # Convert character to byte value
         char_byte = ord(char)
-        video.setScreen(i, char_byte)
+        video.set_screen(i, char_byte)
 
     # Refresh to show the text
-    video.refreshScreen()
+    video.refresh_screen()
 
     print(f"Displaying: '{message}'")
     print("Click the window's close button to exit.")
@@ -42,7 +43,7 @@ def hello_world():
     print("Window closed.")
 
 
-def test_pattern():
+def test_pattern() -> None:
     """
     Display a test pattern that fills the entire screen.
 
@@ -73,33 +74,33 @@ def test_pattern():
         prefix = f"Line{row}"
         for i, char in enumerate(prefix):
             if row_start + i < len(video._screen_memory):
-                video.setScreen(row_start + i, ord(char))
+                video.set_screen(row_start + i, ord(char))
 
         # Fill with dots until we reach the second-to-last position
         dot_position = row_start + len(prefix)
         end_position = row_start + columns - 1
 
         while dot_position < end_position:
-            video.setScreen(dot_position, ord('.'))
+            video.set_screen(dot_position, ord('.'))
             dot_position += 1
 
         # Put exclamation mark at the very last position
         if end_position < len(video._screen_memory):
-            video.setScreen(end_position, ord('!'))
+            video.set_screen(end_position, ord('!'))
 
     # Also set a distinctive color to make it easier to see
     # White background (0x01) with black text (0x00)
 #    for offset in range(len(video._color_memory)):
-#        video.setColor(offset, 0x10)  # bg=White(1), fg=Black(0)
+#        video.set_color(offset, 0x10)  # bg=White(1), fg=Black(0)
 
     # Refresh to show everything
-    video.refreshScreen()
+    video.refresh_screen()
 
     print("\nDisplay filled!")
     print("You should see:")
     print(f"  - {rows} numbered rows")
-    print(f"  - Each row starts with 'Line<number>'")
-    print(f"  - Dots filling most of each line")
+    print("  - Each row starts with 'Line<number>'")
+    print("  - Dots filling most of each line")
     print(f"  - Exclamation mark '!' at column {columns-1} of every row")
     print("\nClick the window's close button when done.")
 
@@ -112,7 +113,7 @@ def test_pattern():
     print("Window closed.")
 
 
-def test_pattern_animated():
+def test_pattern_animated() -> None:
     """
     Display an animated test pattern that cycles colors every 5 seconds.
 
@@ -139,17 +140,17 @@ def test_pattern_animated():
         prefix = f"Line{row}"
         for i, char in enumerate(prefix):
             if row_start + i < len(video._screen_memory):
-                video.setScreen(row_start + i, ord(char))
+                video.set_screen(row_start + i, ord(char))
 
         dot_position = row_start + len(prefix)
         end_position = row_start + columns - 1
 
         while dot_position < end_position:
-            video.setScreen(dot_position, ord('.'))
+            video.set_screen(dot_position, ord('.'))
             dot_position += 1
 
         if end_position < len(video._screen_memory):
-            video.setScreen(end_position, ord('!'))
+            video.set_screen(end_position, ord('!'))
 
     # Color cycling state
     color_cycle_state = {
@@ -157,7 +158,7 @@ def test_pattern_animated():
         'running': True
     }
 
-    def update_colors():
+    def update_colors() -> None:
         """Update all cell colors based on current step."""
         # Cycle through different color combinations
         step = color_cycle_state['step']
@@ -180,10 +181,10 @@ def test_pattern_animated():
 
         # Apply the same color to all cells for this step
         for offset in range(len(video._color_memory)):
-            video.setColor(offset, base_color)
+            video.set_color(offset, base_color)
 
         # Refresh screen immediately after updating colors
-        video.refreshScreen()
+        video.refresh_screen()
 
         # Increment and schedule next update
         color_cycle_state['step'] += 1
@@ -192,7 +193,7 @@ def test_pattern_animated():
             # Schedule next color change in 5000ms (5 seconds)
             video._root.after(5000, update_colors)
 
-    def on_closing():
+    def on_closing() -> None:
         """Handle window close event."""
         color_cycle_state['running'] = False
         video.close()
@@ -201,7 +202,7 @@ def test_pattern_animated():
     update_colors()
 
     # Initial refresh
-    video.refreshScreen()
+    video.refresh_screen()
 
     print("\nDisplay ready!")
     print("Colors will cycle every 5 seconds:")
@@ -224,7 +225,7 @@ def test_pattern_animated():
     print("Window closed.")
 
 
-def test_constructor():
+def test_constructor() -> bool:
     """Test constructor parameter validation."""
     print("Testing constructor...")
 
@@ -271,7 +272,7 @@ def test_constructor():
     return True
 
 
-def test_memory_initialization():
+def test_memory_initialization() -> bool:
     """Test that memory is initialized correctly."""
     print("\nTesting memory initialization...")
 
@@ -300,7 +301,7 @@ def test_memory_initialization():
     return True
 
 
-def test_offset_validation():
+def test_offset_validation() -> bool:
     """Test offset validation and IndexError handling."""
     print("\nTesting offset validation...")
 
@@ -308,8 +309,8 @@ def test_offset_validation():
 
     # Valid offsets
     try:
-        v.getScreen(0)
-        v.getScreen(199)
+        v.get_screen(0)
+        v.get_screen(199)
         print("✓ Valid offsets accepted (0 and size-1)")
     except Exception as e:
         print(f"✗ Valid offsets rejected: {e}")
@@ -318,7 +319,7 @@ def test_offset_validation():
 
     # Invalid: negative offset
     try:
-        v.getScreen(-1)
+        v.get_screen(-1)
         print("✗ Should reject negative offset")
         v.close()
         return False
@@ -327,7 +328,7 @@ def test_offset_validation():
 
     # Invalid: offset >= size
     try:
-        v.getScreen(200)
+        v.get_screen(200)
         print("✗ Should reject offset >= size")
         v.close()
         return False
@@ -336,7 +337,7 @@ def test_offset_validation():
 
     # Invalid: non-integer offset
     try:
-        v.getScreen(5.5)
+        v.get_screen(5.5)
         print("✗ Should reject non-integer offset")
         v.close()
         return False
@@ -347,25 +348,25 @@ def test_offset_validation():
     return True
 
 
-def test_screen_memory():
-    """Test setScreen/getScreen operations."""
+def test_screen_memory() -> bool:
+    """Test set_screen/get_screen operations."""
     print("\nTesting screen memory...")
 
     v = vd.Video(10, 20)
 
     # Set and get a value
-    v.setScreen(50, ord('A'))
-    val = v.getScreen(50)
+    v.set_screen(50, ord('A'))
+    val = v.get_screen(50)
     if val == ord('A'):
-        print(f"✓ setScreen/getScreen works (got {val})")
+        print(f"✓ set_screen/get_screen works (got {val})")
     else:
         print(f"✗ Expected {ord('A')}, got {val}")
         v.close()
         return False
 
     # Value masking (> 255 should be masked to 0xFF)
-    v.setScreen(51, 300)  # 300 & 0xFF = 44
-    val = v.getScreen(51)
+    v.set_screen(51, 300)  # 300 & 0xFF = 44
+    val = v.get_screen(51)
     if val == 44:
         print(f"✓ Values masked with 0xFF ({val})")
     else:
@@ -387,25 +388,25 @@ def test_screen_memory():
     return True
 
 
-def test_color_memory():
-    """Test setColor/getColor operations."""
+def test_color_memory() -> bool:
+    """Test set_color/get_color operations."""
     print("\nTesting color memory...")
 
     v = vd.Video(10, 20)
 
     # Set and get a value
-    v.setColor(50, 0xAB)
-    val = v.getColor(50)
+    v.set_color(50, 0xAB)
+    val = v.get_color(50)
     if val == 0xAB:
-        print(f"✓ setColor/getColor works (got 0x{val:02X})")
+        print(f"✓ set_color/get_color works (got 0x{val:02X})")
     else:
         print(f"✗ Expected 0xAB, got 0x{val:02X}")
         v.close()
         return False
 
     # Value masking
-    v.setColor(51, 999)  # 999 & 0xFF = 231
-    val = v.getColor(51)
+    v.set_color(51, 999)  # 999 & 0xFF = 231
+    val = v.get_color(51)
     if val == 231:
         print(f"✓ Values masked with 0xFF ({val})")
     else:
@@ -420,7 +421,7 @@ def test_color_memory():
     if bg_rgb == expected_bg and fg_rgb == expected_fg:
         print("✓ Color extraction works correctly")
     else:
-        print(f"✗ Color extraction failed")
+        print("✗ Color extraction failed")
         v.close()
         return False
 
@@ -428,7 +429,7 @@ def test_color_memory():
     return True
 
 
-def test_default_color():
+def test_default_color() -> bool:
     """Test default color value."""
     print("\nTesting default color...")
 
@@ -444,7 +445,7 @@ def test_default_color():
         return False
 
     # Verify first cell has default color
-    val = v.getColor(0)
+    val = v.get_color(0)
     if val == 0x67:
         print("✓ Cells initialized with DEFAULT_COLOR")
     else:
@@ -456,7 +457,7 @@ def test_default_color():
     return True
 
 
-def test_multiple_displays():
+def test_multiple_displays() -> bool:
     """Test that multiple displays can coexist independently."""
     print("\nTesting multiple displays...")
 
@@ -465,11 +466,11 @@ def test_multiple_displays():
         v2 = vd.Video(5, 10)
 
         # Set different values in each display
-        v1.setScreen(0, ord('A'))
-        v2.setScreen(0, ord('B'))
+        v1.set_screen(0, ord('A'))
+        v2.set_screen(0, ord('B'))
 
         # Verify independence
-        if v1.getScreen(0) == ord('A') and v2.getScreen(0) == ord('B'):
+        if v1.get_screen(0) == ord('A') and v2.get_screen(0) == ord('B'):
             print("✓ Multiple displays are independent")
         else:
             print("✗ Displays appear to share memory")
@@ -479,7 +480,7 @@ def test_multiple_displays():
 
         # Close one, verify other still works
         v1.close()
-        val = v2.getScreen(0)
+        val = v2.get_screen(0)
         if val == ord('B'):
             print("✓ Closing one display doesn't affect others")
         else:
@@ -494,7 +495,7 @@ def test_multiple_displays():
         return False
 
 
-def test_dirty_tracking():
+def test_dirty_tracking() -> bool:
     """Test that dirty flag is set correctly."""
     print("\nTesting dirty tracking...")
 
@@ -507,7 +508,7 @@ def test_dirty_tracking():
         return False
 
     # After refresh, should not be dirty
-    v.refreshScreen()
+    v.refresh_screen()
     if not v._dirty:
         print("✓ Dirty flag cleared after refresh")
     else:
@@ -516,18 +517,17 @@ def test_dirty_tracking():
         return False
 
     # Setting a value should mark dirty
-    v.setScreen(50, ord('X'))
+    v.set_screen(50, ord('X'))
     if v._dirty:
-        print("✓ setScreen marks display as dirty")
+        print("✓ set_screen marks display as dirty")
     else:
-        print("✗ setScreen didn't mark dirty")
+        print("✗ set_screen didn't mark dirty")
         v.close()
         return False
 
     # Setting same value shouldn't change dirty state unnecessarily
-    current = v.getScreen(50)
-    v.setScreen(50, current)  # Set to same value
-    was_dirty_before = v._dirty
+    current = v.get_screen(50)
+    v.set_screen(50, current)  # Set to same value
     # It might still be dirty from previous set, but let's check it doesn't get dirtier
     print(f"  Note: dirty state after setting same value: {v._dirty}")
 
@@ -535,7 +535,7 @@ def test_dirty_tracking():
     return True
 
 
-def test_character_set():
+def test_character_set() -> bool:
     """Test character set indexing."""
     print("\nTesting character set...")
 
@@ -581,7 +581,7 @@ def test_character_set():
     return True
 
 
-def main():
+def main() -> int:
     """Run all tests."""
     print("=" * 60)
     print("Video Display Component - Specification Compliance Tests")

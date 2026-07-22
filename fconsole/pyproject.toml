@@ -1,0 +1,18 @@
+[project]
+name = "fconsole"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501", "SIM105"]
+
+[tool.pyrefly]
+python-version = "3.12"
+
+# Recursively include all Python files in this directory and subdirectories
+project-includes = ["*.py", "**/*.py"]

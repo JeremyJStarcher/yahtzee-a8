@@ -12,10 +12,10 @@ import os
 class FontParser:
     """Parses .yaff font files and provides glyph lookup."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._glyphs = {}  # Maps char_index -> list of 8 bytes
 
-    def parse_yaff(self, filepath):
+    def parse_yaff(self, filepath: str) -> dict[int, bytearray]:
         """
         Parse a YAFF font file.
 
@@ -31,7 +31,7 @@ class FontParser:
         glyphs = {}
         current_glyph = None
 
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding='utf-8') as f:
             for line in f:
                 line = line.rstrip('\n\r')
 
@@ -71,7 +71,7 @@ class FontParser:
 
         return result
 
-    def _parse_bitmap_line(self, line):
+    def _parse_bitmap_line(self, line: str) -> int | None:
         """
         Parse a single bitmap line from yaff format.
 
@@ -99,7 +99,7 @@ class FontParser:
         return bits
 
 
-def load_font(filepath='atascii.yaff'):
+def load_font(filepath: str='atascii.yaff') -> FontParser:
     """
     Convenience function to load a font file.
 

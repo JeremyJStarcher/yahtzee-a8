@@ -19,6 +19,9 @@ python-version = "3.12"
 # Enable strict mode to catch everything
 strict = true
 
+# Recursively include all Python files in the project root and subdirectories
+project-includes = ["fconsole/**/*.py"]
+
 # ----- If using mypy instead -----
 # [tool.mypy]
 # python_version = "3.12"
