@@ -149,7 +149,7 @@ def demo_graphics_chars() -> None:
         for col in range(5, columns - 5):
             if (row + col) % 3 == 0:
                 offset = row * columns + col
-                video.set_screen(offset, ord('X'))
+                video.set_screen(offset, ord("X"))
                 video.set_color(offset, 0x54)  # Purple on green
 
     video.refresh_screen()
@@ -168,15 +168,13 @@ def demo_graphics_chars() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Bitmap Font Rendering Demonstrations"
-    )
+    parser = argparse.ArgumentParser(description="Bitmap Font Rendering Demonstrations")
     parser.add_argument(
-        'mode',
-        nargs='?',
-        choices=['1', '2', '3'],
+        "mode",
+        nargs="?",
+        choices=["1", "2", "3"],
         default=None,
-        help='Demo mode: 1=All chars grid, 2=Text comparison, 3=Graphics chars'
+        help="Demo mode: 1=All chars grid, 2=Text comparison, 3=Graphics chars",
     )
 
     args = parser.parse_args()
@@ -195,9 +193,9 @@ if __name__ == "__main__":
     else:
         choice = args.mode
 
-    if choice == '2':
+    if choice == "2":
         demo_text_comparison()
-    elif choice == '3':
+    elif choice == "3":
         demo_graphics_chars()
     else:
         demo_all_chars()

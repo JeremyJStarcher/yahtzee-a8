@@ -21,7 +21,7 @@ except ImportError as e:
 
 class SystemBus:
     """Custom system bus using Python's dunder methods for memory access.
-    
+
     Memory layout:
     - $0000-$7FFF: RAM (32KB)
     - $8000-$BFFF: Unmapped (returns $EA on read, no-op on write)
@@ -29,8 +29,8 @@ class SystemBus:
     """
 
     def __init__(self):
-        self.ram = bytearray(0x8000)      # 32KB RAM ($0000-$7FFF)
-        self.rom = bytearray(0x4000)      # 16KB ROM ($C000-$FFFF)
+        self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
+        self.rom = bytearray(0x4000)  # 16KB ROM ($C000-$FFFF)
 
     def __getitem__(self, address):
         return 0xEA
@@ -105,15 +105,15 @@ class FConsole:
             wrap=tk.WORD,
             bg="black",
             fg="#00FF00",  # Green terminal-style text
-            insertbackground="#00FF00"
+            insertbackground="#00FF00",
         )
         self.debug_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
         # Redirect stdout/stderr to our debug window
-        self._original_stdout = sys.stdout
-        self._original_stderr = sys.stderr
-        sys.stdout = self._DebugWriter(self.debug_text)
-        sys.stderr = self._DebugWriter(self.debug_text)
+        # self._original_stdout = sys.stdout
+        # self._original_stderr = sys.stderr
+        # sys.stdout = self._DebugWriter(self.debug_text)
+        # sys.stderr = self._DebugWriter(self.debug_text)
 
     class _DebugWriter:
         """Helper class to redirect output to a Tkinter Text widget."""
@@ -150,6 +150,9 @@ class FConsole:
             """Mark writer as closed to prevent further writes."""
             self.alive = False
 
+    def ord2(self, ch: str) -> int:
+        return self.vout.get_screencode(ch)
+
     def _update_cpu_step(self) -> None:
         """Advance the 6502 CPU one instruction per tick and show state."""
         cols = 40
@@ -165,31 +168,31 @@ class FConsole:
         for i, ch in enumerate(pc_str):
             row = 1
             col = 2 + i
-            self.vout.set_screen(row * cols + col, ord(ch))
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
 
         label = "PC"
         for i, ch in enumerate(label):
             row = 1
             col = i
-            self.vout.set_screen(row * cols + col, ord(ch))
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
 
         separator = "----------"
         for i, ch in enumerate(separator):
             row = 3
             col = i
-            self.vout.set_screen(row * cols + col, ord(ch))
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
 
-        note = "ALL MEM=$EA (NOP)"
+        note = "ALL MEM=$EA ╝(NOP)"
         for i, ch in enumerate(note):
             row = 5
             col = i
-            self.vout.set_screen(row * cols + col, ord(ch))
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
 
         regs_label = "  A  X  Y  SP NV-BDIZC"
         for i, ch in enumerate(regs_label):
             row = 7
             col = i
-            self.vout.set_screen(row * cols + col, ord(ch))
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
 
         reg_vals = (
             f"  "
@@ -209,7 +212,7 @@ class FConsole:
         for i, ch in enumerate(reg_vals):
             row = 8
             col = i
-            self.vout.set_screen(row * cols + col, ord(ch))
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
 
         # Refresh display
         self.vout.refresh_screen()
@@ -225,9 +228,9 @@ class FConsole:
 
         try:
             # Close debug writers first to stop scheduled callbacks
-            if hasattr(sys.stdout, 'close'):
+            if hasattr(sys.stdout, "close"):
                 sys.stdout.close()
-            if hasattr(sys.stderr, 'close'):
+            if hasattr(sys.stderr, "close"):
                 sys.stderr.close()
 
             # Restore original stdout/stderr
@@ -260,11 +263,11 @@ class FConsole:
         while self.running:
             try:
                 # Update vout (this also processes its events via update_idletasks)
-                if hasattr(self.vout, '_root') and self.vout._root is not None:
+                if hasattr(self.vout, "_root") and self.vout._root is not None:
                     self.vout._root.update()
 
                 # Update dout
-                if hasattr(self, 'dout_root') and self.dout_root is not None:
+                if hasattr(self, "dout_root") and self.dout_root is not None:
                     self.dout_root.update()
 
             except tk.TclError:

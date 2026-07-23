@@ -9,26 +9,52 @@ and color memory.
 import tkinter as tk
 from tkinter import Canvas
 
-from .font_parser import load_font
+from .font import FONT_DATA
 
 
 class Video:
     """A single video display instance managing its own window and memory."""
 
-    # Character set - 128 characters (0x00-0x7F)
+    # fmt: off
     CHARS = [
-        "♥","├","🮇","┘","┤","┐","╱","╲","◢","▗","◣","▝","▘","🮂","▂","▖",
-        "♣","┌","─","┼","•","▄","▎","┬","┴","▌","└","␛","↑","↓","←","→",
-        " ","!", '"',"#","$","%","&","'","(",")","*","+",",","-",".","/",
+        "▀","▁","▂","▃","▄","▅","▆","▇","█","▉","▊","▋","▌","▍","▎","▏",
+        "▐","░","▒","▓","▔","▕","▖","▗","▘","▙","▚","▛","▜","▝","▞","▟",
+        " ","!","\"","#","$","%","&","'","(",")","*","+",",","-",".","/",
         "0","1","2","3","4","5","6","7","8","9",":",";","<","=",">","?",
         "@","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O",
         "P","Q","R","S","T","U","V","W","X","Y","Z","[","\\","]","^","_",
-        "♦","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o",
-        "p","q","r","s","t","u","v","w","x","y","z","♠","|","🢰","◀","▶",
+        "`","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o",
+        "p","q","r","s","t","u","v","w","x","y","z","{","|","}","~","",
+        "─","━","│","┃","┄","┅","┆","┇","┈","┉","┊","┋","┌","┍","┎","┏",
+        "┐","┑","┒","┓","└","┕","┖","┗","┘","┙","┚","┛","├","┝","┞","┟",
+        "┠","┡","┢","┣","┤","┥","┦","┧","┨","┩","┪","┫","┬","┭","┮","┯",
+        "┰","┱","┲","┳","┴","┵","┶","┷","┸","┹","┺","┻","┼","┽","┾","┿",
+        "╀","╁","╂","╃","╄","╅","╆","╇","╋","╊","╉","╋","╌","╍","╎","╏",
+        "═","║","╒","╓","╔","╕","╖","╗","╘","╙","╚","╛","╜","╝","╞","╟",
+        "╠","╡","╢","╣","╤","╥","╦","╧","╨","╩","╪","╫","╬","╭","╮","╯",
+        "╰","╱","╲","╳","╴","╵","╶","╷","╸","╹","╺","╻","╼","╽","╿","╾"
     ]
+    # fmt: on
 
-    # Bitmapped font data (loaded from atascii.yaff)
-    _font_glyphs: dict[int, bytearray] | None = None
+    # Bitmap glyph data indexed by character code (populated from FONT_DATA)
+    _font_glyphs: dict[int, bytearray] = {}
+
+    @classmethod
+    def _build_font_mappings(cls) -> None:
+        """
+        Build _font_glyphs dictionary from embedded FONT_DATA.
+
+        Populates the bitmap lookup table so characters can be rendered
+        using their 8×8 pixel patterns instead of Unicode fallback.
+        """
+        if cls._font_glyphs:  # Already built
+            return
+
+        cls._font_glyphs = {}
+
+        # Map each FontChar entry into our glyph dictionary
+        for font_idx, font_char in enumerate(FONT_DATA):
+            cls._font_glyphs[font_idx] = bytearray(font_char.layout)
 
     # Character dimensions in pixels
     CHAR_WIDTH: int = 8
@@ -57,7 +83,7 @@ class Video:
     # Default color: Background=Blue(6), Foreground=Yellow(7)
     DEFAULT_COLOR = 0x67
 
-    def __init__(self, rows, columns, scale: int=1, border: int=1) -> None:
+    def __init__(self, rows, columns, scale: int = 1, border: int = 1) -> None:
         """
         Create a new video display instance.
 
@@ -93,13 +119,8 @@ class Video:
         self._root: tk.Tk
         self._canvas: Canvas
 
-        # Load bitmapped font if not already loaded
-        if Video._font_glyphs is None:
-            try:
-                Video._font_glyphs = load_font('atascii.yaff')._glyphs
-            except Exception as e:
-                print(f"Warning: Could not load bitmapped font: {e}")
-                Video._font_glyphs = {}
+        # Build font mappings from embedded FONT_DATA on first use
+        Video._build_font_mappings()
 
         # Initialize memory arrays with space characters and default color
         total_cells = rows * columns
@@ -111,7 +132,9 @@ class Video:
 
         # Create Tkinter window and canvas
         self._root = tk.Tk()
-        self._root.title(f"Video Display ({rows}x{columns}) [scale={scale}x][border={border}]")
+        self._root.title(
+            f"Video Display ({rows}x{columns}) [scale={scale}x][border={border}]"
+        )
 
         # Calculate display size including border (scaled by character dimensions)
         # Border adds padding on both sides: left+right or top+bottom
@@ -119,11 +142,7 @@ class Video:
         height = (rows + 2 * border) * self.CHAR_HEIGHT * scale
 
         self._canvas = tk.Canvas(
-            self._root,
-            width=width,
-            height=height,
-            bg='black',
-            highlightthickness=0
+            self._root, width=width, height=height, bg="black", highlightthickness=0
         )
         self._canvas.pack()
 
@@ -160,7 +179,9 @@ class Video:
             width = self._columns * self.CHAR_WIDTH * value
             height = self._rows * self.CHAR_HEIGHT * value
 
-            self._root.title(f"Video Display ({self._rows}x{self._columns}) [scale={value}x]")
+            self._root.title(
+                f"Video Display ({self._rows}x{self._columns}) [scale={value}x]"
+            )
             self._canvas.config(width=width, height=height)
 
             # Force redraw on next refresh
@@ -272,6 +293,7 @@ class Video:
         """
         Convert a character byte to displayable string.
 
+        Uses CHARS table to map byte values to display characters.
         High bit is ignored (masked off).
 
         Args:
@@ -280,15 +302,24 @@ class Video:
         Returns:
             String representation of the character
         """
-        index = char_byte & 0x7F
+        index = char_byte
         if index < len(self.CHARS):
             return self.CHARS[index]
         else:
             return "?"
 
-    def _draw_bitmap_char(self, canvas: Canvas, x: int, y: int, char_byte: int, fg_color: str, bg_color: str, scale: int) -> bool:
+    def _draw_bitmap_char(
+        self,
+        canvas: Canvas,
+        x: int,
+        y: int,
+        char_byte: int,
+        fg_color: str,
+        bg_color: str,
+        scale: int,
+    ) -> bool:
         """
-        Draw a single character using bitmap data from font file.
+        Draw a single character using embedded font bitmap data.
 
         Uses pixel-by-pixel rectangle drawing for authentic 8-bit look.
 
@@ -299,30 +330,28 @@ class Video:
             fg_color: Foreground color hex string
             bg_color: Background color hex string
             scale: Scaling factor
-        """
-        # Get glyph data - mask high bit but check both with and without it
-        glyph_index = char_byte & 0xFF
 
-        # Try full byte first, then masked version
-        glyph_data = None
-        if Video._font_glyphs:
-            glyph_data = Video._font_glyphs.get(glyph_index)
-            if glyph_data is None:
-                # Fall back to CHARS-based lookup
-                index = char_byte & 0x7F
-                if index in Video._font_glyphs:
-                    glyph_data = Video._font_glyphs[index]
+        Returns:
+            True if bitmap was drawn, False if fallback needed
+        """
+        # Get glyph data from embedded font using 7-bit index
+        glyph_index = char_byte
+        glyph_data = self._font_glyphs.get(glyph_index)
 
         if glyph_data is None or len(glyph_data) != 8:
+            print(len(self._font_glyphs))
+            print(self._font_glyphs)
             # No bitmap available - fallback to text rendering
             return False
 
         # Draw background first (fills entire cell)
         canvas.create_rectangle(
-            x, y,
-            x + self.CHAR_WIDTH * scale, y + self.CHAR_HEIGHT * scale,
+            x,
+            y,
+            x + self.CHAR_WIDTH * scale,
+            y + self.CHAR_HEIGHT * scale,
             fill=bg_color,
-            outline=""
+            outline="",
         )
 
         # Draw foreground pixels where bits are set
@@ -330,22 +359,26 @@ class Video:
         for row in range(self.CHAR_HEIGHT):
             byte_val: int = glyph_data[row]
             for col in range(self.CHAR_WIDTH):
-                # Check if this pixel should be drawn
-                bit_position = 7 - col  # MSB first
+                # Check if this pixel should be drawn (MSB-first bit order)
+                bit_position = col  # 7 - col
                 if byte_val & (1 << bit_position):
                     # Draw a small rectangle for this pixel
                     px = x + col * scale
                     py = y + row * scale
                     canvas.create_rectangle(
-                        px, py,
-                        px + pixel_size, py + pixel_size,
+                        px,
+                        py,
+                        px + pixel_size,
+                        py + pixel_size,
                         fill=fg_color,
-                        outline=""
+                        outline="",
                     )
 
         return True
 
-    def _get_colors(self, color_byte: int) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+    def _get_colors(
+        self, color_byte: int
+    ) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
         """
         Extract background and foreground colors from color byte.
 
@@ -377,7 +410,7 @@ class Video:
         3. Keeps the window responsive
         4. Is safe to call when nothing changed
         """
-        if not hasattr(self, '_canvas') or self._canvas is None:
+        if not hasattr(self, "_canvas") or self._canvas is None:
             return
 
         # Only redraw if something changed or canvas doesn't exist
@@ -392,6 +425,9 @@ class Video:
         # Clear canvas
         self._canvas.delete("all")
         self._cell_rects.clear()
+
+        # Ensure font mappings are built (no-op after first call)
+        Video._build_font_mappings()
 
         # Track if we successfully used bitmapped fonts
         bitmap_render_success = True
@@ -417,39 +453,16 @@ class Video:
 
             # Try to draw using bitmapped font
             if not self._draw_bitmap_char(
-                self._canvas, x, y, char_byte,
-                fg_hex, bg_hex, self._scale
+                self._canvas, x, y, char_byte, fg_hex, bg_hex, self._scale
             ):
+                print(f"CHAR BYTE FAILED {char_byte:02x}")
                 bitmap_render_success = False
 
-                # Fallback: use background rectangle + text
-                rect_id = self._canvas.create_rectangle(
-                    x, y,
-                    x + self.CHAR_WIDTH * self._scale, y + self.CHAR_HEIGHT * self._scale,
-                    fill=bg_hex,
-                    outline=""
-                )
-
-                # Draw character using Unicode fallback
-                char_str = self._get_char_display(char_byte)
-                font_size = max(1, int(self.CHAR_HEIGHT * self._scale))
-                text_id = self._canvas.create_text(
-                    x + (self.CHAR_WIDTH // 2) * self._scale,
-                    y + (self.CHAR_HEIGHT // 2) * self._scale,
-                    text=char_str,
-                    font=("Courier", font_size),
-                    fill=fg_hex,
-                    anchor="center"
-                )
-
-                # Store references for fallback rendering
-                if offset not in self._cell_rects:
-                    self._cell_rects[offset] = []
-                self._cell_rects[offset].append((rect_id, text_id))
-
         # If any cell used fallback, we need to redraw everything next time
-        if not bitmap_render_success and Video._font_glyphs:
-            print("Warning: Some characters missing from font file, using fallback")
+        if not bitmap_render_success:
+            print(
+                "Warning: Some characters missing from embedded font data, using fallback"
+            )
 
         # Reset dirty flag
         self._dirty = False
@@ -462,9 +475,11 @@ class Video:
 
     def close(self) -> None:
         """Close the display and clean up resources."""
-        if hasattr(self, '_root') and self._root is not None:
+        if hasattr(self, "_root") and self._root is not None:
             try:
                 self._root.destroy()
             except Exception:
                 pass
 
+    def get_screencode(self, ch: str) -> int:
+        return self.CHARS.index(ch)

@@ -31,24 +31,28 @@ class FontParser:
         glyphs = {}
         current_glyph = None
 
-        with open(filepath, encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             for line in f:
-                line = line.rstrip('\n\r')
+                line = line.rstrip("\n\r")
 
                 # Skip empty lines, comments, and metadata
-                if not line or line.startswith('#') or ':' in line.split()[0] if line else True:
+                if (
+                    not line or line.startswith("#") or ":" in line.split()[0]
+                    if line
+                    else True
+                ):
                     # Check if this is a hex index line like "0x00:" or "u+0020:"
-                    stripped = line.strip().rstrip(':')
-                    if stripped.startswith('0x'):
+                    stripped = line.strip().rstrip(":")
+                    if stripped.startswith("0x"):
                         try:
                             current_glyph = int(stripped, 16)
                             continue
                         except ValueError:
                             continue
-                    elif stripped.lower().startswith('u+'):
+                    elif stripped.lower().startswith("u+"):
                         # Unicode reference - skip but keep going
                         continue
-                    elif ':' in line and not any(c in line for c in ['.', '@']):
+                    elif ":" in line and not any(c in line for c in [".", "@"]):
                         # Metadata line like "name:", "spacing:", etc.
                         continue
                     else:
@@ -85,7 +89,7 @@ class FontParser:
         line = line.strip()
 
         # Validate it only contains . and @ (and maybe spaces for alignment)
-        cleaned = ''.join(c for c in line if c in ['.', '@'])
+        cleaned = "".join(c for c in line if c in [".", "@"])
 
         if len(cleaned) != 8:
             return None
@@ -93,13 +97,13 @@ class FontParser:
         # Convert to byte: @ = 1 (foreground), . = 0 (background)
         bits = 0
         for i, char in enumerate(cleaned):
-            if char == '@':
-                bits |= (1 << (7 - i))  # MSB first
+            if char == "@":
+                bits |= 1 << (7 - i)  # MSB first
 
         return bits
 
 
-def load_font(filepath: str='atascii.yaff') -> FontParser:
+def load_font(filepath: str = "atascii.yaff") -> FontParser:
     """
     Convenience function to load a font file.
 

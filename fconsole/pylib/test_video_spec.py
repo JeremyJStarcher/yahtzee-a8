@@ -61,8 +61,10 @@ def test_pattern() -> None:
 
     print(f"Display size: {columns} columns x {rows} rows")
     print(f"Scale factor: {scale}x")
-    print("Each row shows: 'LineX' + dots filling remaining space + '!' at column",
-          columns - 1)
+    print(
+        "Each row shows: 'LineX' + dots filling remaining space + '!' at column",
+        columns - 1,
+    )
     print("\nFilling screen with test pattern...")
 
     # Fill each row with "LineXX.......................!"
@@ -81,17 +83,17 @@ def test_pattern() -> None:
         end_position = row_start + columns - 1
 
         while dot_position < end_position:
-            video.set_screen(dot_position, ord('.'))
+            video.set_screen(dot_position, ord("."))
             dot_position += 1
 
         # Put exclamation mark at the very last position
         if end_position < len(video._screen_memory):
-            video.set_screen(end_position, ord('!'))
+            video.set_screen(end_position, ord("!"))
 
     # Also set a distinctive color to make it easier to see
     # White background (0x01) with black text (0x00)
-#    for offset in range(len(video._color_memory)):
-#        video.set_color(offset, 0x10)  # bg=White(1), fg=Black(0)
+    #    for offset in range(len(video._color_memory)):
+    #        video.set_color(offset, 0x10)  # bg=White(1), fg=Black(0)
 
     # Refresh to show everything
     video.refresh_screen()
@@ -101,7 +103,7 @@ def test_pattern() -> None:
     print(f"  - {rows} numbered rows")
     print("  - Each row starts with 'Line<number>'")
     print("  - Dots filling most of each line")
-    print(f"  - Exclamation mark '!' at column {columns-1} of every row")
+    print(f"  - Exclamation mark '!' at column {columns - 1} of every row")
     print("\nClick the window's close button when done.")
 
     # Wait for user to close the window
@@ -146,22 +148,19 @@ def test_pattern_animated() -> None:
         end_position = row_start + columns - 1
 
         while dot_position < end_position:
-            video.set_screen(dot_position, ord('.'))
+            video.set_screen(dot_position, ord("."))
             dot_position += 1
 
         if end_position < len(video._screen_memory):
-            video.set_screen(end_position, ord('!'))
+            video.set_screen(end_position, ord("!"))
 
     # Color cycling state
-    color_cycle_state = {
-        'step': 0,
-        'running': True
-    }
+    color_cycle_state = {"step": 0, "running": True}
 
     def update_colors() -> None:
         """Update all cell colors based on current step."""
         # Cycle through different color combinations
-        step = color_cycle_state['step']
+        step = color_cycle_state["step"]
 
         # Create varying color patterns
         if step % 4 == 0:
@@ -187,15 +186,15 @@ def test_pattern_animated() -> None:
         video.refresh_screen()
 
         # Increment and schedule next update
-        color_cycle_state['step'] += 1
+        color_cycle_state["step"] += 1
 
-        if color_cycle_state['running']:
+        if color_cycle_state["running"]:
             # Schedule next color change in 5000ms (5 seconds)
             video._root.after(5000, update_colors)
 
     def on_closing() -> None:
         """Handle window close event."""
-        color_cycle_state['running'] = False
+        color_cycle_state["running"] = False
         video.close()
 
     # Start the color cycling
@@ -355,9 +354,9 @@ def test_screen_memory() -> bool:
     v = vd.Video(10, 20)
 
     # Set and get a value
-    v.set_screen(50, ord('A'))
+    v.set_screen(50, ord("A"))
     val = v.get_screen(50)
-    if val == ord('A'):
+    if val == ord("A"):
         print(f"✓ set_screen/get_screen works (got {val})")
     else:
         print(f"✗ Expected {ord('A')}, got {val}")
@@ -375,9 +374,9 @@ def test_screen_memory() -> bool:
         return False
 
     # High bit in character lookup should be ignored
-    char_normal = v._get_char_display(ord('A'))  # 'A'
-    char_high_bit = v._get_char_display(ord('A') | 0x80)  # High bit set
-    if char_normal == char_high_bit == 'A':
+    char_normal = v._get_char_display(ord("A"))  # 'A'
+    char_high_bit = v._get_char_display(ord("A") | 0x80)  # High bit set
+    if char_normal == char_high_bit == "A":
         print("✓ High bit ignored in character lookup")
     else:
         print(f"✗ Character mismatch: '{char_normal}' vs '{char_high_bit}'")
@@ -416,8 +415,8 @@ def test_color_memory() -> bool:
 
     # Extract colors from byte
     bg_rgb, fg_rgb = v._get_colors(0x67)  # Blue bg, Yellow fg
-    expected_bg = vd.Video.C64_COLORS[6]   # Blue
-    expected_fg = vd.Video.C64_COLORS[7]   # Yellow
+    expected_bg = vd.Video.C64_COLORS[6]  # Blue
+    expected_fg = vd.Video.C64_COLORS[7]  # Yellow
     if bg_rgb == expected_bg and fg_rgb == expected_fg:
         print("✓ Color extraction works correctly")
     else:
@@ -466,11 +465,11 @@ def test_multiple_displays() -> bool:
         v2 = vd.Video(5, 10)
 
         # Set different values in each display
-        v1.set_screen(0, ord('A'))
-        v2.set_screen(0, ord('B'))
+        v1.set_screen(0, ord("A"))
+        v2.set_screen(0, ord("B"))
 
         # Verify independence
-        if v1.get_screen(0) == ord('A') and v2.get_screen(0) == ord('B'):
+        if v1.get_screen(0) == ord("A") and v2.get_screen(0) == ord("B"):
             print("✓ Multiple displays are independent")
         else:
             print("✗ Displays appear to share memory")
@@ -481,7 +480,7 @@ def test_multiple_displays() -> bool:
         # Close one, verify other still works
         v1.close()
         val = v2.get_screen(0)
-        if val == ord('B'):
+        if val == ord("B"):
             print("✓ Closing one display doesn't affect others")
         else:
             print("✗ Closing display affected other")
@@ -502,7 +501,7 @@ def test_dirty_tracking() -> bool:
     v = vd.Video(10, 20)
 
     # Initially dirty (for initial draw)
-    if not hasattr(v, '_dirty'):
+    if not hasattr(v, "_dirty"):
         print("✗ No _dirty attribute")
         v.close()
         return False
@@ -517,7 +516,7 @@ def test_dirty_tracking() -> bool:
         return False
 
     # Setting a value should mark dirty
-    v.set_screen(50, ord('X'))
+    v.set_screen(50, ord("X"))
     if v._dirty:
         print("✓ set_screen marks display as dirty")
     else:
