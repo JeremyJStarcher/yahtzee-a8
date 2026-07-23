@@ -1,3 +1,6 @@
 .venv/
 codegen/__pycache__/
 *.pyc
+*.o
+*.bin
+*.bin.map
