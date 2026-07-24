@@ -19,7 +19,7 @@ def parse_args():
         "--cycles-per-frame",
         type=int,
         default=8000,
-        help="Number of CPU cycles per frame (default: 2)",
+        help="Number of CPU cycles per frame (default: 8000)",
     )
     parser.add_argument(
         "--screen-scale",
