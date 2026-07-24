@@ -7,8 +7,8 @@ runs a simple 6502 emulator demo via py65 on the video display.
 """
 
 import sys
-from dataclasses import dataclass
 import tkinter as tk
+from dataclasses import dataclass
 
 from pylib import video_display as vd
 
@@ -20,52 +20,70 @@ except ImportError as e:
     sys.exit(1)
 
 
+BIOS_FILE = "bios/bios.bin"
+SCREEN_COLS = 40
+SCREEN_ROWS = 24
+
 
 @dataclass
 class MemoryRange:
+    name: str
     start: int
-    end: int
+    end: int = -1
+    len: int = -1
 
-rom1_range = MemoryRange(start=0xF000, end=0xFFFF)
+    def __post_init__(self):
+        if self.end == -1 and self.len == -1:
+            raise ValueError("Range error: end and length cannot both be empty")
+
+        if self.end == -1:
+            self.end = self.start + self.len
+
+        if self.len == -1:
+            self.len = self.start - self.end
 
 
 class SystemBus:
-    """Custom system bus using Python's dunder methods for memory access.
-
-    Memory layout:
-    - $0000-$7FFF: RAM (32KB)
-    - $8000-$BFFF: Unmapped (returns $EA on read, no-op on write)
-    - $C000-$FFFF: ROM (16KB)
+    """
+    Custom system bus using Python's dunder methods for memory access.
     """
 
+    rom1_range = MemoryRange(name="bios", start=0xF000, end=0xFFFF)
+    char_range = MemoryRange(name="chars", start=0xE000, len=SCREEN_COLS * SCREEN_ROWS)
+
     def __init__(self):
-        import os
-        BIOS_FILE = "bios/bios.bin"
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
-        self.rom = bytearray(rom1_range.end - rom1_range.start + 1)  # +1 for inclusive end address
+        self.rom = bytearray(
+            self.rom1_range.end - self.rom1_range.start + 1
+        )  # +1 for inclusive end address
 
         # Load BIOS binary into ROM if available
         try:
-            with open(BIOS_FILE, 'rb') as f:
+            with open(BIOS_FILE, "rb") as f:
                 bios_data = f.read()
                 copy_size = min(len(bios_data), len(self.rom))
                 self.rom[:copy_size] = bios_data[:copy_size]
-                print(f"Loaded BIOS: {BIOS_FILE} ({len(bios_data)} 0x{len(bios_data):04X} bytes)")
+                print(
+                    f"Loaded BIOS: {BIOS_FILE} ({len(bios_data)} 0x{len(bios_data):04X} bytes)"
+                )
         except FileNotFoundError:
             print(f"WARNING: BIOS file not found: {BIOS_FILE}")
         except Exception as e:
             print(f"ERROR loading BIOS: {e}")
 
-    def __getitem__(self, address):
+    def __getitem__(self, address) -> int:
         if address < 0x8000:
             return self.ram[address]
-        elif rom1_range.start <= address <= rom1_range.end :
-            return self.rom[address -  rom1_range.start]
+        elif self.rom1_range.start <= address <= self.rom1_range.end:
+            return self.rom[address - self.rom1_range.start]
+        elif self.char_range.start <= address <= self.char_range.end:
+            # Character memory not implemented yet, return unmapped value
+            return 0xEA
         else:
             # Unmapped space returns NOP instruction ($EA)
             return 0xEA
 
-    def __setitem__(self, address, value):
+    def __setitem__(self, address, value) -> None:
         if address < 0x8000:
             self.ram[address] = value
         elif 0xC000 <= address <= 0xFFFF:
@@ -75,16 +93,17 @@ class SystemBus:
 class Cpu6502Module:
     """Simple wrapper for the py65 6502 emulator."""
 
-
     def __init__(self):
-        RESET_VECTOR_ADDRESS = 0xFFFC
+        reset_vector_address = 0xFFFC
 
         # Create system bus with RAM and ROM using dunder methods
         self.bus = SystemBus()
 
         # Create CPU starting at the reset vector
-        RESET_VECTOR = self.bus[RESET_VECTOR_ADDRESS] + (self.bus[RESET_VECTOR_ADDRESS+1] * 256)
-        self.cpu = MPU(memory=self.bus, pc=RESET_VECTOR)
+        reset_vector = self.bus[reset_vector_address] + (
+            self.bus[reset_vector_address + 1] * 256
+        )
+        self.cpu = MPU(memory=self.bus, pc=reset_vector)
 
     def step(self) -> None:
         """Execute one instruction."""
@@ -109,8 +128,7 @@ class FConsole:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
-        # 24 rows x 40 columns, scale=3 for visibility
-        self.vout = vd.Video(rows=24, columns=40, scale=3)
+        self.vout = vd.Video(rows=SCREEN_ROWS, columns=SCREEN_COLS, scale=3)
 
         # Override the default title to match requirement
         self.vout._root.title("fcon - vout")
@@ -182,8 +200,9 @@ class FConsole:
 
     def _update_cpu_step(self) -> None:
         """Advance the 6502 CPU one instruction per tick and show state."""
-        cols = 40
-        rows = 24
+
+        cols = SCREEN_COLS
+        # rows = SCREEN_ROWS
 
         # Execute one NOP at a time from $0000
         self.cpu_module.step()
@@ -263,8 +282,8 @@ class FConsole:
                 sys.stderr.close()
 
             # Restore original stdout/stderr
-            sys.stdout = self._original_stdout
-            sys.stderr = self._original_stderr
+            # sys.stdout = self._original_stdout
+            # ys.stderr = self._original_stderr
 
             # Close windows
             self.vout.close()
