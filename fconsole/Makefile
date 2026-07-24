@@ -6,7 +6,7 @@ VENV_PY := $(VENV_DIR)/bin/python
 RUFF := $(VENV_DIR)/bin/ruff
 PYREFLY := $(VENV_DIR)/bin/pyrefly
 
-.PHONY: all run lint format typecheck infer clean ensure-venv
+.PHONY: all run lint format typecheck infer clean ensure-venv build-bios
 
 # This Makefile REQUIRES a Python virtualenv at `../venv/.venv`.
 
@@ -24,8 +24,12 @@ ensure-venv:
 
 all: run
 
-run: | ensure-venv
+run: | ensure-venv build-bios
 	$(VENV_PY) fcon.py
+
+build-bios:
+	@echo "Building BIOS..."
+	$(MAKE) -C $(ROOT)/bios
 
 lint: | ensure-venv
 	$(RUFF) check . --fix

@@ -7,6 +7,7 @@ runs a simple 6502 emulator demo via py65 on the video display.
 """
 
 import sys
+from dataclasses import dataclass
 import tkinter as tk
 
 from pylib import video_display as vd
@@ -19,6 +20,15 @@ except ImportError as e:
     sys.exit(1)
 
 
+
+@dataclass
+class MemoryRange:
+    start: int
+    end: int
+
+rom1_range = MemoryRange(start=0xF000, end=0xFFFF)
+
+
 class SystemBus:
     """Custom system bus using Python's dunder methods for memory access.
 
@@ -29,15 +39,28 @@ class SystemBus:
     """
 
     def __init__(self):
+        import os
+        BIOS_FILE = "bios/bios.bin"
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
-        self.rom = bytearray(0x4000)  # 16KB ROM ($C000-$FFFF)
+        self.rom = bytearray(rom1_range.end - rom1_range.start + 1)  # +1 for inclusive end address
+
+        # Load BIOS binary into ROM if available
+        try:
+            with open(BIOS_FILE, 'rb') as f:
+                bios_data = f.read()
+                copy_size = min(len(bios_data), len(self.rom))
+                self.rom[:copy_size] = bios_data[:copy_size]
+                print(f"Loaded BIOS: {BIOS_FILE} ({len(bios_data)} 0x{len(bios_data):04X} bytes)")
+        except FileNotFoundError:
+            print(f"WARNING: BIOS file not found: {BIOS_FILE}")
+        except Exception as e:
+            print(f"ERROR loading BIOS: {e}")
 
     def __getitem__(self, address):
-        return 0xEA
         if address < 0x8000:
             return self.ram[address]
-        elif 0xC000 <= address <= 0xFFFF:
-            return self.rom[address - 0xC000]
+        elif rom1_range.start <= address <= rom1_range.end :
+            return self.rom[address -  rom1_range.start]
         else:
             # Unmapped space returns NOP instruction ($EA)
             return 0xEA
@@ -52,12 +75,16 @@ class SystemBus:
 class Cpu6502Module:
     """Simple wrapper for the py65 6502 emulator."""
 
+
     def __init__(self):
+        RESET_VECTOR_ADDRESS = 0xFFFC
+
         # Create system bus with RAM and ROM using dunder methods
         self.bus = SystemBus()
 
-        # Create CPU starting at $0000
-        self.cpu = MPU(memory=self.bus, pc=0x0000)
+        # Create CPU starting at the reset vector
+        RESET_VECTOR = self.bus[RESET_VECTOR_ADDRESS] + (self.bus[RESET_VECTOR_ADDRESS+1] * 256)
+        self.cpu = MPU(memory=self.bus, pc=RESET_VECTOR)
 
     def step(self) -> None:
         """Execute one instruction."""
@@ -188,7 +215,7 @@ class FConsole:
             col = i
             self.vout.set_screen(row * cols + col, self.ord2(ch))
 
-        regs_label = "  A  X  Y  SP NV-BDIZC"
+        regs_label = "  A  X  Y  SP NV-BDIZC Vector"
         for i, ch in enumerate(regs_label):
             row = 7
             col = i
@@ -208,6 +235,8 @@ class FConsole:
             f"{(self.cpu_module.cpu.p >> 2) & 1}"
             f"{(self.cpu_module.cpu.p >> 1) & 1}"
             f"{self.cpu_module.cpu.p & 1}"
+            f" {self.cpu_module.bus[0xFFFD]:02X}"
+            f"{self.cpu_module.bus[0xFFFC]:02X}"
         )
         for i, ch in enumerate(reg_vals):
             row = 8

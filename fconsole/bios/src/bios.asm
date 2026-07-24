@@ -2,13 +2,15 @@
 ; Target: ca65 assembler from cc65 toolchain
 ; Memory Map:
 ;   Zero Page:    $00-$FF
-;   RAM:          $2000-$DFFF  
+;   RAM:          $2000-$DFFF
 ;   ROM/BIOS:     $F000-$FFFF
 ;   Entry Point:  $F000 (_reset_handler)
 ;   Vectors:      $FFFA-$FFFF -> all point to $F000
 
 ; Export the reset handler so linker can find it
+        .export _irq_handler
         .export _reset_handler
+        .export _nmi_handler
 
 ; Code is placed at the start of the ROM by the linker configuration.
         .segment "CODE"
@@ -28,6 +30,8 @@ _reset_handler:
         cld
 
 main_loop:
+	iny
+	dex
         jmp main_loop      ; Infinite loop - halt execution
 
 ; ============================================================================
