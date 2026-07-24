@@ -51,7 +51,8 @@ class SystemBus:
     rom1_range = MemoryRange(name="bios", start=0xF000, end=0xFFFF)
     char_range = MemoryRange(name="chars", start=0xE000, len=SCREEN_COLS * SCREEN_ROWS)
 
-    def __init__(self):
+    def __init__(self, char_mem_callback=None):
+        self.char_mem_callback = char_mem_callback
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
         self.rom = bytearray(
             self.rom1_range.end - self.rom1_range.start + 1
@@ -78,7 +79,7 @@ class SystemBus:
             return self.rom[address - self.rom1_range.start]
         elif self.char_range.start <= address <= self.char_range.end:
             # Character memory not implemented yet, return unmapped value
-            return 0xEA
+            return 0xA9
         else:
             # Unmapped space returns NOP instruction ($EA)
             return 0xEA
@@ -86,6 +87,10 @@ class SystemBus:
     def __setitem__(self, address, value) -> None:
         if address < 0x8000:
             self.ram[address] = value
+        elif self.char_range.start <= address <= self.char_range.end:
+            # Character memory write - notify callback for video update
+            if self.char_mem_callback:
+                self.char_mem_callback(address, value & 0xFF)
         elif 0xC000 <= address <= 0xFFFF:
             pass  # Ignore writes to ROM
 
@@ -93,11 +98,11 @@ class SystemBus:
 class Cpu6502Module:
     """Simple wrapper for the py65 6502 emulator."""
 
-    def __init__(self):
+    def __init__(self, char_mem_callback=None):
         reset_vector_address = 0xFFFC
 
         # Create system bus with RAM and ROM using dunder methods
-        self.bus = SystemBus()
+        self.bus = SystemBus(char_mem_callback=char_mem_callback)
 
         # Create CPU starting at the reset vector
         reset_vector = self.bus[reset_vector_address] + (
@@ -122,7 +127,7 @@ class FConsole:
         self._create_debug_window()
 
         # Initialize 6502 module (RAM and ROM with $EA for unmapped space)
-        self.cpu_module = Cpu6502Module()
+        self.cpu_module = Cpu6502Module(char_mem_callback=self._on_char_memory_write)
 
     def _create_video_window(self) -> None:
         """Create the primary video output window."""
@@ -194,6 +199,17 @@ class FConsole:
         def close(self) -> None:
             """Mark writer as closed to prevent further writes."""
             self.alive = False
+
+    def _on_char_memory_write(self, address: int, value: int) -> None:
+        """Handle writes to character memory - update video display."""
+        if not hasattr(self, "vout") or self.vout is None:
+            return
+
+        offset = address - 0xE000  # char_range.start
+        row = offset // SCREEN_COLS
+        col = offset % SCREEN_COLS
+        screen_pos = row * SCREEN_COLS + col
+        self.vout.set_screen(screen_pos, value)
 
     def ord2(self, ch: str) -> int:
         return self.vout.get_screencode(ch)

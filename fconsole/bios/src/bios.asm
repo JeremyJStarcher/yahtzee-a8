@@ -29,9 +29,17 @@ _reset_handler:
         ; Clear decimal mode for consistency
         cld
 
+        LDA #$00
+        STA $00
+        LDA #$E2
+        STA $01
+
 main_loop:
 	iny
 	dex
+        dex
+        TXA
+        STA ($00),Y
         jmp main_loop      ; Infinite loop - halt execution
 
 ; ============================================================================
