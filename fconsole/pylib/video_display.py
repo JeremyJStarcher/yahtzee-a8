@@ -307,7 +307,6 @@ class Video:
         Convert a character byte to displayable string.
 
         Uses CHARS table to map byte values to display characters.
-        High bit is ignored (masked off).
 
         Args:
             char_byte: Character byte value

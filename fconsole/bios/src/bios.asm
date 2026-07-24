@@ -7,8 +7,15 @@
 
         .segment "CODE"
 
-START_REGION_RAM = $E000
-END_REGION_RAM   = $F000
+START_REGION_CHAR_RAM = $E000
+END_REGION_CHAR_RAM   = START_REGION_CHAR_RAM + (40 * 25)
+
+START_REGION_COLOR_RAM = $C000
+END_REGION_COLOR_RAM   = START_REGION_COLOR_RAM + (40 * 25)
+
+DEFAULT_COLOR = $6F
+DEFAULT_SCREEN_CHAR = '.'
+
 
         .segment "ZEROPAGE"
 STRPTR: .res 2
@@ -19,19 +26,36 @@ FILCHAR: .res 1
 
 .proc CLRRAM
         PHA
-        LDA #<START_REGION_RAM
+        LDA #<START_REGION_CHAR_RAM
         STA STRPTR
-        LDA #>START_REGION_RAM
+        LDA #>START_REGION_CHAR_RAM
         STA STRPTR + 1
 
-        LDA #<END_REGION_RAM
+        LDA #<END_REGION_CHAR_RAM
         STA ENDPTR
-        LDA #>END_REGION_RAM
+        LDA #>END_REGION_CHAR_RAM
         STA ENDPTR + 1
         PLA
 
-        LDA FILCHAR        ; Fill value
-        JSR MEMFILL_FAST
+        LDA #DEFAULT_SCREEN_CHAR        ; Fill value
+        JSR MEMFILL_SLOW
+
+        PHA
+        LDA #<START_REGION_COLOR_RAM
+        STA STRPTR
+        LDA #>START_REGION_COLOR_RAM
+        STA STRPTR + 1
+
+        LDA #<END_REGION_COLOR_RAM
+        STA ENDPTR
+        LDA #>END_REGION_COLOR_RAM
+        STA ENDPTR + 1
+        PLA
+
+        LDA #DEFAULT_COLOR        ; Fill value
+        JSR MEMFILL_SLOW
+
+
         RTS
 .endproc
 
@@ -133,12 +157,17 @@ _reset_handler:
         LDY #$00
         STY FILCHAR
 
+        JSR CLRRAM
 
 halt:
-        JSR CLRRAM
-        LDY FILCHAR
+        LDY $E000
         INY
-        STY FILCHAR
+        STY $E000
+
+        LDY $C000
+        INY
+        STY $C000
+
         JMP halt        ; Safely trap CPU here when done
 
 ; ============================================================================

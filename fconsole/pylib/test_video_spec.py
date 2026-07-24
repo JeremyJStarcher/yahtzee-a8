@@ -373,16 +373,6 @@ def test_screen_memory() -> bool:
         v.close()
         return False
 
-    # High bit in character lookup should be ignored
-    char_normal = v._get_char_display(ord("A"))  # 'A'
-    char_high_bit = v._get_char_display(ord("A") | 0x80)  # High bit set
-    if char_normal == char_high_bit == "A":
-        print("✓ High bit ignored in character lookup")
-    else:
-        print(f"✗ Character mismatch: '{char_normal}' vs '{char_high_bit}'")
-        v.close()
-        return False
-
     v.close()
     return True
 

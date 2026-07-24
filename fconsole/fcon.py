@@ -8,6 +8,7 @@ runs a simple 6502 emulator demo via py65 on the video display.
 
 import sys
 import argparse
+from typing import Callable, Optional
 
 
 def parse_args():
@@ -51,39 +52,57 @@ SCREEN_COLS = 40
 SCREEN_ROWS = 24
 SCREEN_SCALE = args.screen_scale
 
+
 @dataclass
 class MemoryRange:
     name: str
     start: int
     end: int = -1
     len: int = -1
+    read_cb: Optional[Callable[[int], int]] = None
+    write_cb: Optional[Callable[[int, int], None]] = None
+    default_read_val: Optional[int] = None
 
     def __post_init__(self):
         if self.end == -1 and self.len == -1:
             raise ValueError("Range error: end and length cannot both be empty")
 
         if self.end == -1:
-            self.end = self.start + self.len -1
+            self.end = self.start + self.len - 1
 
         if self.len == -1:
-            self.len = self.end - self.start
+            self.len = self.end - self.start + 1
+
+    def contains(self, address: int) -> bool:
+        """Check if an address falls within this memory range."""
+        return self.start <= address <= self.end
 
 
 class SystemBus:
     """
-    Custom system bus using Python's dunder methods for memory access.
+    Custom system bus dispatching memory reads and writes across configured ranges.
     """
 
-    rom1_range = MemoryRange(name="bios", start=0xF000, end=0xFFFF)
-    # Character memory must match video display dimensions exactly
-    char_range = MemoryRange(name="chars", start=0xE000, len=SCREEN_COLS * SCREEN_ROWS)
+    def __init__(
+        self,
+        char_read_cb=None,
+        char_write_cb=None,
+        color_read_cb=None,
+        color_write_cb=None,
+    ):
+        self.char_read_cb = char_read_cb
+        self.char_write_cb = char_write_cb
+        self.color_read_cb = color_read_cb
+        self.color_write_cb = color_write_cb
 
-    def __init__(self, char_mem_callback=None):
-        self.char_mem_callback = char_mem_callback
+        screen_size = SCREEN_COLS * SCREEN_ROWS
+
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
-        self.rom = bytearray(
-            self.rom1_range.end - self.rom1_range.start + 1
-        )  # +1 for inclusive end address
+        self.rom = bytearray(0x1000)  # 4KB BIOS ROM ($F000-$FFFF)
+
+        # Fallback local buffers in case no display callback is attached
+        self._fallback_char_ram = bytearray(screen_size)
+        self._fallback_color_ram = bytearray(screen_size)
 
         # Load BIOS binary into ROM if available
         try:
@@ -99,38 +118,107 @@ class SystemBus:
         except Exception as e:
             print(f"ERROR loading BIOS: {e}")
 
-    def __getitem__(self, address) -> int:
-        if address < 0x8000:
-            return self.ram[address]
-        elif self.rom1_range.start <= address <= self.rom1_range.end:
-            return self.rom[address - self.rom1_range.start]
-        elif self.char_range.start <= address <= self.char_range.end:
-            # Character memory not implemented yet, return unmapped value
-            return 0xA9
-        else:
-            # Unmapped space returns NOP instruction ($EA)
-            return 0xEA
+        # Construct single dynamic memory map table
+        self.bus_map = [
+            MemoryRange(
+                name="ram",
+                start=0x0000,
+                len=0x8000,
+                read_cb=lambda offset: self.ram[offset],
+                write_cb=self._write_ram,
+            ),
+            MemoryRange(
+                name="colors",
+                start=0xC000,
+                len=screen_size,
+                read_cb=self._read_color_mem,
+                write_cb=self._write_color_mem,
+            ),
+            MemoryRange(
+                name="chars",
+                start=0xE000,
+                len=screen_size,
+                read_cb=self._read_char_mem,
+                write_cb=self._write_char_mem,
+            ),
+            MemoryRange(
+                name="bios",
+                start=0xF000,
+                end=0xFFFF,
+                read_cb=lambda offset: self.rom[offset],
+                # Explicitly no write_cb so writes to ROM are ignored
+            ),
+        ]
 
-    def __setitem__(self, address, value) -> None:
-        if address < 0x8000:
-            self.ram[address] = value
-        elif self.char_range.start <= address <= self.char_range.end:
-            # Character memory write - notify callback with offset (not absolute address)
-            offset = address - self.char_range.start
-            if self.char_mem_callback:
-                self.char_mem_callback(offset, value & 0xFF)
-        elif 0xC000 <= address <= 0xFFFF:
-            pass  # Ignore writes to ROM
+    # --- RAM Handlers ---
+    def _write_ram(self, offset: int, value: int) -> None:
+        self.ram[offset] = value & 0xFF
+
+    # --- Character Memory Handlers ---
+    def _read_char_mem(self, offset: int) -> int:
+        if self.char_read_cb:
+            return self.char_read_cb(offset) & 0xFF
+        return self._fallback_char_ram[offset]
+
+    def _write_char_mem(self, offset: int, value: int) -> None:
+        val = value & 0xFF
+        self._fallback_char_ram[offset] = val
+        if self.char_write_cb:
+            self.char_write_cb(offset, val)
+
+    # --- Color Memory Handlers ---
+    def _read_color_mem(self, offset: int) -> int:
+        if self.color_read_cb:
+            return self.color_read_cb(offset) & 0xFF
+        return self._fallback_color_ram[offset]
+
+    def _write_color_mem(self, offset: int, value: int) -> None:
+        val = value & 0xFF
+        self._fallback_color_ram[offset] = val
+        if self.color_write_cb:
+            self.color_write_cb(offset, val)
+
+    def __getitem__(self, address: int) -> int:
+        for m_range in self.bus_map:
+            if m_range.contains(address):
+                offset = address - m_range.start
+                if m_range.read_cb:
+                    return m_range.read_cb(offset)
+                if m_range.default_read_val is not None:
+                    return m_range.default_read_val
+                break
+
+        # Unmapped space returns NOP instruction ($EA)
+        return 0xEA
+
+    def __setitem__(self, address: int, value: int) -> None:
+        for m_range in self.bus_map:
+            if m_range.contains(address):
+                if m_range.write_cb:
+                    offset = address - m_range.start
+                    m_range.write_cb(offset, value)
+                return
 
 
 class Cpu6502Module:
     """Simple wrapper for the py65 6502 emulator."""
 
-    def __init__(self, char_mem_callback=None):
+    def __init__(
+        self,
+        char_read_cb=None,
+        char_write_cb=None,
+        color_read_cb=None,
+        color_write_cb=None,
+    ):
         reset_vector_address = 0xFFFC
 
-        # Create system bus with RAM and ROM using dunder methods
-        self.bus = SystemBus(char_mem_callback=char_mem_callback)
+        # Create system bus wired to full read/write callbacks
+        self.bus = SystemBus(
+            char_read_cb=char_read_cb,
+            char_write_cb=char_write_cb,
+            color_read_cb=color_read_cb,
+            color_write_cb=color_write_cb,
+        )
 
         # Create CPU starting at the reset vector
         reset_vector = self.bus[reset_vector_address] + (
@@ -147,28 +235,27 @@ class FConsole:
     """Main emulator controller managing both output windows."""
 
     def __init__(self) -> None:
-        # Track running state
         self.running = True
-
         self.isDirty = True
 
         # Create windows
         self._create_video_window()
         self._create_debug_window()
 
-        # Initialize 6502 module (RAM and ROM with $EA for unmapped space)
-        self.cpu_module = Cpu6502Module(char_mem_callback=self._on_char_memory_write)
+        # Initialize 6502 module with bidirectional video memory callbacks
+        self.cpu_module = Cpu6502Module(
+            char_read_cb=self._on_char_memory_read,
+            char_write_cb=self._on_char_memory_write,
+            color_read_cb=self._on_color_memory_read,
+            color_write_cb=self._on_color_memory_write,
+        )
 
     def _create_video_window(self) -> None:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
         self.vout = vd.Video(rows=SCREEN_ROWS, columns=SCREEN_COLS, scale=SCREEN_SCALE)
-
-        # Override the default title to match requirement
         self.vout._root.title("fcon - vout")
-
-        # Set up close handler
         self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _create_debug_window(self) -> None:
@@ -179,141 +266,43 @@ class FConsole:
         self.dout_root.title("fcon - dout")
         self.dout_root.geometry("600x400")
 
-        # Add a scrollable text widget for debug output
         self.debug_text = tk.Text(
             self.dout_root,
             wrap=tk.WORD,
             bg="black",
-            fg="#00FF00",  # Green terminal-style text
+            fg="#00FF00",
             insertbackground="#00FF00",
         )
         self.debug_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
-        # Redirect stdout/stderr to our debug window
-        # self._original_stdout = sys.stdout
-        # self._original_stderr = sys.stderr
-        # sys.stdout = self._DebugWriter(self.debug_text)
-        # sys.stderr = self._DebugWriter(self.debug_text)
-
-    class _DebugWriter:
-        """Helper class to redirect output to a Tkinter Text widget."""
-
-        def __init__(self, text_widget) -> None:
-            self.text_widget = text_widget
-            self.buffer = ""
-            self.alive = True
-
-        def write(self, message) -> None:
-            if not self.alive:
-                return
-            self.buffer += message
-            # Schedule update on the main thread
-            try:
-                self.text_widget.after_idle(self._flush)
-            except tk.TclError:
-                self.alive = False
-
-        def _flush(self) -> None:
-            if not self.alive or not self.buffer:
-                return
-            try:
-                self.text_widget.insert(tk.END, self.buffer)
-                self.text_widget.see(tk.END)
-                self.buffer = ""
-            except (tk.TclError, AttributeError):
-                self.alive = False
-
-        def flush(self) -> None:
-            pass
-
-        def close(self) -> None:
-            """Mark writer as closed to prevent further writes."""
-            self.alive = False
+    # --- Bidirectional Video Callbacks ---
+    def _on_char_memory_read(self, offset: int) -> int:
+        """Read character byte directly from video display."""
+        if hasattr(self.vout, "get_screen"):
+            return self.vout.get_screen(offset)
+        return 0
 
     def _on_char_memory_write(self, offset: int, value: int) -> None:
         """Handle writes to character memory - update video display."""
-        # offset IS the screen position, no conversion needed
         self.vout.set_screen(offset, value)
+        self.isDirty = True
+
+    def _on_color_memory_read(self, offset: int) -> int:
+        """Read color byte directly from video display."""
+        if hasattr(self.vout, "get_color"):
+            return self.vout.get_color(offset)
+        return 0
+
+    def _on_color_memory_write(self, offset: int, value: int) -> None:
+        """Handle writes to color memory - update video display."""
+        self.vout.set_color(offset, value)
         self.isDirty = True
 
     def ord2(self, ch: str) -> int:
         return self.vout.get_screencode(ch)
 
-    def _update_cpu_step_old(self) -> None:
-        """Advance the 6502 CPU one instruction per tick and show state."""
-
-        cols = SCREEN_COLS
-        # rows = SCREEN_ROWS
-
-        # Execute one NOP at a time from $0000
-        self.cpu_module.step()
-
-        # Show the current PC in hex so we can verify it advances
-        pc = self.cpu_module.cpu.pc
-        pc_str = f"{pc:04X}"
-
-        for i, ch in enumerate(pc_str):
-            row = 1
-            col = 2 + i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        label = "PC"
-        for i, ch in enumerate(label):
-            row = 1
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        separator = "----------"
-        for i, ch in enumerate(separator):
-            row = 3
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        note = "ALL MEM=$EA ╝(NOP)"
-        for i, ch in enumerate(note):
-            row = 5
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        regs_label = "  A  X  Y  SP NV-BDIZC Vector"
-        for i, ch in enumerate(regs_label):
-            row = 7
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        reg_vals = (
-            f"  "
-            f"{self.cpu_module.cpu.a:02X} "
-            f"{self.cpu_module.cpu.x:02X} "
-            f"{self.cpu_module.cpu.y:02X} "
-            f"{self.cpu_module.cpu.sp:02X} "
-            f"{(self.cpu_module.cpu.p >> 7) & 1}"
-            f"{(self.cpu_module.cpu.p >> 6) & 1}"
-            f"{(self.cpu_module.cpu.p >> 5) & 1}"
-            f"-"
-            f"{(self.cpu_module.cpu.p >> 3) & 1}"
-            f"{(self.cpu_module.cpu.p >> 2) & 1}"
-            f"{(self.cpu_module.cpu.p >> 1) & 1}"
-            f"{self.cpu_module.cpu.p & 1}"
-            f" {self.cpu_module.bus[0xFFFD]:02X}"
-            f"{self.cpu_module.bus[0xFFFC]:02X}"
-        )
-        for i, ch in enumerate(reg_vals):
-            row = 8
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        # Refresh display
-        self.vout.refresh_screen()
-
-        # Schedule next frame (~15 FPS)
-        if self.running:
-            # self.vout._root.after(66, self._update_cpu_step)
-            self.vout._root.after(0, self._update_cpu_step)
-
     def _update_cpu_step(self) -> None:
-        """Advance the 6502 CPU one instruction per tick and show state."""
-
+        """Advance the 6502 CPU instruction execution."""
         for _ in range(CYCLES_PER_FRAME):
             self.cpu_module.step()
 
@@ -321,29 +310,19 @@ class FConsole:
             self.vout.refresh_screen()
             self.isDirty = False
 
-
-        # Schedule next frame (~15 FPS)
         if self.running:
-            # self.vout._root.after(66, self._update_cpu_step)
             self.vout._root.after(0, self._update_cpu_step)
-
 
     def _on_close(self) -> None:
         """Handle vout window close."""
         self.running = False
 
         try:
-            # Close debug writers first to stop scheduled callbacks
             if hasattr(sys.stdout, "close"):
                 sys.stdout.close()
             if hasattr(sys.stderr, "close"):
                 sys.stderr.close()
 
-            # Restore original stdout/stderr
-            # sys.stdout = self._original_stdout
-            # ys.stderr = self._original_stderr
-
-            # Close windows
             self.vout.close()
             self.dout_root.destroy()
         except Exception:
@@ -355,32 +334,25 @@ class FConsole:
         print("FCONSOLE EMULATOR")
         print("=" * 60)
         print(f"Video: {self.vout._rows} rows x {self.vout._columns} columns")
-        print("Mode : py65 6502 (memory filled with $EA NOPs)")
+        print("Mode : py65 6502 (memory mapped bus table active)")
         print("\nClose the 'vout' window to exit.\n")
 
-        # Start CPU stepping animation
         self._update_cpu_step()
-
-        # Run both windows in their respective event loops
         self._run_event_loops()
 
     def _run_event_loops(self) -> None:
         """Run both Tkinter event loops cooperatively."""
         while self.running:
             try:
-                # Update vout (this also processes its events via update_idletasks)
                 if hasattr(self.vout, "_root") and self.vout._root is not None:
                     self.vout._root.update()
 
-                # Update dout
                 if hasattr(self, "dout_root") and self.dout_root is not None:
                     self.dout_root.update()
 
             except tk.TclError:
-                # One of the windows was closed
                 break
 
-        # Cleanup
         self._on_close()
 
 
