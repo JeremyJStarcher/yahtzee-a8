@@ -146,6 +146,10 @@ class Video:
         width = (columns + 2 * border) * self.CHAR_WIDTH * scale
         height = (rows + 2 * border) * self.CHAR_HEIGHT * scale
 
+        # Set the root window geometry to match the canvas size
+        self._root.geometry(f"{width}x{height}")
+        self._root.resizable(False, False)
+
         self._canvas = tk.Canvas(
             self._root, width=width, height=height, bg="black", highlightthickness=0
         )
@@ -182,13 +186,14 @@ class Video:
             self._cell_images.clear()
             self._cell_tags.clear()
 
-            # Resize window and canvas
-            width = self._columns * self.CHAR_WIDTH * value
-            height = self._rows * self.CHAR_HEIGHT * value
+            # Resize window and canvas (include border in calculation)
+            width = (self._columns + 2 * self._border) * self.CHAR_WIDTH * value
+            height = (self._rows + 2 * self._border) * self.CHAR_HEIGHT * value
 
             self._root.title(
-                f"Video Display ({self._rows}x{self._columns}) [scale={value}x]"
+                f"Video Display ({self._rows}x{self._columns}) [scale={value}x][border={self._border}]"
             )
+            self._root.geometry(f"{width}x{height}")
             self._canvas.config(width=width, height=height)
 
             # Force redraw on next refresh

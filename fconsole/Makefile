@@ -6,6 +6,9 @@ VENV_PY := $(VENV_DIR)/bin/python
 RUFF := $(VENV_DIR)/bin/ruff
 PYREFLY := $(VENV_DIR)/bin/pyrefly
 
+CYCLES_PER_FRAME ?= 8000
+SCREEN_SCALE ?= 2
+
 .PHONY: all run lint format typecheck infer clean ensure-venv build-bios
 
 # This Makefile REQUIRES a Python virtualenv at `../venv/.venv`.
@@ -24,8 +27,12 @@ ensure-venv:
 
 all: run
 
+RUN_ARGS ?= \
+	--cycles-per-frame $(CYCLES_PER_FRAME) \
+	--screen-scale $(SCREEN_SCALE)
+
 run: | ensure-venv build-bios
-	$(VENV_PY) fcon.py
+	$(VENV_PY) fcon.py $(RUN_ARGS)
 
 build-bios:
 	@echo "Building BIOS..."

@@ -4,3 +4,4 @@ codegen/__pycache__/
 *.o
 *.bin
 *.bin.map
+fconsole/bios/bios.lst

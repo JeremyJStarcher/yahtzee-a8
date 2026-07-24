@@ -7,6 +7,31 @@ runs a simple 6502 emulator demo via py65 on the video display.
 """
 
 import sys
+import argparse
+
+
+def parse_args():
+    """Parse command-line arguments with defaults matching current behavior."""
+    parser = argparse.ArgumentParser(
+        description="Fconsole - Official Emulator Start Script"
+    )
+    parser.add_argument(
+        "--cycles-per-frame",
+        type=int,
+        default=8000,
+        help="Number of CPU cycles per frame (default: 2)",
+    )
+    parser.add_argument(
+        "--screen-scale",
+        type=int,
+        default=2,
+        help="Screen scaling factor (default: 2)",
+    )
+    return parser.parse_args()
+
+
+args = parse_args()
+
 import tkinter as tk
 from dataclasses import dataclass
 
@@ -20,11 +45,11 @@ except ImportError as e:
     sys.exit(1)
 
 
-CYCLES_PER_FRAME = 2
+CYCLES_PER_FRAME = args.cycles_per_frame
 BIOS_FILE = "bios/bios.bin"
 SCREEN_COLS = 40
 SCREEN_ROWS = 24
-SCREEN_SCALE = 5
+SCREEN_SCALE = args.screen_scale
 
 @dataclass
 class MemoryRange:
@@ -361,6 +386,7 @@ class FConsole:
 
 def main():
     """Entry point for fconsole emulator."""
+    print(f"Config: cycles_per_frame={CYCLES_PER_FRAME}, screen_scale={SCREEN_SCALE}")
     console = FConsole()
     console.run()
     sys.exit(0)
