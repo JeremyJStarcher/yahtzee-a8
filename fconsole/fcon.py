@@ -118,7 +118,7 @@ class SystemBus:
         except Exception as e:
             print(f"ERROR loading BIOS: {e}")
 
-        # Construct single dynamic memory map table
+        # Dynamic memory map table
         self.bus_map = [
             MemoryRange(
                 name="ram",
@@ -242,6 +242,9 @@ class FConsole:
         self._create_video_window()
         self._create_debug_window()
 
+        # Send test message directly to the dout text window
+        self.console_print("Hello World!")
+
         # Initialize 6502 module with bidirectional video memory callbacks
         self.cpu_module = Cpu6502Module(
             char_read_cb=self._on_char_memory_read,
@@ -270,10 +273,16 @@ class FConsole:
             self.dout_root,
             wrap=tk.WORD,
             bg="black",
-            fg="#00FF00",
+            fg="#00FF00",  # Green terminal text
             insertbackground="#00FF00",
         )
         self.debug_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
+
+    def console_print(self, text: str) -> None:
+        """Explicitly write text directly into the debug window (dout)."""
+        if hasattr(self, "debug_text") and self.debug_text:
+            self.debug_text.insert(tk.END, str(text) + "\n")
+            self.debug_text.see(tk.END)
 
     # --- Bidirectional Video Callbacks ---
     def _on_char_memory_read(self, offset: int) -> int:
@@ -318,11 +327,6 @@ class FConsole:
         self.running = False
 
         try:
-            if hasattr(sys.stdout, "close"):
-                sys.stdout.close()
-            if hasattr(sys.stderr, "close"):
-                sys.stderr.close()
-
             self.vout.close()
             self.dout_root.destroy()
         except Exception:
