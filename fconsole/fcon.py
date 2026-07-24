@@ -20,10 +20,11 @@ except ImportError as e:
     sys.exit(1)
 
 
+CYCLES_PER_FRAME = 2
 BIOS_FILE = "bios/bios.bin"
 SCREEN_COLS = 40
 SCREEN_ROWS = 24
-
+SCREEN_SCALE = 5
 
 @dataclass
 class MemoryRange:
@@ -37,10 +38,10 @@ class MemoryRange:
             raise ValueError("Range error: end and length cannot both be empty")
 
         if self.end == -1:
-            self.end = self.start + self.len
+            self.end = self.start + self.len -1
 
         if self.len == -1:
-            self.len = self.start - self.end
+            self.len = self.end - self.start
 
 
 class SystemBus:
@@ -49,6 +50,7 @@ class SystemBus:
     """
 
     rom1_range = MemoryRange(name="bios", start=0xF000, end=0xFFFF)
+    # Character memory must match video display dimensions exactly
     char_range = MemoryRange(name="chars", start=0xE000, len=SCREEN_COLS * SCREEN_ROWS)
 
     def __init__(self, char_mem_callback=None):
@@ -88,9 +90,10 @@ class SystemBus:
         if address < 0x8000:
             self.ram[address] = value
         elif self.char_range.start <= address <= self.char_range.end:
-            # Character memory write - notify callback for video update
+            # Character memory write - notify callback with offset (not absolute address)
+            offset = address - self.char_range.start
             if self.char_mem_callback:
-                self.char_mem_callback(address, value & 0xFF)
+                self.char_mem_callback(offset, value & 0xFF)
         elif 0xC000 <= address <= 0xFFFF:
             pass  # Ignore writes to ROM
 
@@ -122,6 +125,8 @@ class FConsole:
         # Track running state
         self.running = True
 
+        self.isDirty = True
+
         # Create windows
         self._create_video_window()
         self._create_debug_window()
@@ -133,7 +138,7 @@ class FConsole:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
-        self.vout = vd.Video(rows=SCREEN_ROWS, columns=SCREEN_COLS, scale=3)
+        self.vout = vd.Video(rows=SCREEN_ROWS, columns=SCREEN_COLS, scale=SCREEN_SCALE)
 
         # Override the default title to match requirement
         self.vout._root.title("fcon - vout")
@@ -200,21 +205,16 @@ class FConsole:
             """Mark writer as closed to prevent further writes."""
             self.alive = False
 
-    def _on_char_memory_write(self, address: int, value: int) -> None:
+    def _on_char_memory_write(self, offset: int, value: int) -> None:
         """Handle writes to character memory - update video display."""
-        if not hasattr(self, "vout") or self.vout is None:
-            return
-
-        offset = address - 0xE000  # char_range.start
-        row = offset // SCREEN_COLS
-        col = offset % SCREEN_COLS
-        screen_pos = row * SCREEN_COLS + col
-        self.vout.set_screen(screen_pos, value)
+        # offset IS the screen position, no conversion needed
+        self.vout.set_screen(offset, value)
+        self.isDirty = True
 
     def ord2(self, ch: str) -> int:
         return self.vout.get_screencode(ch)
 
-    def _update_cpu_step(self) -> None:
+    def _update_cpu_step_old(self) -> None:
         """Advance the 6502 CPU one instruction per tick and show state."""
 
         cols = SCREEN_COLS
@@ -285,6 +285,23 @@ class FConsole:
         if self.running:
             # self.vout._root.after(66, self._update_cpu_step)
             self.vout._root.after(0, self._update_cpu_step)
+
+    def _update_cpu_step(self) -> None:
+        """Advance the 6502 CPU one instruction per tick and show state."""
+
+        for _ in range(CYCLES_PER_FRAME):
+            self.cpu_module.step()
+
+        if self.isDirty:
+            self.vout.refresh_screen()
+            self.isDirty = False
+
+
+        # Schedule next frame (~15 FPS)
+        if self.running:
+            # self.vout._root.after(66, self._update_cpu_step)
+            self.vout._root.after(0, self._update_cpu_step)
+
 
     def _on_close(self) -> None:
         """Handle vout window close."""

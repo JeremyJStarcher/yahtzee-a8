@@ -1,57 +1,151 @@
 ; Simple 6502 BIOS/Kernel Assembly Source
 ; Target: ca65 assembler from cc65 toolchain
-; Memory Map:
-;   Zero Page:    $00-$FF
-;   RAM:          $2000-$DFFF
-;   ROM/BIOS:     $F000-$FFFF
-;   Entry Point:  $F000 (_reset_handler)
-;   Vectors:      $FFFA-$FFFF -> all point to $F000
 
-; Export the reset handler so linker can find it
         .export _irq_handler
         .export _reset_handler
         .export _nmi_handler
 
-; Code is placed at the start of the ROM by the linker configuration.
         .segment "CODE"
 
+START_REGION_RAM = $E000
+END_REGION_RAM   = $F000
+
+        .segment "ZEROPAGE"
+STRPTR: .res 2
+ENDPTR: .res 2
+FILCHAR: .res 1
+
+        .segment "CODE"
+
+.proc CLRRAM
+        PHA
+        LDA #<START_REGION_RAM
+        STA STRPTR
+        LDA #>START_REGION_RAM
+        STA STRPTR + 1
+
+        LDA #<END_REGION_RAM
+        STA ENDPTR
+        LDA #>END_REGION_RAM
+        STA ENDPTR + 1
+        PLA
+
+        LDA FILCHAR        ; Fill value
+        JSR MEMFILL_FAST
+        RTS
+.endproc
+
+
+.proc MEMFILL_FAST
+        TAX                 ; X = fill byte
+
+        ; --------------------------------------------------------------------
+        ; Phase 1: Clear partial start page up to the $xx00 boundary
+        ; --------------------------------------------------------------------
+        LDY #$00
+@ALIGN_LOOP:
+        LDA STRPTR          ; Check if low byte is $00 (page aligned)
+        BEQ @FILL_PAGES     ; If STRPTR points to $xx00, head alignment is done!
+
+        ; Check if STRPTR has already hit ENDPTR before we finish aligning
+        CMP ENDPTR
+        BNE @ALIGN_WRITE
+        LDA STRPTR+1
+        CMP ENDPTR+1
+        BEQ @DONE           ; Reached ENDPTR during alignment phase!
+
+@ALIGN_WRITE:
+        TXA
+        STA (STRPTR),Y      ; Write fill byte at offset 0
+        INC STRPTR          ; Advance low byte
+        JMP @ALIGN_LOOP
+
+        ; --------------------------------------------------------------------
+        ; Phase 2: Clear whole 256-byte pages
+        ; --------------------------------------------------------------------
+@FILL_PAGES:
+        LDA STRPTR+1
+        CMP ENDPTR+1
+        BEQ @FILL_REMAINDER ; High bytes match -> only partial tail page left!
+
+        TXA
+@PAGE_LOOP:
+        STA (STRPTR),Y      ; Write byte at (STRPTR) + Y
+        INY                 ; 8-bit increment (very fast!)
+        BNE @PAGE_LOOP      ; Loops 256 times until Y wraps back to $00
+
+        INC STRPTR+1        ; Advance to next 256-byte page
+        JMP @FILL_PAGES
+
+        ; --------------------------------------------------------------------
+        ; Phase 3: Clear the remaining partial page
+        ; --------------------------------------------------------------------
+@FILL_REMAINDER:
+        ; Y is currently $00. We fill from $00 up to ENDPTR low byte.
+        TXA
+@TAIL_LOOP:
+        CPY ENDPTR          ; Reached remaining byte count?
+        BEQ @DONE
+        STA (STRPTR),Y      ; Write remaining bytes
+        INY
+        JMP @TAIL_LOOP
+
+@DONE:
+        RTS
+.endproc
+
+.proc MEMFILL_SLOW
+        TAX             ; Save fill value in X
+        LDY #$00
+
+@LOOP:
+        TXA
+        STA (STRPTR),Y  ; Write byte
+
+        ; Move to next byte
+        INC STRPTR
+        BNE @CHECK_END  ; If no rollover ($FF -> $00), skip high byte bump
+        INC STRPTR+1
+
+@CHECK_END:
+        ; Compare current pointer with ENDPTR
+        LDA STRPTR
+        CMP ENDPTR
+        BNE @LOOP
+        LDA STRPTR+1
+        CMP ENDPTR+1
+        BNE @LOOP
+
+        RTS
+.endproc
+
 ; ============================================================================
-; Reset Handler (Entry point at $F000)
+; Reset Handler
 ; ============================================================================
 _reset_handler:
-        ; Disable interrupts during initialization
-        sei
+        SEI             ; Disable interrupts
+        LDX #$FF
+        TXS             ; Reset stack pointer to $01FF
+        CLD             ; Clear decimal flag
 
-        ; Set stack pointer to $01FF (top of page 1)
-        ldx #$FF
-        txs
 
-        ; Clear decimal mode for consistency
-        cld
 
-        LDA #$00
-        STA $00
-        LDA #$E2
-        STA $01
+        LDY #$00
+        STY FILCHAR
 
-main_loop:
-	iny
-	dex
-        dex
-        TXA
-        STA ($00),Y
-        jmp main_loop      ; Infinite loop - halt execution
+
+halt:
+        JSR CLRRAM
+        LDY FILCHAR
+        INY
+        STY FILCHAR
+        JMP halt        ; Safely trap CPU here when done
 
 ; ============================================================================
-; NMI Handler (Non-Maskable Interrupt) - returns immediately
+; Interrupt Handlers
 ; ============================================================================
 _nmi_handler:
-        rti                ; Return from interrupt
+        RTI
 
-; ============================================================================
-; IRQ/BRK Handler (Maskable Interrupt/Break) - returns immediately
-; ============================================================================
 _irq_handler:
-        rti                ; Return from interrupt
-
-; ============================================================================
+        RTI

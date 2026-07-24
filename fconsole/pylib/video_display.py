@@ -8,6 +8,7 @@ and color memory.
 
 import tkinter as tk
 from tkinter import Canvas
+from tkinter import PhotoImage
 
 from .font import FONT_DATA
 
@@ -126,6 +127,10 @@ class Video:
         total_cells = rows * columns
         self._screen_memory = bytearray([0x20] * total_cells)
         self._color_memory = bytearray([self.DEFAULT_COLOR] * total_cells)
+        self._cell_images = {}
+        self._cell_tags = {}
+        self._prev_screen = bytearray(len(self._screen_memory))
+        self._prev_color = bytearray(len(self._color_memory))
 
         # Dirty tracking - track which cells need redrawing
         self._dirty = True
@@ -145,9 +150,6 @@ class Video:
             self._root, width=width, height=height, bg="black", highlightthickness=0
         )
         self._canvas.pack()
-
-        # Store rectangle references for dirty-rectangle optimization
-        self._cell_rects = {}
 
         # Initial draw
         self.refresh_screen()
@@ -174,6 +176,11 @@ class Video:
         if value != self._scale:
             self._scale = value
             self._dirty = True
+
+            # Cached images have dimensions based on the previous scale.
+            self._canvas.delete("all")
+            self._cell_images.clear()
+            self._cell_tags.clear()
 
             # Resize window and canvas
             width = self._columns * self.CHAR_WIDTH * value
@@ -206,6 +213,7 @@ class Video:
 
         total_cells = self._rows * self._columns
         if offset < 0 or offset >= total_cells:
+            print(f"_rows {self._rows} // cols {self._columns}")
             raise IndexError(f"Offset {offset} out of range [0, {total_cells - 1}]")
 
         return True
@@ -413,58 +421,66 @@ class Video:
         if not hasattr(self, "_canvas") or self._canvas is None:
             return
 
-        # Only redraw if something changed or canvas doesn't exist
-        if not self._dirty and self._cell_rects:
-            # Still process events even if not dirty
+        if not self._dirty:
             try:
                 self._root.update_idletasks()
             except tk.TclError:
                 pass  # Window was closed
             return
 
-        # Clear canvas
-        self._canvas.delete("all")
-        self._cell_rects.clear()
+        width = self.CHAR_WIDTH * self._scale
+        height = self.CHAR_HEIGHT * self._scale
 
-        # Ensure font mappings are built (no-op after first call)
-        Video._build_font_mappings()
-
-        # Track if we successfully used bitmapped fonts
-        bitmap_render_success = True
-
-        # First pass: try to draw with bitmaps
         for offset in range(len(self._screen_memory)):
-            row = offset // self._columns
-            col = offset % self._columns
-
             char_byte = self._screen_memory[offset]
             color_byte = self._color_memory[offset]
 
-            # Get colors
-            bg_color_rgb, fg_color_rgb = self._get_colors(color_byte)
-
-            # Convert RGB tuples to hex strings for Tkinter
-            bg_hex = f"#{bg_color_rgb[0]:02x}{bg_color_rgb[1]:02x}{bg_color_rgb[2]:02x}"
-            fg_hex = f"#{fg_color_rgb[0]:02x}{fg_color_rgb[1]:02x}{fg_color_rgb[2]:02x}"
-
-            # Calculate pixel position (with scaling and border offset)
-            x = (col + self._border) * self.CHAR_WIDTH * self._scale
-            y = (row + self._border) * self.CHAR_HEIGHT * self._scale
-
-            # Try to draw using bitmapped font
-            if not self._draw_bitmap_char(
-                self._canvas, x, y, char_byte, fg_hex, bg_hex, self._scale
+            if (
+                self._prev_screen[offset] == char_byte
+                and self._prev_color[offset] == color_byte
+                and offset in self._cell_images
             ):
-                print(f"CHAR BYTE FAILED {char_byte:02x}")
-                bitmap_render_success = False
+                continue
 
-        # If any cell used fallback, we need to redraw everything next time
-        if not bitmap_render_success:
-            print(
-                "Warning: Some characters missing from embedded font data, using fallback"
-            )
+            self._prev_screen[offset] = char_byte
+            self._prev_color[offset] = color_byte
 
-        # Reset dirty flag
+            row = offset // self._columns
+            col = offset % self._columns
+            x = (col + self._border) * width
+            y = (row + self._border) * height
+
+            bg_rgb, fg_rgb = self._get_colors(color_byte)
+            bg_hex = f"#{bg_rgb[0]:02x}{bg_rgb[1]:02x}{bg_rgb[2]:02x}"
+            fg_hex = f"#{fg_rgb[0]:02x}{fg_rgb[1]:02x}{fg_rgb[2]:02x}"
+
+            if offset not in self._cell_images:
+                image = PhotoImage(width=width, height=height)
+                self._cell_images[offset] = image
+                self._cell_tags[offset] = self._canvas.create_image(
+                    x, y, image=image, anchor="nw"
+                )
+            else:
+                image = self._cell_images[offset]
+
+            image.put(bg_hex, to=(0, 0, width, height))
+            glyph_data = self._font_glyphs.get(char_byte, bytearray(8))
+            for glyph_row in range(self.CHAR_HEIGHT):
+                byte_value = glyph_data[glyph_row]
+                for glyph_col in range(self.CHAR_WIDTH):
+                    if byte_value & (1 << glyph_col):
+                        pixel_x = glyph_col * self._scale
+                        pixel_y = glyph_row * self._scale
+                        image.put(
+                            fg_hex,
+                            to=(
+                                pixel_x,
+                                pixel_y,
+                                pixel_x + self._scale,
+                                pixel_y + self._scale,
+                            ),
+                        )
+
         self._dirty = False
 
         # Process pending events to keep window responsive
