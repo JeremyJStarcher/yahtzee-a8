@@ -1,8 +1,9 @@
 # ca65/ca65 Build System for 6502 BIOS
 # Tool paths - adjust if needed
-CA65 = ca65
-LD65 = ld65
-DA65 = da65
+CA65 = /home/jjs/Projects/atari800/cc65/bin/ca65
+LD65 = /home/jjs/Projects/atari800/cc65/bin/ld65
+DA65 = /home/jjs/Projects/atari800/cc65/bin/da65
+
 
 # Source files
 ASM_SOURCES = src/bios.asm src/vectors.asm
@@ -22,7 +23,7 @@ CA65_FLAGS = --cpu 6502 --debug-info
 DA65_FLAGS = --cpu 6502 --start-addr '$$F000' --multi-pass
 
 # Linker flags
-LD65_FLAGS = -C $(LINKER_CONFIG) -m $(ROM_IMAGE).map --dbgfile jjs.jjs
+LD65_FLAGS = -C $(LINKER_CONFIG) -m $(ROM_IMAGE).map
 
 .PHONY: all clean vectors
 

@@ -4,8 +4,8 @@
         .import _irq_handler
         .forceimport JTCLS
         .forceimport JTDUMMY
-        .forceimport CURSX
-        .forceimport CURSY
+        .forceimport CURSX:zp
+        .forceimport CURSY:zp
 
         .segment "VECTORS"
         .word   _nmi_handler        ; $FFFA - NMI vector
