@@ -51,6 +51,7 @@ BIOS_FILE = "bios/bios.bin"
 SCREEN_COLS = 40
 SCREEN_ROWS = 24
 SCREEN_SCALE = args.screen_scale
+VID_DEBUG = False
 
 
 @dataclass
@@ -310,10 +311,129 @@ class FConsole:
     def ord2(self, ch: str) -> int:
         return self.vout.get_screencode(ch)
 
+    def _log_cpu_state_to_console(self) -> None:
+        """Advance the 6502 CPU one instruction and log state to console window."""
+
+        # Show the current PC in hex so we can verify it advances
+        pc = self.cpu_module.cpu.pc
+
+        #vec = 0xFFFC
+        vec = 0x00F0
+
+        output_lines = [
+            #f"PC: {pc:04X}",
+            " A  X  Y SP NV-BDIZC Vector",
+            "---------------------",
+            f"{self.cpu_module.cpu.a:02X} "
+            f"{self.cpu_module.cpu.x:02X} "
+            f"{self.cpu_module.cpu.y:02X} "
+            f"{self.cpu_module.cpu.sp:02X} "
+            f"{(self.cpu_module.cpu.p >> 7) & 1}"
+            f"{(self.cpu_module.cpu.p >> 6) & 1}"
+            f"{(self.cpu_module.cpu.p >> 5) & 1}"
+            f"-"
+            f"{(self.cpu_module.cpu.p >> 3) & 1}"
+            f"{(self.cpu_module.cpu.p >> 2) & 1}"
+            f"{(self.cpu_module.cpu.p >> 1) & 1}"
+            f"{self.cpu_module.cpu.p & 1}"
+            f" {self.cpu_module.bus[vec+1]:02X}"
+            f"{self.cpu_module.bus[vec]:02X}",
+            f""
+            f"",
+        ]
+
+        output = "\n".join(output_lines)
+        self.console_print(output)
+        print(output)
+
+
+    def _update_cpu_step_debug(self) -> None:
+        """Advance the 6502 CPU one instruction per tick and show state."""
+
+        cols = SCREEN_COLS
+        # rows = SCREEN_ROWS
+
+        # Execute one NOP at a time from $0000
+        self.cpu_module.step()
+
+        # Show the current PC in hex so we can verify it advances
+        pc = self.cpu_module.cpu.pc
+        pc_str = f"{pc:04X}"
+
+        for i, ch in enumerate(pc_str):
+            row = 1
+            col = 2 + i
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
+
+        label = "PC"
+        for i, ch in enumerate(label):
+            row = 1
+            col = i
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
+
+        separator = "----------"
+        for i, ch in enumerate(separator):
+            row = 3
+            col = i
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
+
+        note = "ALL MEM=$EA ╝(NOP)"
+        for i, ch in enumerate(note):
+            row = 5
+            col = i
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
+
+        regs_label = "  A  X  Y  SP NV-BDIZC Vector"
+        for i, ch in enumerate(regs_label):
+            row = 7
+            col = i
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
+
+        reg_vals = (
+            f"  "
+            f"{self.cpu_module.cpu.a:02X} "
+            f"{self.cpu_module.cpu.x:02X} "
+            f"{self.cpu_module.cpu.y:02X} "
+            f"{self.cpu_module.cpu.sp:02X} "
+            f"{(self.cpu_module.cpu.p >> 7) & 1}"
+            f"{(self.cpu_module.cpu.p >> 6) & 1}"
+            f"{(self.cpu_module.cpu.p >> 5) & 1}"
+            f"-"
+            f"{(self.cpu_module.cpu.p >> 3) & 1}"
+            f"{(self.cpu_module.cpu.p >> 2) & 1}"
+            f"{(self.cpu_module.cpu.p >> 1) & 1}"
+            f"{self.cpu_module.cpu.p & 1}"
+            f" {self.cpu_module.bus[0xFFFD]:02X}"
+            f"{self.cpu_module.bus[0xFFFC]:02X}"
+        )
+        for i, ch in enumerate(reg_vals):
+            row = 8
+            col = i
+            self.vout.set_screen(row * cols + col, self.ord2(ch))
+
+        # Refresh display
+        self.vout.refresh_screen()
+
+        # Schedule next frame (~15 FPS)
+        if self.running:
+            # self.vout._root.after(66, self._update_cpu_step)
+            self.vout._root.after(0, self._update_cpu_step)
+
+
+
     def _update_cpu_step(self) -> None:
         """Advance the 6502 CPU instruction execution."""
         for _ in range(CYCLES_PER_FRAME):
             self.cpu_module.step()
+
+            n = self.cpu_module.bus[self.cpu_module.cpu.pc]
+            # Break instruction
+            if n == 0x00:
+              self._log_cpu_state_to_console()
+
+
+            if VID_DEBUG:
+                self._update_cpu_step_debug()
 
         if self.isDirty:
             self.vout.refresh_screen()

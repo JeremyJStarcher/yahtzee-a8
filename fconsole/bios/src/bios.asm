@@ -17,6 +17,28 @@
     .byte .strlen(str), str
 .endmacro
 
+.MACRO PUSH_PTR P
+        LDA P
+        PHA
+        LDA P + 1
+        PHA
+.endmacro
+
+
+.macro LOAD_PTR PTR, ADDR 
+        LDA #<ADDR
+        STA PTR
+        LDA #>ADDR
+        STA PTR + 1
+.endmacro
+
+
+.MACRO POP_PTR P
+        PLA
+        STA P + 1
+        PLA
+        STA P
+.endmacro
 
 
 .MACRO PUSHALL
@@ -124,31 +146,28 @@ COLOR_PTR: .res 2
 ;   CURRENT_COLOR - Color code to write to Color RAM
 ; ============================================================================
 .proc DISPLAY_CHAR
-        PHA                     ; Save input character (A) on the stack
-        JSR SET_CURSOR          ; Calculate CHAR_PTR and COLOR_PTR for (CURSX, CURSY)
+        PHA                     ; Save character
 
-        ;; -------------------------------------------------------------------
-        ;; Step 4: Write Memory Values
-        ;; -------------------------------------------------------------------
-        LDY #$00
-
-        PLA                     ; Restore input character code into A
-        STA (CHAR_PTR),Y        ; Write character to Character RAM
-
-        LDA CURRENT_COLOR
-        STA (COLOR_PTR),Y       ; Write color attribute to Color RAM
-
-        ;; -------------------------------------------------------------------
-        ;; Step 5: Advance Cursor Position
-        ;; -------------------------------------------------------------------
-        INC CURSX               ; Move cursor 1 column to the right
-
+        ; 1. Check if we need to scroll/wrap BEFORE drawing the character
         LDA CURSX
-        IF_A_GE 40, @wrap_row   ; If CURSX >= 40, advance to next row
-        RTS
+        CMP #SCREEN_COLS
+        BCC @ready_to_draw
 
-@wrap_row:
-        JSR DISPLAY_NEXT_LINE   ; Reset X to 0 and increment Y
+        ; If CURSX >= 40, wrap line before printing this character
+        JSR DISPLAY_NEXT_LINE
+
+@ready_to_draw:
+        ; 2. Calculate cursor location and draw character
+        JSR SET_CURSOR
+
+        LDY #$00
+        PLA                     ; Restore character
+        STA (CHAR_PTR),Y
+        LDA CURRENT_COLOR
+        STA (COLOR_PTR),Y
+
+        ; 3. Advance cursor X position
+        INC CURSX
         RTS
 .endproc
 
@@ -159,10 +178,108 @@ COLOR_PTR: .res 2
 ;   Resets CURSX to 0 and advances CURSY to the next line.
 ; ============================================================================
 .proc DISPLAY_NEXT_LINE
+        PUSHALL
         LDA #$00
-        STA CURSX               ; Carriage return (X = 0)
+        STA CURSX               ; Reset X to left margin
 
-        INC CURSY               ; Line feed (Y = Y + 1)
+        INC CURSY               ; Move down one line (0..23 -> 1..24)
+        LDA CURSY
+        CMP #SCREEN_ROWS -1
+        BNE @noscroll
+        JSR SCROLL_UP
+        DEC CURSY
+@noscroll:
+        POPALL
+        RTS
+.endproc
+
+; ============================================================================
+; Compile-Time Calculated Constants for Scrolling
+; ============================================================================
+TOTAL_SCROLL_BYTES = (SCREEN_ROWS - 1) * SCREEN_COLS  ; 24 * 40 = 960 ($03C0)
+PAGES_TO_COPY      = TOTAL_SCROLL_BYTES >> 8           ; 960 / 256 = 3 full pages
+REM_BYTES_TO_COPY  = TOTAL_SCROLL_BYTES & $FF          ; 960 % 256 = 192 bytes ($C0)
+BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 1) * SCREEN_COLS) - SCREEN_COLS  ; Start of row 24 (960 / $03C0)
+
+; ============================================================================
+; Routine: SCROLL_UP
+; Description:
+;   Shifts screen RAM (Char & Color) up by 1 row.
+;   Clears the bottom row and clamps CURSY to SCREEN_ROWS - 1.
+; ============================================================================
+.proc SCROLL_UP
+        PUSHALL
+        PUSH_PTR PRINT_PTR
+        PUSH_PTR TMP_PTR
+
+        ; --------------------------------------------------------------------
+        ; Step 1: Scroll Character RAM
+        ; --------------------------------------------------------------------
+        LOAD_PTR PRINT_PTR , (START_REGION_CHAR_RAM + SCREEN_COLS)
+        LOAD_PTR TMP_PTR , START_REGION_CHAR_RAM
+
+        JSR copy_vram_block
+
+        ; --------------------------------------------------------------------
+        ; Step 2: Scroll Color RAM
+        ; --------------------------------------------------------------------
+        LOAD_PTR PRINT_PTR , (START_REGION_COLOR_RAM + SCREEN_COLS)
+        LOAD_PTR TMP_PTR , START_REGION_COLOR_RAM
+
+        JSR copy_vram_block
+
+        ; --------------------------------------------------------------------
+        ; Step 3: Clear Bottom Row
+        ; --------------------------------------------------------------------
+        LDY #(SCREEN_COLS - 1)
+@clear_bottom:
+        LOAD_PTR $F0 , (START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET)
+
+
+        LDA #DEFAULT_SCREEN_CHAR
+        STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET,Y
+        LDA CURRENT_COLOR
+        STA START_REGION_COLOR_RAM + BOTTOM_ROW_OFFSET,Y
+        DEY
+
+        BPL @clear_bottom
+
+        ; Clamp cursor to bottom row
+        LDA #(SCREEN_ROWS - 1)
+        STA CURSY
+
+        POP_PTR TMP_PTR
+        POP_PTR PRINT_PTR
+        POPALL
+        RTS
+.endproc
+
+; ----------------------------------------------------------------------------
+; Internal Helper: Copies TOTAL_SCROLL_BYTES from PRINT_PTR to TMP_PTR
+; ----------------------------------------------------------------------------
+.proc copy_vram_block
+        ; --- Copy Full 256-byte Pages ---
+        LDX #PAGES_TO_COPY
+        LDY #$00
+@page_loop:
+        LDA (PRINT_PTR),Y
+        STA (TMP_PTR),Y
+        INY
+        BNE @page_loop
+        INC PRINT_PTR + 1
+        INC TMP_PTR + 1
+        DEX
+        BNE @page_loop
+
+        ; --- Copy Remaining Bytes ---
+        LDY #$00
+@rem_loop:
+        LDA (PRINT_PTR),Y
+        STA (TMP_PTR),Y
+        INY
+        CPY #REM_BYTES_TO_COPY  ; Evaluates to $C0 (192)
+        BNE @rem_loop
+
         RTS
 .endproc
 
@@ -410,6 +527,7 @@ ll:
         DEY
         BPL ll
 
+
         ; Set pointer in Zero Page
         LDA #<msg_welcome
         STA PRINT_PTR
@@ -425,6 +543,10 @@ ll:
         LDA #$0F                ; White text
         STA CURRENT_COLOR
 
+
+        LDA #'!'
+        STA $E3C0 - 40
+
         LDX #$27 + 1
 ploop:
         PUSHALL
@@ -432,7 +554,6 @@ ploop:
         POPALL
         DEX
         BNE ploop
-
 halt:
 
         JMP halt        ; Safely trap CPU here when done
