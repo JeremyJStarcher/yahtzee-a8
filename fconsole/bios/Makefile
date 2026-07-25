@@ -22,11 +22,18 @@ CA65_FLAGS = --cpu 6502 --debug-info
 DA65_FLAGS = --cpu 6502 --start-addr '$$F000' --multi-pass
 
 # Linker flags
-LD65_FLAGS = -C $(LINKER_CONFIG) -m $(ROM_IMAGE).map
+LD65_FLAGS = -C $(LINKER_CONFIG) -m $(ROM_IMAGE).map --dbgfile jjs.jjs
 
-.PHONY: all clean
+.PHONY: all clean vectors
 
 all: $(LINKED_LISTING)
+
+vectors: $(ROM_IMAGE)
+	@echo "Vector table addresses:"
+	@python3 -c 'import pathlib; p=pathlib.Path("bios.bin"); data=p.read_bytes(); entries=[("NMI",0xFFFA),("RESET",0xFFFC),("IRQ",0xFFFE)]; [print(f"  {n:<6} {((data[addr-0xF000+1]<<8)|data[addr-0xF000]):04X} @ {addr:04X}") for n,addr in entries if len(data) > (addr-0xF000)+1]'
+	@echo ""
+	@echo "Linker exports:"
+	@grep -E '(^_reset_handler|^_nmi_handler|^_irq_handler|^JTCLS)' $(ROM_IMAGE).map || true
 
 # Link object files into ROM image
 $(ROM_IMAGE): $(OBJ_FILES)

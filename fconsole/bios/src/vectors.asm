@@ -2,6 +2,10 @@
         .import _reset_handler
         .import _nmi_handler
         .import _irq_handler
+        .forceimport JTCLS
+        .forceimport JTDUMMY
+        .forceimport CURSX
+        .forceimport CURSY
 
         .segment "VECTORS"
         .word   _nmi_handler        ; $FFFA - NMI vector

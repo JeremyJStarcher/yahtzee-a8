@@ -4,8 +4,15 @@
         .export _irq_handler
         .export _reset_handler
         .export _nmi_handler
+        .export JTCLS
+        .export CURSX
+        .export CURSY
 
         .segment "CODE"
+
+
+SCREEN_COLS = 40
+SCREEN_ROWS = 25
 
 START_REGION_CHAR_RAM = $E000
 END_REGION_CHAR_RAM   = START_REGION_CHAR_RAM + (40 * 25)
@@ -14,7 +21,7 @@ START_REGION_COLOR_RAM = $C000
 END_REGION_COLOR_RAM   = START_REGION_COLOR_RAM + (40 * 25)
 
 DEFAULT_COLOR = $6F
-DEFAULT_SCREEN_CHAR = '.'
+DEFAULT_SCREEN_CHAR = '='
 
 
         .segment "ZEROPAGE"
@@ -22,9 +29,33 @@ STRPTR: .res 2
 ENDPTR: .res 2
 FILCHAR: .res 1
 
+; Cursor X position
+CURSX: .res 1
+; Cursor Y position
+CURSY: .res 1
+; Current color
+CURRENT_COLOR: .res 1
+; CHAR ram ptr
+CHAR_PTR: .res 2
+; COLOR ram ptr
+COLOR_PTR: .res 2
+
         .segment "CODE"
 
-.proc CLRRAM
+.proc DUMMY_ROUTINE
+        RTS
+.endproc
+
+.proc SET_CURSOR
+        ;; We want to take the CURSX, CURSY
+        ;; and convert them to a pointer within CHAR_PTR
+        ;; Then, for a test, we'll write a '*' to that one
+        ;; position to verify it works.
+
+.endproc
+
+
+.proc CLEAR_SCREEN
         PHA
         LDA #<START_REGION_CHAR_RAM
         STA STRPTR
@@ -54,6 +85,10 @@ FILCHAR: .res 1
 
         LDA #DEFAULT_COLOR        ; Fill value
         JSR MEMFILL_SLOW
+
+        LDX #$00
+        STX CURSX
+        STX CURSY
 
 
         RTS
@@ -153,20 +188,13 @@ _reset_handler:
         CLD             ; Clear decimal flag
 
 
+        JSR CLEAR_SCREEN
 
-        LDY #$00
-        STY FILCHAR
-
-        JSR CLRRAM
-
+        LDY #$10
+        STY CURSX
+        STY CURSY
+        JSR SET_CURSOR
 halt:
-        LDY $E000
-        INY
-        STY $E000
-
-        LDY $C000
-        INY
-        STY $C000
 
         JMP halt        ; Safely trap CPU here when done
 
@@ -178,3 +206,15 @@ _nmi_handler:
 
 _irq_handler:
         RTI
+
+        ; Fixed entry points just before the vector table.
+        ; These addresses are anchored by the JUMPTABLE segment in bios.cfg.
+        .segment "JUMPTABLE"
+        .export JTCLS
+        .export JTDUMMY
+
+JTDUMMY:
+        JMP DUMMY_ROUTINE
+
+        .segment "JUMPTABLE"
+JTCLS:  JMP CLEAR_SCREEN
