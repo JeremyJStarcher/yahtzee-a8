@@ -13,6 +13,11 @@
         .segment "CODE"
 
 
+.macro pstring str
+    .byte .strlen(str), str
+.endmacro
+
+
 
 .MACRO PUSHALL
     php           ; Push status register
@@ -72,35 +77,34 @@ COLOR_PTR: .res 2
         RTS
 .endproc
 
-
 ; ============================================================================
-; Routine: PRINT_STRING
+; Routine: PRINT_PSTRING
 ; Description:
-;   Prints a length-prefixed sequence of characters starting at TMP_PTR.
-;   Advances CURSX (and CURSY via wrapping) automatically per character.
+;   Prints a Pascal-style string (length byte followed by character payload).
+;   Advances CURSX and CURSY automatically per character.
 ;
 ; Inputs:
-;   TMP_PTR (2 bytes, Zero Page) - Pointer to character array/string payload
-;   X                           - Length of string in bytes (0 - 255)
+;   TMP_PTR (2 bytes, Zero Page) - Pointer to the start of the PSTRING (length byte)
 ;
 ; Registers Modified:
 ;   A, X, Y
 ; ============================================================================
-.proc PRINT_STRING
-        CPX #$00
+.proc PRINT_PSTRING
+        LDY #$00
+        LDA (PRINT_PTR),Y         ; Read 1-byte string length
+        TAX                     ; Store length in X
         BEQ @done               ; Early exit if length is 0
 
-        LDY #$00                ; Initialize string index/offset
 @loop:
+        INY                     ; Advance offset to the next character (starts at index 1)
+        LDA (PRINT_PTR),Y         ; Fetch character
 
         PUSHALL
-        LDA (PRINT_PTR),Y         ; Fetch character at current offset
-        JSR DISPLAY_CHAR        ; Draw character & advance CURSX / wrap row
+        JSR DISPLAY_CHAR        ; Draw character & advance cursor
         POPALL
 
-        INY                     ; Move pointer index to next character
         DEX                     ; Decrement remaining byte count
-        BNE @loop               ; Loop until X counts down to zero
+        BNE @loop               ; Continue until X reaches 0
 
 @done:
         RTS
@@ -406,15 +410,12 @@ ll:
         DEY
         BPL ll
 
-
         ; Set pointer in Zero Page
-        LDA #<msg_hello
+        LDA #<msg_welcome
         STA PRINT_PTR
-        LDA #>msg_hello
+        LDA #>msg_welcome
         STA PRINT_PTR + 1
 
-        ; Set length counter in X
-        LDX #MSG_HELLO_LEN
 
         ; Set desired start position & color
         LDA #5
@@ -424,18 +425,21 @@ ll:
         LDA #$0F                ; White text
         STA CURRENT_COLOR
 
-        JSR PRINT_STRING
+        LDX #$27 + 1
+ploop:
+        PUSHALL
+        JSR PRINT_PSTRING
+        POPALL
+        DEX
+        BNE ploop
 
 halt:
 
         JMP halt        ; Safely trap CPU here when done
 
 
-
-;; .segment "RODATA"
-msg_hello:
-        .byte "ZHello, Atari 800 BIOS!"
-MSG_HELLO_LEN = * - msg_hello
+msg_welcome:
+    pstring "Welcome to Yahtzee A8!"
 
 
 
