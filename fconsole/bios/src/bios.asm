@@ -95,7 +95,7 @@ COLOR_PTR: .res 2
 ;   Advances CURSX and CURSY automatically per character.
 ;
 ; Inputs:
-;   TMP_PTR (2 bytes, Zero Page) - Pointer to the start of the PSTRING (length byte)
+;   PRINT_PTR (2 bytes, Zero Page) - Pointer to the start of the PSTRING (length byte)
 ;
 ; Registers Modified:
 ;   A, X, Y
