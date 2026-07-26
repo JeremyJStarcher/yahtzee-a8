@@ -18,13 +18,6 @@
     .byte .strlen(str), str
 .endmacro
 
-.macro LOAD_PTR PTR, ADDR
-        LDA #<ADDR
-        STA PTR
-        LDA #>ADDR
-        STA PTR + 1
-.endmacro
-
 
 .MACRO PUSH_PTR P
         LDA P
@@ -216,16 +209,16 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         ; --------------------------------------------------------------------
         ; Step 1: Scroll Character RAM
         ; --------------------------------------------------------------------
-        LOAD_PTR PRINT_PTR , (START_REGION_CHAR_RAM + SCREEN_COLS)
-        LOAD_PTR TMP_PTR , START_REGION_CHAR_RAM
+        LOAD16 PRINT_PTR, (START_REGION_CHAR_RAM + SCREEN_COLS)
+        LOAD16 TMP_PTR, START_REGION_CHAR_RAM
 
         JSR copy_vram_block
 
         ; --------------------------------------------------------------------
         ; Step 2: Scroll Color RAM
         ; --------------------------------------------------------------------
-        LOAD_PTR PRINT_PTR , (START_REGION_COLOR_RAM + SCREEN_COLS)
-        LOAD_PTR TMP_PTR , START_REGION_COLOR_RAM
+        LOAD16 PRINT_PTR, (START_REGION_COLOR_RAM + SCREEN_COLS)
+        LOAD16 TMP_PTR, START_REGION_COLOR_RAM
 
         JSR copy_vram_block
 
@@ -234,8 +227,6 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         ; --------------------------------------------------------------------
         LDY #(SCREEN_COLS - 1)
 @clear_bottom:
-        LOAD_PTR $F0 , (START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET)
-
 
         LDA #DEFAULT_SCREEN_CHAR
         STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET,Y
@@ -381,14 +372,14 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
 
 
 .proc CLEAR_SCREEN
-        LOAD_PTR TMP_PTR, START_REGION_CHAR_RAM
-        LOAD_PTR PRINT_PTR, END_REGION_CHAR_RAM
+        LOAD16 TMP_PTR, START_REGION_CHAR_RAM
+        LOAD16 PRINT_PTR, END_REGION_CHAR_RAM
 
         LDA #DEFAULT_SCREEN_CHAR        ; Fill value
         JSR MEMFILL_SLOW
 
-        LOAD_PTR TMP_PTR, START_REGION_COLOR_RAM
-        LOAD_PTR PRINT_PTR, END_REGION_COLOR_RAM
+        LOAD16 TMP_PTR, START_REGION_COLOR_RAM
+        LOAD16 PRINT_PTR, END_REGION_COLOR_RAM
 
         LDA #DEFAULT_COLOR        ; Fill value
         JSR MEMFILL_SLOW
@@ -510,7 +501,7 @@ ll:
         BPL ll
 
         ; Set pointer in Zero Page
-        LOAD_PTR PRINT_PTR, msg_welcome
+        LOAD16 PRINT_PTR, msg_welcome
 
         ; Set desired start position & color
         LDA #5
