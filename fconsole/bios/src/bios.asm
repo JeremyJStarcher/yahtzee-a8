@@ -349,7 +349,7 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
         LOAD16 TMP_PTR, START_REGION_COLOR_RAM
         LOAD16 PRINT_PTR, END_REGION_COLOR_RAM
 
-        LDA #DEFAULT_COLOR        ; Fill value
+        LDA CURRENT_COLOR               ; Save that.
         JSR MEMFILL_FAST
 
         LDX #$00
@@ -440,6 +440,9 @@ _reset_handler:
         TXS             ; Reset stack pointer to $01FF
         CLD             ; Clear decimal flag
 
+
+        LDA #DEFAULT_COLOR        ; Fill value
+        STA CURRENT_COLOR
         JSR CLEAR_SCREEN
 
 
