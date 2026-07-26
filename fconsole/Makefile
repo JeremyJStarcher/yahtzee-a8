@@ -54,3 +54,5 @@ typecheck: | ensure-venv
 
 clean:
 	rm -f *.pyc
+	$(MAKE) -C $(ROOT)/bios clean
+

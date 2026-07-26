@@ -1,8 +1,8 @@
 # ca65/ca65 Build System for 6502 BIOS
 # Tool paths - adjust if needed
-CA65 = /home/jjs/Projects/atari800/cc65/bin/ca65
-LD65 = /home/jjs/Projects/atari800/cc65/bin/ld65
-DA65 = /home/jjs/Projects/atari800/cc65/bin/da65
+CA65 = ca65
+LD65 = ld65
+DA65 = da65
 
 
 # Source files

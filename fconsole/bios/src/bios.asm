@@ -18,12 +18,22 @@
     .byte .strlen(str), str
 .endmacro
 
+.macro LOAD_PTR PTR, ADDR
+        LDA #<ADDR
+        STA PTR
+        LDA #>ADDR
+        STA PTR + 1
+.endmacro
+
+
 .MACRO PUSH_PTR P
         LDA P
         PHA
         LDA P + 1
         PHA
 .endmacro
+
+
 
 
 .MACRO POP_PTR P
@@ -372,13 +382,13 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
 
 .proc CLEAR_SCREEN
         LOAD_PTR TMP_PTR, START_REGION_CHAR_RAM
-        LOAD_PTR PRINT_PTR, END_REGION_CHAR_RAM 
+        LOAD_PTR PRINT_PTR, END_REGION_CHAR_RAM
 
         LDA #DEFAULT_SCREEN_CHAR        ; Fill value
         JSR MEMFILL_SLOW
 
         LOAD_PTR TMP_PTR, START_REGION_COLOR_RAM
-        LOAD_PTR PRINT_PTR, END_REGION_COLOR_RAM 
+        LOAD_PTR PRINT_PTR, END_REGION_COLOR_RAM
 
         LDA #DEFAULT_COLOR        ; Fill value
         JSR MEMFILL_SLOW
