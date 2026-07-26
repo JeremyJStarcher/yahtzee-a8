@@ -329,99 +329,19 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         RTS
 .endproc
 
-.proc SET_CURSOR_OLD_KEEP
-
-        ;; -------------------------------------------------------------------
-        ;; Step 1: Calculate Row Offset = (CURSY * 40)
-        ;;
-        ;; Since the 6502 lacks a hardware multiply instruction, we decompose
-        ;; 40 into powers of two: 40 = 32 + 8 = (Y * 32) + (Y * 8).
-        ;; We calculate (Y * 8) first via 3 bitwise left shifts (ASL/ROL).
-        ;; -------------------------------------------------------------------
-        LDA CURSY
-        STA CHAR_PTR            ; Initialize low byte accumulator
-        LDA #$00
-        STA CHAR_PTR + 1        ; Initialize high byte accumulator
-
-        ASL CHAR_PTR            ; CHAR_PTR = CURSY * 2
-        ROL CHAR_PTR + 1
-        ASL CHAR_PTR            ; CHAR_PTR = CURSY * 4
-        ROL CHAR_PTR + 1
-        ASL CHAR_PTR            ; CHAR_PTR = CURSY * 8
-        ROL CHAR_PTR + 1
-
-        ;; Save intermediate result (CURSY * 8) into temporary zero-page storage
-        LDA CHAR_PTR
-        STA TMP_PTR
-        LDA CHAR_PTR + 1
-        STA TMP_PTR + 1
-
-        ;; Shift two more times: (CURSY * 8) * 4 = (CURSY * 32)
-        ASL CHAR_PTR            ; CHAR_PTR = CURSY * 16
-        ROL CHAR_PTR + 1
-        ASL CHAR_PTR            ; CHAR_PTR = CURSY * 32
-        ROL CHAR_PTR + 1
-
-        ;; Add (CURSY * 8) to (CURSY * 32) to yield (CURSY * 40)
-        CLC
-        LDA CHAR_PTR
-        ADC TMP_PTR
-        STA CHAR_PTR
-        LDA CHAR_PTR + 1
-        ADC TMP_PTR + 1
-        STA CHAR_PTR + 1
-
-        ;; -------------------------------------------------------------------
-        ;; Step 2: Add Column Offset (CURSX)
-        ;; -------------------------------------------------------------------
-        CLC
-        LDA CHAR_PTR
-        ADC CURSX
-        STA CHAR_PTR
-        LDA CHAR_PTR + 1
-        ADC #$00                ; Propagate 16-bit carry from low byte addition
-        STA CHAR_PTR + 1
-
-        ;; -------------------------------------------------------------------
-        ;; Step 3: Compute Base Pointers
-        ;;
-        ;; 3a. Add START_REGION_CHAR_RAM ($E000) to complete CHAR_PTR
-        ;; -------------------------------------------------------------------
-        CLC
-        LDA CHAR_PTR
-        ADC #<START_REGION_CHAR_RAM
-        STA CHAR_PTR
-        LDA CHAR_PTR + 1
-        ADC #>START_REGION_CHAR_RAM
-        STA CHAR_PTR + 1
-
-        ;; 3b. Derive COLOR_PTR from CHAR_PTR
-        ;; Since START_REGION_COLOR_RAM ($C000) is $2000 bytes below
-        ;; START_REGION_CHAR_RAM ($E000), subtract $2000 from CHAR_PTR.
-        SEC
-        LDA CHAR_PTR
-        SBC #<(START_REGION_CHAR_RAM - START_REGION_COLOR_RAM)
-        STA COLOR_PTR
-        LDA CHAR_PTR + 1
-        SBC #>(START_REGION_CHAR_RAM - START_REGION_COLOR_RAM)
-        STA COLOR_PTR + 1
-
-        RTS
-.endproc
-
 
 .proc CLEAR_SCREEN
         LOAD16 TMP_PTR, START_REGION_CHAR_RAM
         LOAD16 PRINT_PTR, END_REGION_CHAR_RAM
 
         LDA #DEFAULT_SCREEN_CHAR        ; Fill value
-        JSR MEMFILL_SLOW
+        JSR MEMFILL_FAST
 
         LOAD16 TMP_PTR, START_REGION_COLOR_RAM
         LOAD16 PRINT_PTR, END_REGION_COLOR_RAM
 
         LDA #DEFAULT_COLOR        ; Fill value
-        JSR MEMFILL_SLOW
+        JSR MEMFILL_FAST
 
         LDX #$00
         STX CURSX
@@ -489,31 +409,6 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         RTS
 .endproc
 
-.proc MEMFILL_SLOW
-        TAX             ; Save fill value in X
-        LDY #$00
-
-@LOOP:
-        TXA
-        STA (TMP_PTR),Y  ; Write byte
-
-        ; Move to next byte
-        INC TMP_PTR
-        BNE @CHECK_END  ; If no rollover ($FF -> $00), skip high byte bump
-        INC TMP_PTR+1
-
-@CHECK_END:
-        ; Compare current pointer with PRINT_PTR
-        LDA TMP_PTR
-        CMP PRINT_PTR
-        BNE @LOOP
-        LDA TMP_PTR+1
-        CMP PRINT_PTR+1
-        BNE @LOOP
-
-        RTS
-.endproc
-
 ; ============================================================================
 ; Reset Handler
 ; ============================================================================
@@ -525,19 +420,6 @@ _reset_handler:
 
         JSR CLEAR_SCREEN
 
-        LDY #$A2
-        STY CURRENT_COLOR
-        LDY #$10
-        LDA #'-'
-ll:
-        STY CURSX
-        STY CURSY
-        PUSHALL
-        JSR DISPLAY_CHAR
-        POPALL
-
-        DEY
-        BPL ll
 
         ; Set pointer in Zero Page
         LOAD16 PRINT_PTR, msg_welcome
