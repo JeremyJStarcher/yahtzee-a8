@@ -374,9 +374,10 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 
 @ALIGN_WRITE:
         TXA
-        STA (TMP_PTR),Y      ; Write fill byte at offset 0
-        INC TMP_PTR          ; Advance low byte
-        JMP @ALIGN_LOOP
+        STA (TMP_PTR),Y
+        INC TMP_PTR
+        BNE @ALIGN_LOOP
+        INC TMP_PTR+1
 
         ; --------------------------------------------------------------------
         ; Phase 2: Clear whole 256-byte pages
