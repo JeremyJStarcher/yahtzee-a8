@@ -248,19 +248,26 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 .proc copy_vram_block
         ; --- Copy Full 256-byte Pages ---
         LDX #PAGES_TO_COPY
+        BEQ @remaining
+
         LDY #$00
 @page_loop:
         LDA (PRINT_PTR),Y
         STA (TMP_PTR),Y
         INY
         BNE @page_loop
+
         INC PRINT_PTR + 1
         INC TMP_PTR + 1
         DEX
         BNE @page_loop
 
-        ; --- Copy Remaining Bytes ---
+        ; Copy remaining
+@remaining:
         LDY #$00
+        CPY #REM_BYTES_TO_COPY
+        BEQ @done
+
 @rem_loop:
         LDA (PRINT_PTR),Y
         STA (TMP_PTR),Y
@@ -268,9 +275,9 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
         CPY #REM_BYTES_TO_COPY
         BNE @rem_loop
 
+@done:
         RTS
 .endproc
-
 ; ============================================================================
 ; Routine: SET_CURSOR
 ; Description:
