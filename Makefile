@@ -9,5 +9,13 @@ all: run
 %:
 	$(MAKE) -C $(SRC_DIR) $@
 
+clean:
+	cd fconsole && make clean
+
 run:
 	$(MAKE) -C $(SRC_DIR) run
+
+bios-list:
+	$(MAKE) clean
+	./concat_files.sh fconsole/bios/
+
