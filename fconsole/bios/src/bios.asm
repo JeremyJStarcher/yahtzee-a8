@@ -53,13 +53,14 @@
 
 
 SCREEN_COLS = 40
-SCREEN_ROWS = 25
+SCREEN_ROWS = 24
+SCREEN_SIZE = SCREEN_COLS * SCREEN_ROWS
 
 START_REGION_CHAR_RAM = $E000
-END_REGION_CHAR_RAM   = START_REGION_CHAR_RAM + (40 * 25)
+END_REGION_CHAR_RAM   = START_REGION_CHAR_RAM + SCREEN_SIZE
 
 START_REGION_COLOR_RAM = $C000
-END_REGION_COLOR_RAM   = START_REGION_COLOR_RAM + (40 * 25)
+END_REGION_COLOR_RAM   = START_REGION_COLOR_RAM + SCREEN_SIZE
 
 DEFAULT_COLOR = $6F
 DEFAULT_SCREEN_CHAR = ' '
@@ -129,8 +130,8 @@ COLOR_PTR: .res 2
 ;
 ; Inputs:
 ;   A             - Character code to write to screen
-;   CURSX         - Screen X coordinate (0 - 39)
-;   CURSY         - Screen Y coordinate (0 - 24)
+;   CURSX         - Screen X coordinate
+;   CURSY         - Screen Y coordinate
 ;   CURRENT_COLOR - Color code to write to Color RAM
 ; ============================================================================
 .proc DISPLAY_CHAR
@@ -172,7 +173,7 @@ COLOR_PTR: .res 2
 
         INC CURSY               ; Move down one line (0..23 -> 1..24)
         LDA CURSY
-        CMP #SCREEN_ROWS -1
+        CMP #SCREEN_ROWS
         BNE @noscroll
         JSR SCROLL_UP
         DEC CURSY
@@ -184,10 +185,12 @@ COLOR_PTR: .res 2
 ; ============================================================================
 ; Compile-Time Calculated Constants for Scrolling
 ; ============================================================================
-TOTAL_SCROLL_BYTES = (SCREEN_ROWS - 1) * SCREEN_COLS  ; 24 * 40 = 960 ($03C0)
-PAGES_TO_COPY      = TOTAL_SCROLL_BYTES >> 8           ; 960 / 256 = 3 full pages
-REM_BYTES_TO_COPY  = TOTAL_SCROLL_BYTES & $FF          ; 960 % 256 = 192 bytes ($C0)
-BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 / $03C0)
+; Copy rows 1..23 into rows 0..22.
+; The final row is cleared separately.
+TOTAL_SCROLL_BYTES = (SCREEN_ROWS - 1) * SCREEN_COLS
+PAGES_TO_COPY      = TOTAL_SCROLL_BYTES >> 8
+REM_BYTES_TO_COPY  = TOTAL_SCROLL_BYTES & $FF
+BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 
 ; ============================================================================
 ; Routine: SCROLL_UP
@@ -231,7 +234,7 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         BPL @clear_bottom
 
         ; Clamp cursor to bottom row
-        LDA #(SCREEN_ROWS - 1)
+        LDA #SCREEN_ROWS
         STA CURSY
 
         POP_PTR TMP_PTR
@@ -263,7 +266,7 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         LDA (PRINT_PTR),Y
         STA (TMP_PTR),Y
         INY
-        CPY #REM_BYTES_TO_COPY  ; Evaluates to $C0 (192)
+        CPY #REM_BYTES_TO_COPY
         BNE @rem_loop
 
         RTS
@@ -276,8 +279,8 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
 ;   the corresponding tile in Color RAM with CURRENT_COLOR.
 ;
 ; Inputs:
-;   CURSX      - Screen X coordinate (0 - 39)
-;   CURSY      - Screen Y coordinate (0 - 24)
+;   CURSX      - Screen X coordinate
+;   CURSY      - Screen Y coordinate
 ;
 ; Zero Page Working Registers:
 ;   CHAR_PTR   - Holds 16-bit target address in Character RAM
@@ -315,7 +318,7 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 /
         ;; Step 2: Add Column Offset (CURSX)
         ;; -------------------------------------------------------------------
         ADD16_8 CHAR_PTR, CHAR_PTR, CURSX
- 
+
         ;; -------------------------------------------------------------------
         ;; Step 3: Compute Base Pointers
         ;;
@@ -433,9 +436,9 @@ _reset_handler:
         STA CURRENT_COLOR
 
         LDA #'!'
-        STA $E3C0 - 40
+        STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET
 
-        LDX #$27 + 1
+        LDX #$27 + 3
 ploop:
         PUSHALL
         JSR PRINT_PSTRING
@@ -443,13 +446,152 @@ ploop:
         DEX
         BNE ploop
 
+
+        LDA #$A0
+        STA CURRENT_COLOR
+
+
+        LDA #0
+        STA CURSX
+        LDA #0
+        STA CURSY
+
+        LOAD16 PRINT_PTR, line_1
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_2
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_3
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_4
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_5
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_6
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_7
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_8
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_9
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_10
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+
+
+        LOAD16 PRINT_PTR, line_11
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_12
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_13
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_14
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_15
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_16
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_17
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_18
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_19
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_20
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_21
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_22
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_23
+        JSR PRINT_PSTRING
+        JSR DISPLAY_NEXT_LINE
+
+        LOAD16 PRINT_PTR, line_24
+        JSR PRINT_PSTRING
+
 halt:
+
         JMP halt        ; Safely trap CPU here when done
+        STA CURRENT_COLOR
 
 
 msg_welcome:
-    pstring "Welcome to Yahtzee A8!"
+        pstring "Welcome to Yahtzee A8!"
 
+
+line_1: pstring "Line: 1"
+line_2: pstring "Line: 2"
+line_3: pstring "Line: 3"
+line_4: pstring "Line: 4"
+line_5: pstring "Line: 5"
+line_6: pstring "Line: 6"
+line_7: pstring "Line: 7"
+line_8: pstring "Line: 8"
+line_9: pstring "Line: 9"
+line_10: pstring "Line: 10"
+line_11: pstring "Line: 11"
+line_12: pstring "Line: 12"
+line_13: pstring "Line: 13"
+line_14: pstring "Line: 14"
+line_15: pstring "Line: 15"
+line_16: pstring "Line: 16"
+line_17: pstring "Line: 17"
+line_18: pstring "Line: 18"
+line_19: pstring "Line: 19"
+line_20: pstring "Line: 20"
+line_21: pstring "Line: 21"
+line_22: pstring "Line: 22"
+line_23: pstring "Line: 23"
+line_24: pstring "Line: 24"
+line_25: pstring "Line: 25"
+line_26: pstring "Line: 26"
+line_27: pstring "Line: 27"
+line_28: pstring "Line: 28"
+line_29: pstring "Line: 29"
 
 ; ============================================================================
 ; Interrupt Handlers
