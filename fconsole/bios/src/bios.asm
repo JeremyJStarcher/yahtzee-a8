@@ -174,7 +174,7 @@ COLOR_PTR: .res 2
         INC CURSY               ; Move down one line (0..23 -> 1..24)
         LDA CURSY
         CMP #SCREEN_ROWS
-        BNE @noscroll
+        BCC @noscroll           ; CURSY < SCREEN_ROWS
         JSR SCROLL_UP
 @noscroll:
         POPALL
