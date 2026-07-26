@@ -32,23 +32,23 @@
 .endmacro
 
 .macro pushall
-    PHP                                     ; Push status register
-    STA SAVEA                               ; Save the 'A' register while storing the others
-    PHA                                     ; Push A
-    TXA                                     ; X -> A
-    PHA                                     ; Push X value in A
-    TYA                                     ; Y -> A
-    PHA                                     ; PUSH Y value in A
-    LDA SAVEA                               ; And get our original 'A' back
+    PHP                                 ; Push status register
+    STA SAVEA                           ; Save the 'A' register while storing the others
+    PHA                                 ; Push A
+    TXA                                 ; X -> A
+    PHA                                 ; Push X value in A
+    TYA                                 ; Y -> A
+    PHA                                 ; PUSH Y value in A
+    LDA SAVEA                           ; And get our original 'A' back
 .endmacro
 
 .macro popall
-    PLA                                     ; Get the pushed Y value
-    TAY                                     ; Transfer to Y
-    PLA                                     ; Get the pushed X value
-    TAX                                     ; Transfer to X
-    PLA                                     ; And then get A
-    PLP                                     ; Pull status register
+    PLA                                 ; Get the pushed Y value
+    TAY                                 ; Transfer to Y
+    PLA                                 ; Get the pushed X value
+    TAX                                 ; Transfer to X
+    PLA                                 ; And then get A
+    PLP                                 ; Pull status register
 .endmacro
 
 
@@ -102,20 +102,20 @@ COLOR_PTR: .res 2
 ; ============================================================================
 .proc PRINT_PSTRING
     LDY #$00
-    LDA (PRINT_PTR), Y                      ; Read 1-byte string length
-    TAX                                     ; Store length in X
-    BEQ @done                               ; Early exit if length is 0
+    LDA (PRINT_PTR), Y                  ; Read 1-byte string length
+    TAX                                 ; Store length in X
+    BEQ @done                           ; Early exit if length is 0
 
 @loop:
-    INY                                     ; Advance offset to the next character (starts at index 1)
-    LDA (PRINT_PTR), Y                      ; Fetch character
+    INY                                 ; Advance offset to the next character (starts at index 1)
+    LDA (PRINT_PTR), Y                  ; Fetch character
 
     pushall
-    JSR DISPLAY_CHAR                        ; Draw character & advance cursor
+    JSR DISPLAY_CHAR                    ; Draw character & advance cursor
     popall
 
-    DEX                                     ; Decrement remaining byte count
-    BNE @loop                               ; Continue until X reaches 0
+    DEX                                 ; Decrement remaining byte count
+    BNE @loop                           ; Continue until X reaches 0
 
 @done:
     RTS
@@ -135,7 +135,7 @@ COLOR_PTR: .res 2
 ;   CURRENT_COLOR - Color code to write to Color RAM
 ; ============================================================================
 .proc DISPLAY_CHAR
-    PHA                                     ; Save character
+    PHA                                 ; Save character
 
     ; 1. Check if we need to scroll/wrap BEFORE drawing the character
     LDA CURSX
@@ -146,11 +146,11 @@ COLOR_PTR: .res 2
     JSR DISPLAY_NEXT_LINE
 
 @ready_to_draw:
-    ; 2. Calculate cursor location and draw character
+; 2. Calculate cursor location and draw character
     JSR SET_CURSOR
 
     LDY #$00
-    PLA                                     ; Restore character
+    PLA                                 ; Restore character
     STA (CHAR_PTR), Y
     LDA CURRENT_COLOR
     STA (COLOR_PTR), Y
@@ -169,12 +169,12 @@ COLOR_PTR: .res 2
 .proc DISPLAY_NEXT_LINE
     pushall
     LDA #$00
-    STA CURSX                               ; Reset X to left margin
+    STA CURSX                           ; Reset X to left margin
 
-    INC CURSY                               ; Move down one line (0..23 -> 1..24)
+    INC CURSY                           ; Move down one line (0..23 -> 1..24)
     LDA CURSY
     CMP #SCREEN_ROWS
-    BCC @noscroll                           ; CURSY < SCREEN_ROWS
+    BCC @noscroll                       ; CURSY < SCREEN_ROWS
     JSR SCROLL_UP
 @noscroll:
     popall
@@ -246,7 +246,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ; Internal Helper: Copies TOTAL_SCROLL_BYTES from PRINT_PTR to TMP_PTR
 ; ----------------------------------------------------------------------------
 .proc copy_vram_block
-    ; --- Copy Full 256-byte Pages ---
+; --- Copy Full 256-byte Pages ---
     LDX #PAGES_TO_COPY
     BEQ @remaining
 
@@ -292,17 +292,17 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ;   A, flags, TMP_PTR, CHAR_PTR, COLOR_PTR
 
 .proc SET_CURSOR
-    ;; -------------------------------------------------------------------
-    ;; Step 1: Calculate Row Offset = (CURSY * 40)
-    ;;
-    ;; Since the 6502 lacks a hardware multiply instruction, we decompose
-    ;; 40 into powers of two: 40 = 32 + 8 = (Y * 32) + (Y * 8).
-    ;; We calculate (Y * 8) first via 3 bitwise left shifts (ASL/ROL).
-    ;; -------------------------------------------------------------------
+;; -------------------------------------------------------------------
+;; Step 1: Calculate Row Offset = (CURSY * 40)
+;;
+;; Since the 6502 lacks a hardware multiply instruction, we decompose
+;; 40 into powers of two: 40 = 32 + 8 = (Y * 32) + (Y * 8).
+;; We calculate (Y * 8) first via 3 bitwise left shifts (ASL/ROL).
+;; -------------------------------------------------------------------
     LDA CURSY
-    STA CHAR_PTR                            ; Initialize low byte accumulator
+    STA CHAR_PTR                        ; Initialize low byte accumulator
     LDA #$00
-    STA CHAR_PTR + 1                        ; Initialize high byte accumulator
+    STA CHAR_PTR + 1                    ; Initialize high byte accumulator
 
     asl16 CHAR_PTR
     asl16 CHAR_PTR
@@ -341,7 +341,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     load16 TMP_PTR, START_REGION_CHAR_RAM
     load16 PRINT_PTR, END_REGION_CHAR_RAM
 
-    LDA #DEFAULT_SCREEN_CHAR                ; Fill value
+    LDA #DEFAULT_SCREEN_CHAR            ; Fill value
     JSR MEMFILL_FAST
 
     load16 TMP_PTR, START_REGION_COLOR_RAM
@@ -371,22 +371,22 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ;   A, X, Y, TMP_PTR
 
 .proc MEMFILL_FAST
-    TAX                                     ; X = fill byte
+    TAX                                 ; X = fill byte
 
     ; --------------------------------------------------------------------
     ; Phase 1: Clear partial start page up to the $xx00 boundary
     ; --------------------------------------------------------------------
     LDY #$00
 @ALIGN_LOOP:
-    LDA TMP_PTR                             ; Check if low byte is $00 (page aligned)
-    BEQ @FILL_PAGES                         ; If TMP_PTR points to $xx00, head alignment is done!
+    LDA TMP_PTR                         ; Check if low byte is $00 (page aligned)
+    BEQ @FILL_PAGES                     ; If TMP_PTR points to $xx00, head alignment is done!
 
     ; Check if TMP_PTR has already hit PRINT_PTR before we finish aligning
     CMP PRINT_PTR
     BNE @ALIGN_WRITE
     LDA TMP_PTR+1
     CMP PRINT_PTR+1
-    BEQ @DONE                               ; Reached PRINT_PTR during alignment phase!
+    BEQ @DONE                           ; Reached PRINT_PTR during alignment phase!
 
 @ALIGN_WRITE:
     TXA
@@ -401,27 +401,27 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 @FILL_PAGES:
     LDA TMP_PTR+1
     CMP PRINT_PTR+1
-    BEQ @FILL_REMAINDER                     ; High bytes match -> only partial tail page left!
+    BEQ @FILL_REMAINDER                 ; High bytes match -> only partial tail page left!
 
     TXA
 @PAGE_LOOP:
-    STA (TMP_PTR), Y                        ; Write byte at (TMP_PTR) + Y
-    INY                                     ; 8-bit increment (very fast!)
-    BNE @PAGE_LOOP                          ; Loops 256 times until Y wraps back to $00
+    STA (TMP_PTR), Y                    ; Write byte at (TMP_PTR) + Y
+    INY                                 ; 8-bit increment (very fast!)
+    BNE @PAGE_LOOP                      ; Loops 256 times until Y wraps back to $00
 
-    INC TMP_PTR+1                           ; Advance to next 256-byte page
+    INC TMP_PTR+1                       ; Advance to next 256-byte page
     JMP @FILL_PAGES
 
     ; --------------------------------------------------------------------
     ; Phase 3: Clear the remaining partial page
     ; --------------------------------------------------------------------
 @FILL_REMAINDER:
-    ; Y is currently $00. We fill from $00 up to PRINT_PTR low byte.
+; Y is currently $00. We fill from $00 up to PRINT_PTR low byte.
     TXA
 @TAIL_LOOP:
-    CPY PRINT_PTR                           ; Reached remaining byte count?
+    CPY PRINT_PTR                       ; Reached remaining byte count?
     BEQ @DONE
-    STA (TMP_PTR), Y                        ; Write remaining bytes
+    STA (TMP_PTR), Y                    ; Write remaining bytes
     INY
     JMP @TAIL_LOOP
 
@@ -433,13 +433,13 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ; Reset Handler
 ; ============================================================================
 _reset_handler:
-    SEI                                     ; Disable interrupts
+    SEI                                 ; Disable interrupts
     LDX #$FF
-    TXS                                     ; Reset stack pointer to $01FF
-    CLD                                     ; Clear decimal flag
+    TXS                                 ; Reset stack pointer to $01FF
+    CLD                                 ; Clear decimal flag
 
 
-    LDA #DEFAULT_COLOR                      ; Fill value
+    LDA #DEFAULT_COLOR                  ; Fill value
     STA CURRENT_COLOR
     JSR CLEAR_SCREEN
 
@@ -452,7 +452,7 @@ _reset_handler:
     STA CURSX
     LDA #2
     STA CURSY
-    LDA #$0F                                ; White text
+    LDA #$0F                            ; White text
     STA CURRENT_COLOR
 
     LDA # '!'
@@ -575,7 +575,7 @@ ploop:
 
 halt:
 
-    JMP halt                                ; Safely trap CPU here when done
+    JMP halt                            ; Safely trap CPU here when done
     STA CURRENT_COLOR
 
 

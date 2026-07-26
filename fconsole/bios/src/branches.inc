@@ -12,27 +12,27 @@
 ; ----------------------------------------------------------------------------
 
 ;; Equal (==)
-.macro BEQ_ALIAS label
+.macro beq_alias label
     BEQ label
 .endmacro
 
 ;; Not Equal (!=)
-.macro BNE_ALIAS label
+.macro bne_alias label
     BNE label
 .endmacro
 
 ;; Less Than (<)
-.macro BLT label
+.macro blt label
     BCC label
 .endmacro
 
 ;; Greater Than or Equal (>=)
-.macro BGE label
+.macro bge label
     BCS label
 .endmacro
 
 ;; Greater Than (>)
-.macro BGT label
+.macro bgt label
     .local @skip
     BEQ @skip
     BCS label
@@ -40,7 +40,7 @@
 .endmacro
 
 ;; Less Than or Equal (<=)
-.macro BLE label
+.macro ble label
     BEQ label
     BCC label
 .endmacro
@@ -51,18 +51,18 @@
 ; ----------------------------------------------------------------------------
 
 ;; Signed Greater Than or Equal (>=)
-.macro SBGE label
+.macro sbge label
     .local @skip
     BMI @skip
-    BVC label       ; Positive result without overflow -> >=
+    BVC label                           ; Positive result without overflow -> >=
 @skip:
 .endmacro
 
 ;; Signed Less Than (<)
-.macro SBLT label
+.macro sblt label
     .local @skip
     BPL @skip
-    BVS label       ; Negative result without overflow -> <
+    BVS label                           ; Negative result without overflow -> <
 @skip:
 .endmacro
 
@@ -74,31 +74,31 @@
 ; allowing for clear 1-line comparisons.
 
 ;; Compare A with immediate value and branch if A == val
-.macro IF_A_EQ val, label
+.macro if_a_eq val, label
     CMP #val
     BEQ label
 .endmacro
 
 ;; Compare A with immediate value and branch if A != val
-.macro IF_A_NE val, label
+.macro if_a_ne val, label
     CMP #val
     BNE label
 .endmacro
 
 ;; Compare A with immediate value and branch if A < val (Unsigned)
-.macro IF_A_LT val, label
+.macro if_a_lt val, label
     CMP #val
     BCC label
 .endmacro
 
 ;; Compare A with immediate value and branch if A >= val (Unsigned)
-.macro IF_A_GE val, label
+.macro if_a_ge val, label
     CMP #val
     BCS label
 .endmacro
 
 ;; Compare A with immediate value and branch if A > val (Unsigned)
-.macro IF_A_GT val, label
+.macro if_a_gt val, label
     .local @skip
     CMP #val
     BEQ @skip
@@ -107,7 +107,7 @@
 .endmacro
 
 ;; Compare A with immediate value and branch if A <= val (Unsigned)
-.macro IF_A_LE val, label
+.macro if_a_le val, label
     CMP #val
     BEQ label
     BCC label
@@ -119,22 +119,22 @@
 ; ============================================================================
 
 ;; Helper Macro: Emits warning if destination is within standard branch range (-128 to +127)
-.macro CHECK_BRANCH_DISTANCE target_label, macro_name, short_name
+.macro check_branch_distance target_label, macro_name, short_name
     .ifblank target_label
-        .error "Missing target label for long branch macro"
+    .error "Missing target label for long branch macro"
     .else
-        ; Check if the target distance can fit in a signed 8-bit offset (-128 to +127)
-        ; Note: 2 bytes are added to account for the branch instruction size itself
-        .if (target_label - (* + 2)) >= -128 .and (target_label - (* + 2)) <= 127
-            .out .sprintf("OPTIMIZATION WARNING: %s to '%s' is in range! Use %s instead to save 3 bytes and cycles.", macro_name, .string(target_label), short_name)
-        .endif
+    ; Check if the target distance can fit in a signed 8-bit offset (-128 to +127)
+    ; Note: 2 bytes are added to account for the branch instruction size itself
+    .if (target_label - (* + 2)) >= -128 .and (target_label - (* + 2)) <= 127
+    .out .sprintf("OPTIMIZATION WARNING: %s to '%s' is in range! Use %s instead to save 3 bytes and cycles.", macro_name, .string(target_label), short_name)
+    .endif
     .endif
 .endmacro
 
 
 ;; JEQ - Jump if Equal (Z == 1)
-.macro JEQ label
-    CHECK_BRANCH_DISTANCE label, "JEQ", "BEQ"
+.macro jeq label
+    check_branch_distance label, "JEQ", "BEQ"
     .local @skip
     BNE @skip
     JMP label
@@ -142,8 +142,8 @@
 .endmacro
 
 ;; JNE - Jump if Not Equal (Z == 0)
-.macro JNE label
-    CHECK_BRANCH_DISTANCE label, "JNE", "BNE"
+.macro jne label
+    check_branch_distance label, "JNE", "BNE"
     .local @skip
     BEQ @skip
     JMP label
@@ -151,8 +151,8 @@
 .endmacro
 
 ;; JLT - Jump if Less Than / Carry Clear (Unsigned <)
-.macro JLT label
-    CHECK_BRANCH_DISTANCE label, "JLT", "BCC"
+.macro jlt label
+    check_branch_distance label, "JLT", "BCC"
     .local @skip
     BCS @skip
     JMP label
@@ -160,8 +160,8 @@
 .endmacro
 
 ;; JGE - Jump if Greater or Equal / Carry Set (Unsigned >=)
-.macro JGE label
-    CHECK_BRANCH_DISTANCE label, "JGE", "BCS"
+.macro jge label
+    check_branch_distance label, "JGE", "BCS"
     .local @skip
     BCC @skip
     JMP label

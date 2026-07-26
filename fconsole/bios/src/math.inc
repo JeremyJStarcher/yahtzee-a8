@@ -7,10 +7,10 @@
 ; Usage: INC16 dest, immediate value
 ;; ---------------------------------------------------------------------------
 .macro load16 PTR, IMM
-        LDA #<IMM
-        STA PTR
-        LDA #>IMM
-        STA PTR + 1
+    LDA #<IMM
+    STA PTR
+    LDA #>IMM
+    STA PTR + 1
 .endmacro
 
 ;; ---------------------------------------------------------------------------
@@ -19,9 +19,9 @@
 ;; ---------------------------------------------------------------------------
 .macro inc16 ptr
     .local @skip
-    inc ptr
-    bne @skip
-    inc ptr + 1
+    INC ptr
+    BNE @skip
+    INC ptr + 1
 @skip:
 .endmacro
 
@@ -31,11 +31,11 @@
 ;; ---------------------------------------------------------------------------
 .macro dec16 ptr
     .local @skip
-    lda ptr
-    bne @skip
-    dec ptr + 1
+    LDA ptr
+    BNE @skip
+    DEC ptr + 1
 @skip:
-    dec ptr
+    DEC ptr
 .endmacro
 
 ;; ---------------------------------------------------------------------------
@@ -45,23 +45,23 @@
 ;        ADD16 dest, src1, src2
 ;; ---------------------------------------------------------------------------
 .macro add16 dest, op1, op2
-    clc
+    CLC
     .if (.match ({op2}, {#}))
-        ; Immediate operand case (e.g., #$E000)
-        lda op1
-        adc #<(.right (1, {op2}))
-        sta dest
-        lda op1 + 1
-        adc #>(.right (1, {op2}))
-        sta dest + 1
+    ; Immediate operand case (e.g., #$E000)
+    LDA op1
+    ADC #<(.right (1, {op2}))
+    STA dest
+    LDA op1 + 1
+    ADC #>(.right (1, {op2}))
+    STA dest + 1
     .else
-        ; Memory operand case
-        lda op1
-        adc op2
-        sta dest
-        lda op1 + 1
-        adc op2 + 1
-        sta dest + 1
+    ; Memory operand case
+    LDA op1
+    ADC op2
+    STA dest
+    LDA op1 + 1
+    ADC op2 + 1
+    STA dest + 1
     .endif
 .endmacro
 
@@ -72,13 +72,13 @@
 ;        ADD16I CHAR_PTR, CHAR_PTR, 40
 ;; ---------------------------------------------------------------------------
 .macro add16i dest, op1, val
-    clc
-    lda op1
-    adc #<(val)
-    sta dest
-    lda op1 + 1
-    adc #>(val)
-    sta dest + 1
+    CLC
+    LDA op1
+    ADC #<(val)
+    STA dest
+    LDA op1 + 1
+    ADC #>(val)
+    STA dest + 1
 .endmacro
 
 
@@ -87,13 +87,13 @@
 ; Usage: ADD16_8 (16 bit)dest, (16 bit)op1, (8 bit)op2
 ;; ---------------------------------------------------------------------------
 .macro add16_8 dest, op1, val8
-    clc
-    lda op1
-    adc val8
-    sta dest
-    lda op1 + 1
-    adc #$00
-    sta dest + 1
+    CLC
+    LDA op1
+    ADC val8
+    STA dest
+    LDA op1 + 1
+    ADC #$00
+    STA dest + 1
 .endmacro
 
 ;; ---------------------------------------------------------------------------
@@ -101,32 +101,32 @@
 ; Usage: SUB16 dest, op1, op2
 ;; ---------------------------------------------------------------------------
 .macro sub16 dest, op1, op2
-    sec
+    SEC
     .if (.match ({op2}, {#}))
-        lda op1
-        sbc #<(.right (1, {op2}))
-        sta dest
-        lda op1 + 1
-        sbc #>(.right (1, {op2}))
-        sta dest + 1
+    LDA op1
+    SBC #<(.right (1, {op2}))
+    STA dest
+    LDA op1 + 1
+    SBC #>(.right (1, {op2}))
+    STA dest + 1
     .else
-        lda op1
-        sbc op2
-        sta dest
-        lda op1 + 1
-        sbc op2 + 1
-        sta dest + 1
+    LDA op1
+    SBC op2
+    STA dest
+    LDA op1 + 1
+    SBC op2 + 1
+    STA dest + 1
     .endif
 .endmacro
 
 .macro sub16i dest, op1, val
-    sec
-    lda op1
-    sbc #<(val)
-    sta dest
-    lda op1 + 1
-    sbc #>(val)
-    sta dest + 1
+    SEC
+    LDA op1
+    SBC #<(val)
+    STA dest
+    LDA op1 + 1
+    SBC #>(val)
+    STA dest + 1
 .endmacro
 
 ;; ---------------------------------------------------------------------------
@@ -134,8 +134,8 @@
 ; Usage: ASL16 ptr
 ;; ---------------------------------------------------------------------------
 .macro asl16 ptr
-    asl ptr
-    rol ptr + 1
+    ASL ptr
+    ROL ptr + 1
 .endmacro
 
 ;; ---------------------------------------------------------------------------
@@ -144,14 +144,14 @@
 ;; ---------------------------------------------------------------------------
 .macro mov16 dest, src
     .if (.match ({src}, {#}))
-        lda #<(.right (1, {src}))
-        sta dest
-        lda #>(.right (1, {src}))
-        sta dest + 1
+    LDA #<(.right (1, {src}))
+    STA dest
+    LDA #>(.right (1, {src}))
+    STA dest + 1
     .else
-        lda src
-        sta dest
-        lda src + 1
-        sta dest + 1
+    LDA src
+    STA dest
+    LDA src + 1
+    STA dest + 1
     .endif
 .endmacro
