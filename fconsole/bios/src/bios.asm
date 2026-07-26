@@ -2,6 +2,7 @@
 ; Target: ca65 assembler from cc65 toolchain
 
         .include "branches.inc"
+        .include "math.inc"
 
         .export _irq_handler
         .export _reset_handler
@@ -22,14 +23,6 @@
         PHA
         LDA P + 1
         PHA
-.endmacro
-
-
-.macro LOAD_PTR PTR, ADDR 
-        LDA #<ADDR
-        STA PTR
-        LDA #>ADDR
-        STA PTR + 1
 .endmacro
 
 
@@ -62,7 +55,6 @@
 .ENDMacro
 
 
-
 SCREEN_COLS = 40
 SCREEN_ROWS = 25
 
@@ -75,8 +67,7 @@ END_REGION_COLOR_RAM   = START_REGION_COLOR_RAM + (40 * 25)
 DEFAULT_COLOR = $6F
 DEFAULT_SCREEN_CHAR = ' '
 
-
-        .segment "ZEROPAGE"
+.segment "ZEROPAGE"
 TMP_PTR: .res 2
 PRINT_PTR: .res 2
 FILCHAR: .res 1
@@ -199,7 +190,7 @@ COLOR_PTR: .res 2
 TOTAL_SCROLL_BYTES = (SCREEN_ROWS - 1) * SCREEN_COLS  ; 24 * 40 = 960 ($03C0)
 PAGES_TO_COPY      = TOTAL_SCROLL_BYTES >> 8           ; 960 / 256 = 3 full pages
 REM_BYTES_TO_COPY  = TOTAL_SCROLL_BYTES & $FF          ; 960 % 256 = 192 bytes ($C0)
-BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 1) * SCREEN_COLS) - SCREEN_COLS  ; Start of row 24 (960 / $03C0)
+BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 2) * SCREEN_COLS)  ; Start of row 24 (960 / $03C0)
 
 ; ============================================================================
 ; Routine: SCROLL_UP
@@ -380,32 +371,14 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 1) * SCREEN_COLS) - SCREEN_COLS  ; Start of
 
 
 .proc CLEAR_SCREEN
-        PHA
-        LDA #<START_REGION_CHAR_RAM
-        STA TMP_PTR
-        LDA #>START_REGION_CHAR_RAM
-        STA TMP_PTR + 1
-
-        LDA #<END_REGION_CHAR_RAM
-        STA PRINT_PTR
-        LDA #>END_REGION_CHAR_RAM
-        STA PRINT_PTR + 1
-        PLA
+        LOAD_PTR TMP_PTR, START_REGION_CHAR_RAM
+        LOAD_PTR PRINT_PTR, END_REGION_CHAR_RAM 
 
         LDA #DEFAULT_SCREEN_CHAR        ; Fill value
         JSR MEMFILL_SLOW
 
-        PHA
-        LDA #<START_REGION_COLOR_RAM
-        STA TMP_PTR
-        LDA #>START_REGION_COLOR_RAM
-        STA TMP_PTR + 1
-
-        LDA #<END_REGION_COLOR_RAM
-        STA PRINT_PTR
-        LDA #>END_REGION_COLOR_RAM
-        STA PRINT_PTR + 1
-        PLA
+        LOAD_PTR TMP_PTR, START_REGION_COLOR_RAM
+        LOAD_PTR PRINT_PTR, END_REGION_COLOR_RAM 
 
         LDA #DEFAULT_COLOR        ; Fill value
         JSR MEMFILL_SLOW
@@ -413,7 +386,6 @@ BOTTOM_ROW_OFFSET  = ((SCREEN_ROWS - 1) * SCREEN_COLS) - SCREEN_COLS  ; Start of
         LDX #$00
         STX CURSX
         STX CURSY
-
 
         RTS
 .endproc
@@ -527,13 +499,8 @@ ll:
         DEY
         BPL ll
 
-
         ; Set pointer in Zero Page
-        LDA #<msg_welcome
-        STA PRINT_PTR
-        LDA #>msg_welcome
-        STA PRINT_PTR + 1
-
+        LOAD_PTR PRINT_PTR, msg_welcome
 
         ; Set desired start position & color
         LDA #5
@@ -543,10 +510,8 @@ ll:
         LDA #$0F                ; White text
         STA CURRENT_COLOR
 
-
         LDA #'!'
         STA $E3C0 - 40
-halt:
 
         LDX #$27 + 1
 ploop:
@@ -556,12 +521,12 @@ ploop:
         DEX
         BNE ploop
 
+halt:
         JMP halt        ; Safely trap CPU here when done
 
 
 msg_welcome:
     pstring "Welcome to Yahtzee A8!"
-
 
 
 ; ============================================================================
