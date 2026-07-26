@@ -360,6 +360,18 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 .endproc
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input:
+;   TMP_PTR   = first address to fill
+;   PRINT_PTR = exclusive end address
+;   A         = fill byte
+;
+; Requires:
+;   TMP_PTR <= PRINT_PTR
+;
+; Clobbers:
+;   A, X, Y, TMP_PTR
+
 .proc MEMFILL_FAST
         TAX                 ; X = fill byte
 
