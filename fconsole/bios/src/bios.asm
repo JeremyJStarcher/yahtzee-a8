@@ -278,21 +278,19 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 @done:
         RTS
 .endproc
-; ============================================================================
+
 ; Routine: SET_CURSOR
 ; Description:
-;   Plots a single character to the screen at position (CURSX, CURSY) and updates
-;   the corresponding tile in Color RAM with CURRENT_COLOR.
+;   Calculates the Character RAM and Color RAM addresses corresponding
+;   to the current CURSX and CURSY coordinates.
 ;
-; Inputs:
-;   CURSX      - Screen X coordinate
-;   CURSY      - Screen Y coordinate
+; Outputs:
+;   CHAR_PTR  - Address in Character RAM
+;   COLOR_PTR - Corresponding address in Color RAM
 ;
-; Zero Page Working Registers:
-;   CHAR_PTR   - Holds 16-bit target address in Character RAM
-;   COLOR_PTR  - Holds 16-bit target address in Color RAM
-;   TMP_PTR     - Temporary 16-bit scratch buffer for row offset math
-; ============================================================================
+; Clobbers:
+;   A, flags, TMP_PTR, CHAR_PTR, COLOR_PTR
+
 .proc SET_CURSOR
         ;; -------------------------------------------------------------------
         ;; Step 1: Calculate Row Offset = (CURSY * 40)
@@ -349,7 +347,7 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
         LOAD16 TMP_PTR, START_REGION_COLOR_RAM
         LOAD16 PRINT_PTR, END_REGION_COLOR_RAM
 
-        LDA CURRENT_COLOR               ; Save that.
+        LDA CURRENT_COLOR
         JSR MEMFILL_FAST
 
         LDX #$00
