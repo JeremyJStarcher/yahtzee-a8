@@ -65,6 +65,22 @@
     .endif
 .endmacro
 
+
+;; ---------------------------------------------------------------------------
+; 16-Bit Addition with Immediate/Constant Value
+; Usage: ADD16I dest, op1, START_REGION_CHAR_RAM
+;        ADD16I CHAR_PTR, CHAR_PTR, 40
+;; ---------------------------------------------------------------------------
+.macro ADD16I dest, op1, val
+    clc
+    lda op1
+    adc #<(val)
+    sta dest
+    lda op1 + 1
+    adc #>(val)
+    sta dest + 1
+.endmacro
+
 ;; ---------------------------------------------------------------------------
 ; 16-Bit Subtraction: dest = op1 - op2
 ; Usage: SUB16 dest, op1, op2
@@ -86,6 +102,16 @@
         sbc op2 + 1
         sta dest + 1
     .endif
+.endmacro
+
+.macro SUB16I dest, op1, val
+    sec
+    lda op1
+    sbc #<(val)
+    sta dest
+    lda op1 + 1
+    sbc #>(val)
+    sta dest + 1
 .endmacro
 
 ;; ---------------------------------------------------------------------------
