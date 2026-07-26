@@ -176,7 +176,6 @@ COLOR_PTR: .res 2
         CMP #SCREEN_ROWS
         BNE @noscroll
         JSR SCROLL_UP
-        DEC CURSY
 @noscroll:
         POPALL
         RTS
@@ -234,7 +233,7 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
         BPL @clear_bottom
 
         ; Clamp cursor to bottom row
-        LDA #SCREEN_ROWS
+        LDA #(SCREEN_ROWS - 1)
         STA CURSY
 
         POP_PTR TMP_PTR
@@ -586,7 +585,7 @@ line_19: pstring "Line: 19"
 line_20: pstring "Line: 20"
 line_21: pstring "Line: 21"
 line_22: pstring "Line: 22"
-line_23: pstring "Line: 23"
+line_23: pstring "****************************************"
 line_24: pstring "Line: 24"
 line_25: pstring "Line: 25"
 line_26: pstring "Line: 26"
