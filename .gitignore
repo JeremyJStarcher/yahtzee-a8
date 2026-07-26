@@ -1,7 +1,7 @@
-.venv/
-codegen/__pycache__/
+__pycache__
 *.pyc
 *.o
 *.bin
 *.bin.map
 fconsole/bios/bios.lst
+venv/hosts

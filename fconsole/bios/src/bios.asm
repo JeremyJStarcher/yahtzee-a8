@@ -546,6 +546,7 @@ ll:
 
         LDA #'!'
         STA $E3C0 - 40
+halt:
 
         LDX #$27 + 1
 ploop:
@@ -554,7 +555,6 @@ ploop:
         POPALL
         DEX
         BNE ploop
-halt:
 
         JMP halt        ; Safely trap CPU here when done
 
