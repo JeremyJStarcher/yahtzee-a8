@@ -1,55 +1,55 @@
 ; Simple 6502 BIOS/Kernel Assembly Source
 ; Target: ca65 assembler from cc65 toolchain
 
-        .include "branches.inc"
-        .include "math.inc"
+    .include "branches.inc"
+    .include "math.inc"
 
-        .export _irq_handler
-        .export _reset_handler
-        .export _nmi_handler
-        .export JTCLS
-        .exportzp CURSX
-        .exportzp CURSY
+    .export _irq_handler
+    .export _reset_handler
+    .export _nmi_handler
+    .export JTCLS
+    .exportzp CURSX
+    .exportzp CURSY
 
-        .segment "CODE"
+    .segment "CODE"
 
 .macro pstring str
     .byte .strlen(str), str
 .endmacro
 
-.MACRO PUSH_PTR P
-        LDA P
-        PHA
-        LDA P + 1
-        PHA
+.macro push_ptr P
+    LDA P
+    PHA
+    LDA P + 1
+    PHA
 .endmacro
 
-.MACRO POP_PTR P
-        PLA
-        STA P + 1
-        PLA
-        STA P
+.macro pop_ptr P
+    PLA
+    STA P + 1
+    PLA
+    STA P
 .endmacro
 
-.MACRO PUSHALL
-    php           ; Push status register
-    STA SAVEA     ; Save the 'A' register while storing the others
-    pha           ; Push A
-    txa           ; X -> A
-    pha           ; Push X value in A
-    tya           ; Y -> A
-    pha           ; PUSH Y value in A
-    LDA SAVEA     ; And get our original 'A' back
-.ENDMacro
+.macro pushall
+    PHP                                     ; Push status register
+    STA SAVEA                               ; Save the 'A' register while storing the others
+    PHA                                     ; Push A
+    TXA                                     ; X -> A
+    PHA                                     ; Push X value in A
+    TYA                                     ; Y -> A
+    PHA                                     ; PUSH Y value in A
+    LDA SAVEA                               ; And get our original 'A' back
+.endmacro
 
-.MACRO POPALL
-    PLA           ; Get the pushed Y value
-    TAY           ; Transfer to Y
-    PLA           ; Get the pushed X value
-    TAX           ; Transfer to X
-    PLA           ; And then get A
-    plp           ; Pull status register
-.ENDMacro
+.macro popall
+    PLA                                     ; Get the pushed Y value
+    TAY                                     ; Transfer to Y
+    PLA                                     ; Get the pushed X value
+    TAX                                     ; Transfer to X
+    PLA                                     ; And then get A
+    PLP                                     ; Pull status register
+.endmacro
 
 
 SCREEN_COLS = 40
@@ -57,10 +57,10 @@ SCREEN_ROWS = 24
 SCREEN_SIZE = SCREEN_COLS * SCREEN_ROWS
 
 START_REGION_CHAR_RAM = $E000
-END_REGION_CHAR_RAM   = START_REGION_CHAR_RAM + SCREEN_SIZE
+END_REGION_CHAR_RAM = START_REGION_CHAR_RAM + SCREEN_SIZE
 
 START_REGION_COLOR_RAM = $C000
-END_REGION_COLOR_RAM   = START_REGION_COLOR_RAM + SCREEN_SIZE
+END_REGION_COLOR_RAM = START_REGION_COLOR_RAM + SCREEN_SIZE
 
 DEFAULT_COLOR = $6F
 DEFAULT_SCREEN_CHAR = ' '
@@ -82,10 +82,10 @@ CHAR_PTR: .res 2
 ; COLOR ram ptr
 COLOR_PTR: .res 2
 
-        .segment "CODE"
+    .segment "CODE"
 
 .proc DUMMY_ROUTINE
-        RTS
+    RTS
 .endproc
 
 ; ============================================================================
@@ -101,24 +101,24 @@ COLOR_PTR: .res 2
 ;   A, X, Y
 ; ============================================================================
 .proc PRINT_PSTRING
-        LDY #$00
-        LDA (PRINT_PTR),Y         ; Read 1-byte string length
-        TAX                     ; Store length in X
-        BEQ @done               ; Early exit if length is 0
+    LDY #$00
+    LDA (PRINT_PTR), Y                      ; Read 1-byte string length
+    TAX                                     ; Store length in X
+    BEQ @done                               ; Early exit if length is 0
 
 @loop:
-        INY                     ; Advance offset to the next character (starts at index 1)
-        LDA (PRINT_PTR),Y         ; Fetch character
+    INY                                     ; Advance offset to the next character (starts at index 1)
+    LDA (PRINT_PTR), Y                      ; Fetch character
 
-        PUSHALL
-        JSR DISPLAY_CHAR        ; Draw character & advance cursor
-        POPALL
+    pushall
+    JSR DISPLAY_CHAR                        ; Draw character & advance cursor
+    popall
 
-        DEX                     ; Decrement remaining byte count
-        BNE @loop               ; Continue until X reaches 0
+    DEX                                     ; Decrement remaining byte count
+    BNE @loop                               ; Continue until X reaches 0
 
 @done:
-        RTS
+    RTS
 .endproc
 
 ; ============================================================================
@@ -135,29 +135,29 @@ COLOR_PTR: .res 2
 ;   CURRENT_COLOR - Color code to write to Color RAM
 ; ============================================================================
 .proc DISPLAY_CHAR
-        PHA                     ; Save character
+    PHA                                     ; Save character
 
-        ; 1. Check if we need to scroll/wrap BEFORE drawing the character
-        LDA CURSX
-        CMP #SCREEN_COLS
-        BCC @ready_to_draw
+    ; 1. Check if we need to scroll/wrap BEFORE drawing the character
+    LDA CURSX
+    CMP #SCREEN_COLS
+    BCC @ready_to_draw
 
-        ; If CURSX >= 40, wrap line before printing this character
-        JSR DISPLAY_NEXT_LINE
+    ; If CURSX >= 40, wrap line before printing this character
+    JSR DISPLAY_NEXT_LINE
 
 @ready_to_draw:
-        ; 2. Calculate cursor location and draw character
-        JSR SET_CURSOR
+    ; 2. Calculate cursor location and draw character
+    JSR SET_CURSOR
 
-        LDY #$00
-        PLA                     ; Restore character
-        STA (CHAR_PTR),Y
-        LDA CURRENT_COLOR
-        STA (COLOR_PTR),Y
+    LDY #$00
+    PLA                                     ; Restore character
+    STA (CHAR_PTR), Y
+    LDA CURRENT_COLOR
+    STA (COLOR_PTR), Y
 
-        ; 3. Advance cursor X position
-        INC CURSX
-        RTS
+    ; 3. Advance cursor X position
+    INC CURSX
+    RTS
 .endproc
 
 
@@ -167,18 +167,18 @@ COLOR_PTR: .res 2
 ;   Resets CURSX to 0 and advances CURSY to the next line.
 ; ============================================================================
 .proc DISPLAY_NEXT_LINE
-        PUSHALL
-        LDA #$00
-        STA CURSX               ; Reset X to left margin
+    pushall
+    LDA #$00
+    STA CURSX                               ; Reset X to left margin
 
-        INC CURSY               ; Move down one line (0..23 -> 1..24)
-        LDA CURSY
-        CMP #SCREEN_ROWS
-        BCC @noscroll           ; CURSY < SCREEN_ROWS
-        JSR SCROLL_UP
+    INC CURSY                               ; Move down one line (0..23 -> 1..24)
+    LDA CURSY
+    CMP #SCREEN_ROWS
+    BCC @noscroll                           ; CURSY < SCREEN_ROWS
+    JSR SCROLL_UP
 @noscroll:
-        POPALL
-        RTS
+    popall
+    RTS
 .endproc
 
 ; ============================================================================
@@ -187,9 +187,9 @@ COLOR_PTR: .res 2
 ; Copy rows 1..23 into rows 0..22.
 ; The final row is cleared separately.
 TOTAL_SCROLL_BYTES = (SCREEN_ROWS - 1) * SCREEN_COLS
-PAGES_TO_COPY      = TOTAL_SCROLL_BYTES >> 8
-REM_BYTES_TO_COPY  = TOTAL_SCROLL_BYTES & $FF
-BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
+PAGES_TO_COPY = TOTAL_SCROLL_BYTES >> 8
+REM_BYTES_TO_COPY = TOTAL_SCROLL_BYTES & $FF
+BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 
 ; ============================================================================
 ; Routine: SCROLL_UP
@@ -198,85 +198,85 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 ;   Clears the bottom row and clamps CURSY to SCREEN_ROWS - 1.
 ; ============================================================================
 .proc SCROLL_UP
-        PUSHALL
-        PUSH_PTR PRINT_PTR
-        PUSH_PTR TMP_PTR
+    pushall
+    push_ptr PRINT_PTR
+    push_ptr TMP_PTR
 
-        ; --------------------------------------------------------------------
-        ; Step 1: Scroll Character RAM
-        ; --------------------------------------------------------------------
-        LOAD16 PRINT_PTR, (START_REGION_CHAR_RAM + SCREEN_COLS)
-        LOAD16 TMP_PTR, START_REGION_CHAR_RAM
+    ; --------------------------------------------------------------------
+    ; Step 1: Scroll Character RAM
+    ; --------------------------------------------------------------------
+    load16 PRINT_PTR, (START_REGION_CHAR_RAM + SCREEN_COLS)
+    load16 TMP_PTR, START_REGION_CHAR_RAM
 
-        JSR copy_vram_block
+    JSR copy_vram_block
 
-        ; --------------------------------------------------------------------
-        ; Step 2: Scroll Color RAM
-        ; --------------------------------------------------------------------
-        LOAD16 PRINT_PTR, (START_REGION_COLOR_RAM + SCREEN_COLS)
-        LOAD16 TMP_PTR, START_REGION_COLOR_RAM
+    ; --------------------------------------------------------------------
+    ; Step 2: Scroll Color RAM
+    ; --------------------------------------------------------------------
+    load16 PRINT_PTR, (START_REGION_COLOR_RAM + SCREEN_COLS)
+    load16 TMP_PTR, START_REGION_COLOR_RAM
 
-        JSR copy_vram_block
+    JSR copy_vram_block
 
-        ; --------------------------------------------------------------------
-        ; Step 3: Clear Bottom Row
-        ; --------------------------------------------------------------------
-        LDY #(SCREEN_COLS - 1)
+    ; --------------------------------------------------------------------
+    ; Step 3: Clear Bottom Row
+    ; --------------------------------------------------------------------
+    LDY #(SCREEN_COLS - 1)
 @clear_bottom:
 
-        LDA #DEFAULT_SCREEN_CHAR
-        STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET,Y
-        LDA CURRENT_COLOR
-        STA START_REGION_COLOR_RAM + BOTTOM_ROW_OFFSET,Y
-        DEY
+    LDA #DEFAULT_SCREEN_CHAR
+    STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET, Y
+    LDA CURRENT_COLOR
+    STA START_REGION_COLOR_RAM + BOTTOM_ROW_OFFSET, Y
+    DEY
 
-        BPL @clear_bottom
+    BPL @clear_bottom
 
-        ; Clamp cursor to bottom row
-        LDA #(SCREEN_ROWS - 1)
-        STA CURSY
+    ; Clamp cursor to bottom row
+    LDA #(SCREEN_ROWS - 1)
+    STA CURSY
 
-        POP_PTR TMP_PTR
-        POP_PTR PRINT_PTR
-        POPALL
-        RTS
+    pop_ptr TMP_PTR
+    pop_ptr PRINT_PTR
+    popall
+    RTS
 .endproc
 
 ; ----------------------------------------------------------------------------
 ; Internal Helper: Copies TOTAL_SCROLL_BYTES from PRINT_PTR to TMP_PTR
 ; ----------------------------------------------------------------------------
 .proc copy_vram_block
-        ; --- Copy Full 256-byte Pages ---
-        LDX #PAGES_TO_COPY
-        BEQ @remaining
+    ; --- Copy Full 256-byte Pages ---
+    LDX #PAGES_TO_COPY
+    BEQ @remaining
 
-        LDY #$00
+    LDY #$00
 @page_loop:
-        LDA (PRINT_PTR),Y
-        STA (TMP_PTR),Y
-        INY
-        BNE @page_loop
+    LDA (PRINT_PTR), Y
+    STA (TMP_PTR), Y
+    INY
+    BNE @page_loop
 
-        INC PRINT_PTR + 1
-        INC TMP_PTR + 1
-        DEX
-        BNE @page_loop
+    INC PRINT_PTR + 1
+    INC TMP_PTR + 1
+    DEX
+    BNE @page_loop
 
-        ; Copy remaining
+    ; Copy remaining
 @remaining:
-        LDY #$00
-        CPY #REM_BYTES_TO_COPY
-        BEQ @done
+    LDY #$00
+    CPY #REM_BYTES_TO_COPY
+    BEQ @done
 
 @rem_loop:
-        LDA (PRINT_PTR),Y
-        STA (TMP_PTR),Y
-        INY
-        CPY #REM_BYTES_TO_COPY
-        BNE @rem_loop
+    LDA (PRINT_PTR), Y
+    STA (TMP_PTR), Y
+    INY
+    CPY #REM_BYTES_TO_COPY
+    BNE @rem_loop
 
 @done:
-        RTS
+    RTS
 .endproc
 
 ; Routine: SET_CURSOR
@@ -292,69 +292,69 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 ;   A, flags, TMP_PTR, CHAR_PTR, COLOR_PTR
 
 .proc SET_CURSOR
-        ;; -------------------------------------------------------------------
-        ;; Step 1: Calculate Row Offset = (CURSY * 40)
-        ;;
-        ;; Since the 6502 lacks a hardware multiply instruction, we decompose
-        ;; 40 into powers of two: 40 = 32 + 8 = (Y * 32) + (Y * 8).
-        ;; We calculate (Y * 8) first via 3 bitwise left shifts (ASL/ROL).
-        ;; -------------------------------------------------------------------
-        LDA CURSY
-        STA CHAR_PTR            ; Initialize low byte accumulator
-        LDA #$00
-        STA CHAR_PTR + 1        ; Initialize high byte accumulator
+    ;; -------------------------------------------------------------------
+    ;; Step 1: Calculate Row Offset = (CURSY * 40)
+    ;;
+    ;; Since the 6502 lacks a hardware multiply instruction, we decompose
+    ;; 40 into powers of two: 40 = 32 + 8 = (Y * 32) + (Y * 8).
+    ;; We calculate (Y * 8) first via 3 bitwise left shifts (ASL/ROL).
+    ;; -------------------------------------------------------------------
+    LDA CURSY
+    STA CHAR_PTR                            ; Initialize low byte accumulator
+    LDA #$00
+    STA CHAR_PTR + 1                        ; Initialize high byte accumulator
 
-        ASL16 CHAR_PTR
-        ASL16 CHAR_PTR
-        ASL16 CHAR_PTR
+    asl16 CHAR_PTR
+    asl16 CHAR_PTR
+    asl16 CHAR_PTR
 
-        ;; Save intermediate result (CURSY * 8) into temporary zero-page storage
-        MOV16 TMP_PTR, CHAR_PTR
+    ;; Save intermediate result (CURSY * 8) into temporary zero-page storage
+    mov16 TMP_PTR, CHAR_PTR
 
-        ;; Shift two more times: (CURSY * 8) * 4 = (CURSY * 32)
-        ASL16 CHAR_PTR
-        ASL16 CHAR_PTR
+    ;; Shift two more times: (CURSY * 8) * 4 = (CURSY * 32)
+    asl16 CHAR_PTR
+    asl16 CHAR_PTR
 
-        ;; Add (CURSY * 8) to (CURSY * 32) to yield (CURSY * 40)
-        ADD16 CHAR_PTR, CHAR_PTR, TMP_PTR
+    ;; Add (CURSY * 8) to (CURSY * 32) to yield (CURSY * 40)
+    add16 CHAR_PTR, CHAR_PTR, TMP_PTR
 
-        ;; -------------------------------------------------------------------
-        ;; Step 2: Add Column Offset (CURSX)
-        ;; -------------------------------------------------------------------
-        ADD16_8 CHAR_PTR, CHAR_PTR, CURSX
+    ;; -------------------------------------------------------------------
+    ;; Step 2: Add Column Offset (CURSX)
+    ;; -------------------------------------------------------------------
+    add16_8 CHAR_PTR, CHAR_PTR, CURSX
 
-        ;; -------------------------------------------------------------------
-        ;; Step 3: Compute Base Pointers
-        ;;
-        ;; 3a. Add START_REGION_CHAR_RAM ($E000) to complete CHAR_PTR
-        ;; -------------------------------------------------------------------
-        ADD16I CHAR_PTR, CHAR_PTR, START_REGION_CHAR_RAM
+    ;; -------------------------------------------------------------------
+    ;; Step 3: Compute Base Pointers
+    ;;
+    ;; 3a. Add START_REGION_CHAR_RAM ($E000) to complete CHAR_PTR
+    ;; -------------------------------------------------------------------
+    add16i CHAR_PTR, CHAR_PTR, START_REGION_CHAR_RAM
 
-        ;; 3b. Derive COLOR_PTR from CHAR_PTR
-        SUB16I COLOR_PTR, CHAR_PTR, (START_REGION_CHAR_RAM - START_REGION_COLOR_RAM)
+    ;; 3b. Derive COLOR_PTR from CHAR_PTR
+    sub16i COLOR_PTR, CHAR_PTR, (START_REGION_CHAR_RAM - START_REGION_COLOR_RAM)
 
-        RTS
+    RTS
 .endproc
 
 
 .proc CLEAR_SCREEN
-        LOAD16 TMP_PTR, START_REGION_CHAR_RAM
-        LOAD16 PRINT_PTR, END_REGION_CHAR_RAM
+    load16 TMP_PTR, START_REGION_CHAR_RAM
+    load16 PRINT_PTR, END_REGION_CHAR_RAM
 
-        LDA #DEFAULT_SCREEN_CHAR        ; Fill value
-        JSR MEMFILL_FAST
+    LDA #DEFAULT_SCREEN_CHAR                ; Fill value
+    JSR MEMFILL_FAST
 
-        LOAD16 TMP_PTR, START_REGION_COLOR_RAM
-        LOAD16 PRINT_PTR, END_REGION_COLOR_RAM
+    load16 TMP_PTR, START_REGION_COLOR_RAM
+    load16 PRINT_PTR, END_REGION_COLOR_RAM
 
-        LDA CURRENT_COLOR
-        JSR MEMFILL_FAST
+    LDA CURRENT_COLOR
+    JSR MEMFILL_FAST
 
-        LDX #$00
-        STX CURSX
-        STX CURSY
+    LDX #$00
+    STX CURSX
+    STX CURSY
 
-        RTS
+    RTS
 .endproc
 
 
@@ -371,216 +371,216 @@ BOTTOM_ROW_OFFSET  = (SCREEN_ROWS - 1) * SCREEN_COLS
 ;   A, X, Y, TMP_PTR
 
 .proc MEMFILL_FAST
-        TAX                 ; X = fill byte
+    TAX                                     ; X = fill byte
 
-        ; --------------------------------------------------------------------
-        ; Phase 1: Clear partial start page up to the $xx00 boundary
-        ; --------------------------------------------------------------------
-        LDY #$00
+    ; --------------------------------------------------------------------
+    ; Phase 1: Clear partial start page up to the $xx00 boundary
+    ; --------------------------------------------------------------------
+    LDY #$00
 @ALIGN_LOOP:
-        LDA TMP_PTR          ; Check if low byte is $00 (page aligned)
-        BEQ @FILL_PAGES     ; If TMP_PTR points to $xx00, head alignment is done!
+    LDA TMP_PTR                             ; Check if low byte is $00 (page aligned)
+    BEQ @FILL_PAGES                         ; If TMP_PTR points to $xx00, head alignment is done!
 
-        ; Check if TMP_PTR has already hit PRINT_PTR before we finish aligning
-        CMP PRINT_PTR
-        BNE @ALIGN_WRITE
-        LDA TMP_PTR+1
-        CMP PRINT_PTR+1
-        BEQ @DONE           ; Reached PRINT_PTR during alignment phase!
+    ; Check if TMP_PTR has already hit PRINT_PTR before we finish aligning
+    CMP PRINT_PTR
+    BNE @ALIGN_WRITE
+    LDA TMP_PTR+1
+    CMP PRINT_PTR+1
+    BEQ @DONE                               ; Reached PRINT_PTR during alignment phase!
 
 @ALIGN_WRITE:
-        TXA
-        STA (TMP_PTR),Y
-        INC TMP_PTR
-        BNE @ALIGN_LOOP
-        INC TMP_PTR+1
+    TXA
+    STA (TMP_PTR), Y
+    INC TMP_PTR
+    BNE @ALIGN_LOOP
+    INC TMP_PTR+1
 
-        ; --------------------------------------------------------------------
-        ; Phase 2: Clear whole 256-byte pages
-        ; --------------------------------------------------------------------
+    ; --------------------------------------------------------------------
+    ; Phase 2: Clear whole 256-byte pages
+    ; --------------------------------------------------------------------
 @FILL_PAGES:
-        LDA TMP_PTR+1
-        CMP PRINT_PTR+1
-        BEQ @FILL_REMAINDER ; High bytes match -> only partial tail page left!
+    LDA TMP_PTR+1
+    CMP PRINT_PTR+1
+    BEQ @FILL_REMAINDER                     ; High bytes match -> only partial tail page left!
 
-        TXA
+    TXA
 @PAGE_LOOP:
-        STA (TMP_PTR),Y      ; Write byte at (TMP_PTR) + Y
-        INY                 ; 8-bit increment (very fast!)
-        BNE @PAGE_LOOP      ; Loops 256 times until Y wraps back to $00
+    STA (TMP_PTR), Y                        ; Write byte at (TMP_PTR) + Y
+    INY                                     ; 8-bit increment (very fast!)
+    BNE @PAGE_LOOP                          ; Loops 256 times until Y wraps back to $00
 
-        INC TMP_PTR+1        ; Advance to next 256-byte page
-        JMP @FILL_PAGES
+    INC TMP_PTR+1                           ; Advance to next 256-byte page
+    JMP @FILL_PAGES
 
-        ; --------------------------------------------------------------------
-        ; Phase 3: Clear the remaining partial page
-        ; --------------------------------------------------------------------
+    ; --------------------------------------------------------------------
+    ; Phase 3: Clear the remaining partial page
+    ; --------------------------------------------------------------------
 @FILL_REMAINDER:
-        ; Y is currently $00. We fill from $00 up to PRINT_PTR low byte.
-        TXA
+    ; Y is currently $00. We fill from $00 up to PRINT_PTR low byte.
+    TXA
 @TAIL_LOOP:
-        CPY PRINT_PTR          ; Reached remaining byte count?
-        BEQ @DONE
-        STA (TMP_PTR),Y      ; Write remaining bytes
-        INY
-        JMP @TAIL_LOOP
+    CPY PRINT_PTR                           ; Reached remaining byte count?
+    BEQ @DONE
+    STA (TMP_PTR), Y                        ; Write remaining bytes
+    INY
+    JMP @TAIL_LOOP
 
 @DONE:
-        RTS
+    RTS
 .endproc
 
 ; ============================================================================
 ; Reset Handler
 ; ============================================================================
 _reset_handler:
-        SEI             ; Disable interrupts
-        LDX #$FF
-        TXS             ; Reset stack pointer to $01FF
-        CLD             ; Clear decimal flag
+    SEI                                     ; Disable interrupts
+    LDX #$FF
+    TXS                                     ; Reset stack pointer to $01FF
+    CLD                                     ; Clear decimal flag
 
 
-        LDA #DEFAULT_COLOR        ; Fill value
-        STA CURRENT_COLOR
-        JSR CLEAR_SCREEN
+    LDA #DEFAULT_COLOR                      ; Fill value
+    STA CURRENT_COLOR
+    JSR CLEAR_SCREEN
 
 
-        ; Set pointer in Zero Page
-        LOAD16 PRINT_PTR, msg_welcome
+    ; Set pointer in Zero Page
+    load16 PRINT_PTR, msg_welcome
 
-        ; Set desired start position & color
-        LDA #5
-        STA CURSX
-        LDA #2
-        STA CURSY
-        LDA #$0F                ; White text
-        STA CURRENT_COLOR
+    ; Set desired start position & color
+    LDA #5
+    STA CURSX
+    LDA #2
+    STA CURSY
+    LDA #$0F                                ; White text
+    STA CURRENT_COLOR
 
-        LDA #'!'
-        STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET
+    LDA # '!'
+    STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET
 
-        LDX #$27 + 3
+    LDX #$27 + 3
 ploop:
-        PUSHALL
-        JSR PRINT_PSTRING
-        POPALL
-        DEX
-        BNE ploop
+    pushall
+    JSR PRINT_PSTRING
+    popall
+    DEX
+    BNE ploop
 
 
-        LDA #$A0
-        STA CURRENT_COLOR
+    LDA #$A0
+    STA CURRENT_COLOR
 
 
-        LDA #0
-        STA CURSX
-        LDA #0
-        STA CURSY
+    LDA #0
+    STA CURSX
+    LDA #0
+    STA CURSY
 
-        LOAD16 PRINT_PTR, line_1
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_1
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_2
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_2
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_3
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_3
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_4
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_4
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_5
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_5
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_6
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_6
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_7
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_7
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_8
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_8
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_9
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_9
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_10
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_10
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
 
 
-        LOAD16 PRINT_PTR, line_11
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_11
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_12
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_12
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_13
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_13
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_14
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_14
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_15
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_15
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_16
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_16
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_17
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_17
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_18
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_18
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_19
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_19
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_20
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_20
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_21
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_21
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_22
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_22
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_23
-        JSR PRINT_PSTRING
-        JSR DISPLAY_NEXT_LINE
+    load16 PRINT_PTR, line_23
+    JSR PRINT_PSTRING
+    JSR DISPLAY_NEXT_LINE
 
-        LOAD16 PRINT_PTR, line_24
-        JSR PRINT_PSTRING
+    load16 PRINT_PTR, line_24
+    JSR PRINT_PSTRING
 
 halt:
 
-        JMP halt        ; Safely trap CPU here when done
-        STA CURRENT_COLOR
+    JMP halt                                ; Safely trap CPU here when done
+    STA CURRENT_COLOR
 
 
 msg_welcome:
-        pstring "Welcome to Yahtzee A8!"
+    pstring "Welcome to Yahtzee A8!"
 
 
 line_1: pstring "Line: 1"
@@ -617,19 +617,19 @@ line_29: pstring "Line: 29"
 ; Interrupt Handlers
 ; ============================================================================
 _nmi_handler:
-        RTI
+    RTI
 
 _irq_handler:
-        RTI
+    RTI
 
-        ; Fixed entry points just before the vector table.
-        ; These addresses are anchored by the JUMPTABLE segment in bios.cfg.
-        .segment "JUMPTABLE"
-        .export JTCLS
-        .export JTDUMMY
+    ; Fixed entry points just before the vector table.
+    ; These addresses are anchored by the JUMPTABLE segment in bios.cfg.
+    .segment "JUMPTABLE"
+    .export JTCLS
+    .export JTDUMMY
 
 JTDUMMY:
-        JMP DUMMY_ROUTINE
+    JMP DUMMY_ROUTINE
 
-        .segment "JUMPTABLE"
-JTCLS:  JMP CLEAR_SCREEN
+    .segment "JUMPTABLE"
+JTCLS: JMP CLEAR_SCREEN
