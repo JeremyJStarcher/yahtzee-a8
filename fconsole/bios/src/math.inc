@@ -81,6 +81,21 @@
     sta dest + 1
 .endmacro
 
+
+;; ---------------------------------------------------------------------------
+; 16  / 8 Bit Addition with Immediate/Constant Value
+; Usage: ADD16_8 (16 bit)dest, (16 bit)op1, (8 bit)op2
+;; ---------------------------------------------------------------------------
+.macro ADD16_8 dest, op1, val8
+    clc
+    lda op1
+    adc val8
+    sta dest
+    lda op1 + 1
+    adc #$00
+    sta dest + 1
+.endmacro
+
 ;; ---------------------------------------------------------------------------
 ; 16-Bit Subtraction: dest = op1 - op2
 ; Usage: SUB16 dest, op1, op2
