@@ -437,185 +437,25 @@ _reset_handler:
     LDX #$FF
     TXS                                 ; Reset stack pointer to $01FF
     CLD                                 ; Clear decimal flag
-
+    CLI                                 ; Interrupts!
 
     LDA #DEFAULT_COLOR                  ; Fill value
     STA CURRENT_COLOR
     JSR CLEAR_SCREEN
 
-
     ; Set pointer in Zero Page
     load16 PRINT_PTR, msg_welcome
-
-    ; Set desired start position & color
-    LDA #5
-    STA CURSX
-    LDA #2
-    STA CURSY
-    LDA #$0F                            ; White text
-    STA CURRENT_COLOR
-
-    LDA # '!'
-    STA START_REGION_CHAR_RAM + BOTTOM_ROW_OFFSET
-
-    LDX #$27 + 3
-ploop:
-    pushall
-    JSR PRINT_PSTRING
-    popall
-    DEX
-    BNE ploop
-
-
-    LDA #$A0
-    STA CURRENT_COLOR
-
-
-    LDA #0
-    STA CURSX
-    LDA #0
-    STA CURSY
-
-    load16 PRINT_PTR, line_1
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_2
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_3
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_4
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_5
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_6
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_7
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_8
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_9
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_10
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-
-
-    load16 PRINT_PTR, line_11
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_12
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_13
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_14
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_15
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_16
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_17
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_18
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_19
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_20
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_21
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_22
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_23
-    JSR PRINT_PSTRING
-    JSR DISPLAY_NEXT_LINE
-
-    load16 PRINT_PTR, line_24
     JSR PRINT_PSTRING
 
 halt:
-
     JMP halt                            ; Safely trap CPU here when done
-    STA CURRENT_COLOR
-
 
 msg_welcome:
-    pstring "Welcome to Yahtzee A8!"
+    pstring "Welcome to the Fantasy 6502 Console!"
 
-
-line_1: pstring "Line: 1"
-line_2: pstring "Line: 2"
-line_3: pstring "Line: 3"
-line_4: pstring "Line: 4"
-line_5: pstring "Line: 5"
-line_6: pstring "Line: 6"
-line_7: pstring "Line: 7"
-line_8: pstring "Line: 8"
-line_9: pstring "Line: 9"
-line_10: pstring "Line: 10"
-line_11: pstring "Line: 11"
-line_12: pstring "Line: 12"
-line_13: pstring "Line: 13"
-line_14: pstring "Line: 14"
-line_15: pstring "Line: 15"
-line_16: pstring "Line: 16"
-line_17: pstring "Line: 17"
-line_18: pstring "Line: 18"
-line_19: pstring "Line: 19"
-line_20: pstring "Line: 20"
-line_21: pstring "Line: 21"
-line_22: pstring "Line: 22"
-line_23: pstring "****************************************"
-line_24: pstring "Line: 24"
-line_25: pstring "Line: 25"
-line_26: pstring "Line: 26"
-line_27: pstring "Line: 27"
-line_28: pstring "Line: 28"
-line_29: pstring "Line: 29"
-
-; ============================================================================
-; Interrupt Handlers
-; ============================================================================
+    ; ============================================================================
+    ; Interrupt Handlers
+    ; ============================================================================
 _nmi_handler:
     RTI
 
