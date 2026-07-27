@@ -124,16 +124,9 @@ class SystemBus:
             MemoryRange(
                 name="ram",
                 start=0x0000,
-                len=0x8000,
+                len=0xE000,
                 read_cb=lambda offset: self.ram[offset],
                 write_cb=self._write_ram,
-            ),
-            MemoryRange(
-                name="colors",
-                start=0xC000,
-                len=screen_size,
-                read_cb=self._read_color_mem,
-                write_cb=self._write_color_mem,
             ),
             MemoryRange(
                 name="chars",
@@ -141,6 +134,13 @@ class SystemBus:
                 len=screen_size,
                 read_cb=self._read_char_mem,
                 write_cb=self._write_char_mem,
+            ),
+            MemoryRange(
+                name="colors",
+                start=0xE400,
+                len=screen_size,
+                read_cb=self._read_color_mem,
+                write_cb=self._write_color_mem,
             ),
             MemoryRange(
                 name="bios",
@@ -317,11 +317,11 @@ class FConsole:
         # Show the current PC in hex so we can verify it advances
         pc = self.cpu_module.cpu.pc
 
-        #vec = 0xFFFC
+        # vec = 0xFFFC
         vec = 0x00F0
 
         output_lines = [
-            #f"PC: {pc:04X}",
+            # f"PC: {pc:04X}",
             " A  X  Y SP NV-BDIZC Vector",
             "---------------------",
             f"{self.cpu_module.cpu.a:02X} "
@@ -336,16 +336,14 @@ class FConsole:
             f"{(self.cpu_module.cpu.p >> 2) & 1}"
             f"{(self.cpu_module.cpu.p >> 1) & 1}"
             f"{self.cpu_module.cpu.p & 1}"
-            f" {self.cpu_module.bus[vec+1]:02X}"
+            f" {self.cpu_module.bus[vec + 1]:02X}"
             f"{self.cpu_module.bus[vec]:02X}",
-            f""
             f"",
         ]
 
         output = "\n".join(output_lines)
         self.console_print(output)
         print(output)
-
 
     def _update_cpu_step_debug(self) -> None:
         """Advance the 6502 CPU one instruction per tick and show state."""
@@ -419,8 +417,6 @@ class FConsole:
             # self.vout._root.after(66, self._update_cpu_step)
             self.vout._root.after(0, self._update_cpu_step)
 
-
-
     def _update_cpu_step(self) -> None:
         """Advance the 6502 CPU instruction execution."""
         for _ in range(CYCLES_PER_FRAME):
@@ -429,8 +425,7 @@ class FConsole:
             n = self.cpu_module.bus[self.cpu_module.cpu.pc]
             # Break instruction
             if n == 0x00:
-              self._log_cpu_state_to_console()
-
+                self._log_cpu_state_to_console()
 
             if VID_DEBUG:
                 self._update_cpu_step_debug()
