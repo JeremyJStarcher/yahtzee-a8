@@ -52,6 +52,8 @@ format:
 	$(FMT) $(FMT_FLAGS) --in-place $(FORMAT_SOURCES)
 	@echo "Formatting complete."
 
+run:
+	(cd ../ ; make run)
 
 # Report files that require formatting.
 #

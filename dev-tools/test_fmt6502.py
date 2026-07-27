@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -249,6 +250,133 @@ def test_indexed_addressing() -> bool:
     return True
 
 
+def test_global_scope_operand_is_not_a_label() -> bool:
+    source = ".REPEAT ::SCREEN_ROWS,I\n"
+    result = format_text_with_diagnostics(source)
+    assert result.text == ".repeat ::SCREEN_ROWS, I\n", repr(result.text)
+    assert not result.diagnostics, [item.render() for item in result.diagnostics]
+    return True
+
+
+def test_scoped_label_still_parses() -> bool:
+    out, _ = format_line("outer::inner: lda #0")
+    assert out == "outer::inner: LDA #0", repr(out)
+    return True
+
+
+def _write_fake_builder(path: Path, *, formatting_sensitive: bool) -> None:
+    if formatting_sensitive:
+        lines = [
+            "from pathlib import Path",
+            "source = Path('main.asm').read_bytes()",
+            "Path('build').mkdir(exist_ok=True)",
+            "Path('build/bios.bin').write_bytes(source)",
+        ]
+    else:
+        lines = [
+            "from pathlib import Path",
+            "source = Path('main.asm').read_text(encoding='utf-8')",
+            "ops = []",
+            "for line in source.splitlines():",
+            "    code = line.split(';', 1)[0].strip()",
+            "    if not code:",
+            "        continue",
+            "    token = code.split(None, 1)[0].rstrip(':').upper()",
+            "    if token in {'LDA', 'RTS'}:",
+            "        ops.append(token)",
+            "image = bytearray([0xEA] * 0x1000)",
+            "if ops == ['LDA', 'RTS']:",
+            "    image[:3] = bytes([0xA9, 0x00, 0x60])",
+            "for offset, target in ((0xFFA, 0xF010), (0xFFC, 0xF000), (0xFFE, 0xF020)):",
+            "    image[offset] = target & 0xFF",
+            "    image[offset + 1] = target >> 8",
+            "Path('build').mkdir(exist_ok=True)",
+            "Path('build/bios.bin').write_bytes(image)",
+            "map_text = (",
+            "    'Exports list by name:\\n'",
+            "    '---------------------\\n'",
+            "    '_irq_handler              00F020 RLA    _nmi_handler              00F010 RLA\\n'",
+            "    '_reset_handler            00F000 RLA\\n\\n'",
+            ")",
+            "Path('build/bios.map').write_text(map_text, encoding='utf-8')",
+        ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_build_equivalence_harness_matches() -> bool:
+    verifier = Path(__file__).with_name("verify_build_equivalence.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp, "project")
+        root.mkdir()
+        Path(root, "main.asm").write_text("    lda #0\n    rts\n", encoding="utf-8")
+        _write_fake_builder(Path(root, "build.py"), formatting_sensitive=False)
+        command = f"{shlex.quote(sys.executable)} build.py"
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(verifier),
+                str(root),
+                "--build-command",
+                command,
+                "--artifact",
+                "build/bios.bin",
+                "--map-file",
+                "build/bios.map",
+                "--export",
+                "_reset_handler",
+                "--export",
+                "_nmi_handler",
+                "--export",
+                "_irq_handler",
+                "--rom-base",
+                "0xF000",
+                "--vector",
+                "NMI=0xFFFA",
+                "--vector",
+                "RESET=0xFFFC",
+                "--vector",
+                "IRQ=0xFFFE",
+                "--strict-format",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+        assert "MATCH: build/bios.bin" in completed.stdout
+        assert "MATCH: exports in build/bios.map" in completed.stdout
+        assert "MATCH: RESET @ $FFFC -> original $F000, formatted $F000" in completed.stdout
+    return True
+
+
+def test_build_equivalence_harness_detects_mismatch() -> bool:
+    verifier = Path(__file__).with_name("verify_build_equivalence.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp, "project")
+        root.mkdir()
+        Path(root, "main.asm").write_text("    lda #0\n", encoding="utf-8")
+        _write_fake_builder(Path(root, "build.py"), formatting_sensitive=True)
+        command = f"{shlex.quote(sys.executable)} build.py"
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(verifier),
+                str(root),
+                "--build-command",
+                command,
+                "--artifact",
+                "build/bios.bin",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 1, completed.stdout + completed.stderr
+        assert "MISMATCH: build/bios.bin" in completed.stdout
+        assert "first differing offset" in completed.stdout
+    return True
+
+
 def test_newline_conventions_preserved() -> bool:
     source = "lda #0\r\nsta $00\r\n"
     out = format_text(source)
@@ -366,6 +494,10 @@ TESTS = [
     ("Unterminated quote safety", test_unterminated_quote_is_reported_and_line_unchanged),
     ("Label plus pseudo-op", test_label_plus_pseudo_op),
     ("Indexed addressing", test_indexed_addressing),
+    ("Global-scope operand", test_global_scope_operand_is_not_a_label),
+    ("Scoped label", test_scoped_label_still_parses),
+    ("Build equivalence match", test_build_equivalence_harness_matches),
+    ("Build equivalence mismatch", test_build_equivalence_harness_detects_mismatch),
     ("Newline conventions", test_newline_conventions_preserved),
     ("Final newline state", test_final_newline_state_preserved),
     ("Idempotence", test_idempotence),

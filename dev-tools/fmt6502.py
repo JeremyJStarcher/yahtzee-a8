@@ -125,7 +125,7 @@ _DEFINITION_DIRECTIVES = frozenset({".macro", ".define"})
 _IDENTIFIER = r"[A-Za-z_@.?][A-Za-z0-9_@.?$]*"
 _SCOPED_IDENTIFIER = rf"{_IDENTIFIER}(?:::{_IDENTIFIER})*"
 _ASSIGNMENT_RE = re.compile(rf"(?:{_SCOPED_IDENTIFIER}|\*)\s*(?::=|=)")
-_LABEL_RE = re.compile(rf"{_SCOPED_IDENTIFIER}\s*:")
+_LABEL_RE = re.compile(rf"{_SCOPED_IDENTIFIER}\s*:(?!:)")
 
 
 def _split_line_ending(raw: str) -> tuple[str, str]:

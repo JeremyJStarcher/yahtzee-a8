@@ -3,6 +3,8 @@
 
     .include "branches.inc"
     .include "math.inc"
+    .include "hw_limits.inc"
+    .include "timer.mac"
 
     .export _irq_handler
     .export _reset_handler
@@ -10,6 +12,7 @@
     .export JTCLS
     .exportzp CURSX
     .exportzp CURSY
+
 
     .segment "CODE"
 
@@ -52,18 +55,6 @@
 .endmacro
 
 
-SCREEN_COLS = 40
-SCREEN_ROWS = 24
-SCREEN_SIZE = SCREEN_COLS * SCREEN_ROWS
-
-START_REGION_CHAR_RAM = $E000
-END_REGION_CHAR_RAM = START_REGION_CHAR_RAM + SCREEN_SIZE
-
-START_REGION_COLOR_RAM = $E400
-END_REGION_COLOR_RAM = START_REGION_COLOR_RAM + SCREEN_SIZE
-
-DEFAULT_COLOR = $6F
-DEFAULT_SCREEN_CHAR = ' '
 
 .segment "ZEROPAGE"
 TMP_PTR: .res 2
@@ -428,6 +419,18 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     RTS
 .endproc
 
+.proc reset_screen
+    LDA #DEFAULT_COLOR                  ; Fill value
+    STA CURRENT_COLOR
+    JSR CLEAR_SCREEN
+    RTS
+.endproc
+
+.proc medium_pause
+    pause_ms 2000
+    rts
+.endproc
+
 ; ============================================================================
 ; Reset Handler
 ; ============================================================================
@@ -438,31 +441,29 @@ _reset_handler:
     CLD                                 ; Clear decimal flag
     CLI                                 ; Interrupts!
 
-    LDA #DEFAULT_COLOR                  ; Fill value
-    STA CURRENT_COLOR
-    JSR CLEAR_SCREEN
+    JSR reset_screen
+    JSR video_test
+    JSR reset_screen
 
-    ; Set pointer in Zero Page
     load16 PRINT_PTR, msg_welcome
-
-                    jsr video_test
-
+    JSR PRINT_PSTRING
 halt:
     JMP halt                            ; Safely trap CPU here when done
 
 msg_welcome:
     pstring "Welcome to the Fantasy 6502 Console!"
 
-
-
 .proc video_test
+
+; Set pointer in Zero Page
+    load16 PRINT_PTR, msg_welcome
 
     LDX #100
 @ploop2:
     pushall
     JSR PRINT_PSTRING
     popall
-    DEX 
+    DEX
     BNE @ploop2
 
 
@@ -474,23 +475,41 @@ msg_welcome:
     STA CURRENT_COLOR
 
 
-    LDX #24
-@ploop3:
+    LDX #$00
+    STX CURSX
+    LDX #$01
+    STX CURSY
+
+
+.repeat ::SCREEN_ROWS, I
+.scope
+
+    JMP     @print
+
+@lstr:
+    pstring .sprintf("LINE # %d", I + 1)
+
+@print:
     pushall
-    JSR DISPLAY_NEXT_LINE
-    JSR PRINT_PSTRING
+    load16  PRINT_PTR, @lstr
+    JSR     PRINT_PSTRING
+
+    .if I <> ::SCREEN_ROWS-1
+    JSR     DISPLAY_NEXT_LINE
+    .endif
+
     popall
-    DEX 
-    BNE @ploop3
 
+.endscope
+.endrep
 
-  RtS
+    JSR medium_pause
+
+RTS
 .endproc
-
-
-    ; ============================================================================
-    ; Interrupt Handlers
-    ; ============================================================================
+; ============================================================================
+; Interrupt Handlers
+; ============================================================================
 _nmi_handler:
     RTI
 

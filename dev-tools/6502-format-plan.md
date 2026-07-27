@@ -330,3 +330,14 @@ This matches ca65’s `6502` CPU mode, which enables the base 6502 instruction s
 A future dialect option may select a different opcode set, but the selected set must replace or extend the base table explicitly. The formatter must never silently enable instructions from another processor family.
 
 Opcode recognition determines casing only. It does not, by itself, validate whether the operand uses an addressing mode supported by that particular instruction. Addressing-mode validation should be a separate optional feature so the formatter does not become an assembler.
+
+
+## 7 Bug fixes
+### 7.0
+
+Scoping rules around a label are not understood. This causes a failure
+
+```
+.repeat ::SCREEN_ROWS, I
+```
+
