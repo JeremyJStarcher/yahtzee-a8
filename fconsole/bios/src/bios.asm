@@ -444,9 +444,9 @@ _reset_handler:
 
     ; Set pointer in Zero Page
     load16 PRINT_PTR, msg_welcome
-    JSR PRINT_PSTRING
 
 halt:
+    JSR PRINT_PSTRING
     JMP halt                            ; Safely trap CPU here when done
 
 msg_welcome:

@@ -82,8 +82,16 @@ def parse_args():
         type=positive_int,
         default=1,
         help=(
-            "Minimum delay between CPU batches, even when behind schedule "
-            "(default: 1)"
+            "Minimum delay between CPU batches, even when behind schedule (default: 1)"
+        ),
+    )
+    parser.add_argument(
+        "--refresh-hz",
+        type=positive_float,
+        default=60.0,
+        help=(
+            "Maximum display refresh rate in Hz, independent of CPU batching "
+            "(default: 60)"
         ),
     )
     parser.add_argument(
@@ -91,6 +99,20 @@ def parse_args():
         type=positive_int,
         default=2,
         help="Screen scaling factor (default: 2)",
+    )
+    parser.add_argument(
+        "--video-backend",
+        choices=("bitmap", "text"),
+        default="bitmap",
+        help=(
+            "Video renderer: authentic embedded-font bitmap output or native "
+            "Tk text cells (default: bitmap)"
+        ),
+    )
+    parser.add_argument(
+        "--text-font-family",
+        default=None,
+        help=("Optional font family for --video-backend text; defaults to TkFixedFont"),
     )
     return parser.parse_args()
 
@@ -100,7 +122,8 @@ args = parse_args()
 import tkinter as tk
 from dataclasses import dataclass
 
-from pylib import video_display as vd
+from pylib import video_display as bitmap_vd
+from pylib import video_display_text as text_vd
 
 try:
     from py65.devices.mpu6502 import MPU
@@ -115,10 +138,14 @@ CPU_CLOCK_HZ = args.clock_hz
 FALLBACK_CYCLES_PER_INSTRUCTION = args.fallback_cycles_per_instruction
 MAX_CATCH_UP_SECONDS = args.max_catch_up_ms / 1000.0
 HOST_YIELD_MS = args.host_yield_ms
+REFRESH_HZ = args.refresh_hz
+REFRESH_INTERVAL_MS = max(1, round(1000.0 / REFRESH_HZ))
 BIOS_FILE = "bios/bios.bin"
 SCREEN_COLS = 40
 SCREEN_ROWS = 24
 SCREEN_SCALE = args.screen_scale
+VIDEO_BACKEND = args.video_backend
+TEXT_FONT_FAMILY = args.text_font_family
 VID_DEBUG = False
 
 
@@ -225,24 +252,27 @@ class SystemBus:
 
     # --- Character Memory Handlers ---
     def _read_char_mem(self, offset: int) -> int:
-        if self.char_read_cb:
-            return self.char_read_cb(offset) & 0xFF
+        # Emulated VRAM is authoritative. Never cross into the GUI merely to
+        # service a 6502 memory read.
         return self._fallback_char_ram[offset]
 
     def _write_char_mem(self, offset: int, value: int) -> None:
         val = value & 0xFF
+        if self._fallback_char_ram[offset] == val:
+            return
         self._fallback_char_ram[offset] = val
         if self.char_write_cb:
             self.char_write_cb(offset, val)
 
     # --- Color Memory Handlers ---
     def _read_color_mem(self, offset: int) -> int:
-        if self.color_read_cb:
-            return self.color_read_cb(offset) & 0xFF
+        # As with character RAM, keep GUI access out of the CPU hot path.
         return self._fallback_color_ram[offset]
 
     def _write_color_mem(self, offset: int, value: int) -> None:
         val = value & 0xFF
+        if self._fallback_color_ram[offset] == val:
+            return
         self._fallback_color_ram[offset] = val
         if self.color_write_cb:
             self.color_write_cb(offset, val)
@@ -322,6 +352,11 @@ class FConsole:
         self.running = True
         self.isDirty = True
 
+        # Coalesce repeated writes to the same cell. The display is updated by
+        # a separate frame timer rather than from inside CPU execution.
+        self._pending_char_writes: dict[int, int] = {}
+        self._pending_color_writes: dict[int, int] = {}
+
         # Create windows
         self._create_video_window()
         self._create_debug_window()
@@ -345,7 +380,24 @@ class FConsole:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
-        self.vout = vd.Video(rows=SCREEN_ROWS, columns=SCREEN_COLS, scale=SCREEN_SCALE)
+        if VIDEO_BACKEND == "text":
+            self.vout = text_vd.Video(
+                rows=SCREEN_ROWS,
+                columns=SCREEN_COLS,
+                scale=SCREEN_SCALE,
+                font_family=TEXT_FONT_FAMILY,
+            )
+            print(
+                "Text renderer: "
+                f"font={self.vout.font_family!r}, "
+                f"cell={self.vout.cell_width}x{self.vout.cell_height}px"
+            )
+        else:
+            self.vout = bitmap_vd.Video(
+                rows=SCREEN_ROWS,
+                columns=SCREEN_COLS,
+                scale=SCREEN_SCALE,
+            )
         self.vout._root.title("fcon - vout")
         self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -375,25 +427,21 @@ class FConsole:
 
     # --- Bidirectional Video Callbacks ---
     def _on_char_memory_read(self, offset: int) -> int:
-        """Read character byte directly from video display."""
-        if hasattr(self.vout, "get_screen"):
-            return self.vout.get_screen(offset)
-        return 0
+        """Compatibility callback; CPU reads use the bus-owned VRAM buffer."""
+        return self.cpu_module.bus._fallback_char_ram[offset]
 
     def _on_char_memory_write(self, offset: int, value: int) -> None:
-        """Handle writes to character memory - update video display."""
-        self.vout.set_screen(offset, value)
+        """Queue a character-cell update for the next video frame."""
+        self._pending_char_writes[offset] = value
         self.isDirty = True
 
     def _on_color_memory_read(self, offset: int) -> int:
-        """Read color byte directly from video display."""
-        if hasattr(self.vout, "get_color"):
-            return self.vout.get_color(offset)
-        return 0
+        """Compatibility callback; CPU reads use the bus-owned VRAM buffer."""
+        return self.cpu_module.bus._fallback_color_ram[offset]
 
     def _on_color_memory_write(self, offset: int, value: int) -> None:
-        """Handle writes to color memory - update video display."""
-        self.vout.set_color(offset, value)
+        """Queue a color-cell update for the next video frame."""
+        self._pending_color_writes[offset] = value
         self.isDirty = True
 
     def ord2(self, ch: str) -> int:
@@ -505,6 +553,26 @@ class FConsole:
             # self.vout._root.after(66, self._update_cpu_step)
             self.vout._root.after(0, self._update_cpu_step)
 
+    def _update_video_frame(self) -> None:
+        """Flush coalesced VRAM writes and redraw at a bounded frame rate."""
+        if not self.running:
+            return
+
+        if self.isDirty:
+            # A cell written ten times between frames is transferred once, with
+            # only its final value.
+            for offset, value in self._pending_char_writes.items():
+                self.vout.set_screen(offset, value)
+            for offset, value in self._pending_color_writes.items():
+                self.vout.set_color(offset, value)
+
+            self._pending_char_writes.clear()
+            self._pending_color_writes.clear()
+            self.vout.refresh_screen()
+            self.isDirty = False
+
+        self.vout._root.after(REFRESH_INTERVAL_MS, self._update_video_frame)
+
     def _update_cpu_step(self) -> None:
         """Execute one batch, then schedule the next batch at CPU-clock speed."""
         batch_cycles = 0.0
@@ -521,10 +589,6 @@ class FConsole:
                 self._update_cpu_step_debug()
 
         self._emulated_cycles += batch_cycles
-
-        if self.isDirty:
-            self.vout.refresh_screen()
-            self.isDirty = False
 
         if not self.running:
             return
@@ -561,6 +625,9 @@ class FConsole:
         print("=" * 60)
         print(f"Video: {self.vout._rows} rows x {self.vout._columns} columns")
         print("Mode : py65 6502 (memory mapped bus table active)")
+        print(f"Video: {VIDEO_BACKEND} backend")
+        if VIDEO_BACKEND == "text":
+            print("Copy : drag to select, Ctrl+C to copy; Ctrl+A selects all")
         cycle_mode = (
             "py65 processorCycles"
             if self.cpu_module.has_native_cycle_counter
@@ -570,6 +637,7 @@ class FConsole:
         print("\nClose either window to exit.\n")
 
         self._update_cpu_step()
+        self._update_video_frame()
 
         # Tk's blocking event loop sleeps efficiently until an event or an
         # after() callback is ready. The previous update() polling loop spun at
@@ -592,7 +660,10 @@ def main():
         f"fallback_cycles_per_instruction={FALLBACK_CYCLES_PER_INSTRUCTION:g}, "
         f"max_catch_up_ms={MAX_CATCH_UP_SECONDS * 1000:g}, "
         f"host_yield_ms={HOST_YIELD_MS}, "
-        f"screen_scale={SCREEN_SCALE}"
+        f"refresh_hz={REFRESH_HZ:g}, "
+        f"screen_scale={SCREEN_SCALE}, "
+        f"video_backend={VIDEO_BACKEND}, "
+        f"text_font_family={TEXT_FONT_FAMILY!r}"
     )
     console = FConsole()
     console.run()
