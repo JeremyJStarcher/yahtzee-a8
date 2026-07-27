@@ -50,22 +50,34 @@
 ; 2. SIGNED CONDITIONAL BRANCHES
 ; ----------------------------------------------------------------------------
 
-;; Signed Greater Than or Equal (>=)
-.macro sbge label
-    .local @skip
-    BMI @skip
-    BVC label                           ; Positive result without overflow -> >=
-@skip:
+;; Signed Greater Than or Equal: N == V (>=)
+.macro sbge target
+    .local @no_overflow, @done
+
+    BVC @no_overflow
+    BMI target                          ; V=1: true when N=1
+    BPL @done                           ; V=1, N=0: false
+
+@no_overflow:
+    BPL target                          ; V=0: true when N=0
+
+@done:
 .endmacro
 
-;; Signed Less Than (<)
-.macro sblt label
-    .local @skip
-    BPL @skip
-    BVS label                           ; Negative result without overflow -> <
-@skip:
-.endmacro
 
+;; Signed Less Than: N != V (<=)
+.macro sblt target
+    .local @no_overflow, @done
+
+    BVC @no_overflow
+    BPL target                          ; V=1: true when N=0
+    BMI @done                           ; V=1, N=1: false
+
+@no_overflow:
+    BMI target                          ; V=0: true when N=1
+
+@done:
+.endmacro
 
 ; ----------------------------------------------------------------------------
 ; 3. COMBINED COMPARE & BRANCH HELPER MACROS
