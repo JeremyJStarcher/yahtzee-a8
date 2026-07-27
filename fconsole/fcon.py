@@ -7,10 +7,121 @@ runs a simple 6502 emulator demo via py65 on the video display.
 """
 
 import sys
-import argparse
-import math
+import re
 import time
+import math
+import argparse
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
+
+
+@dataclass
+class HardwareLimits:
+    """Hardware configuration loaded from bios/src/hw_limits.inc"""
+
+    clock_speed: int = 0
+    screen_cols: int = 0
+    screen_rows: int = 0
+    screen_size: int = 0
+    start_region_char_ram: int = 0
+    end_region_char_ram: int = 0
+    start_region_color_ram: int = 0
+    end_region_color_ram: int = 0
+    default_color: int = 0
+    default_screen_char: str = " "
+
+
+def parse_hw_limits(filepath: str) -> HardwareLimits:
+    """
+    Parse assembly include file with assignment expressions.
+
+    Handles decimal, hex ($XX), arithmetic expressions, and character literals.
+    Uses eval() safely since this is an internal trusted file.
+    """
+    hw = HardwareLimits()
+
+    # First pass: collect all assignments as raw strings
+    assignments = {}
+    with open(filepath, "r") as f:
+        for line_num, line in enumerate(f, 1):
+            # Strip comments (everything after semicolon)
+            if ";" in line:
+                line = line[: line.index(";")]
+
+            line = line.strip()
+            if not line or "=" not in line:
+                continue
+
+            try:
+                var_name, expr = line.split("=", 1)
+                var_name = var_name.strip()
+                expr = expr.strip()
+
+                if not var_name or not expr:
+                    continue
+
+                assignments[var_name] = expr
+            except Exception as e:
+                print(f"Warning: Could not parse line {line_num}: {e}")
+
+    # Second pass: evaluate expressions using already-parsed variables
+    evaluated = {}
+    max_iterations = len(assignments) + 1  # Prevent infinite loops
+
+    for _ in range(max_iterations):
+        remaining = []
+        made_progress = False
+
+        for var_name, expr in assignments.items():
+            if var_name in evaluated:
+                continue
+
+            # Convert assembly syntax to Python
+            expr_py = expr
+
+            # Replace $hex notation with 0xhex
+            expr_py = re.sub(r"\$([0-9A-Fa-f]+)", r"0x\1", expr_py)
+
+            # Handle character literals like ' ' -> chr(32) so eval keeps them as strings
+            def replace_char_literal(match):
+                return f"chr({ord(match.group(1))})"
+
+            expr_py = re.sub(r"'(.?)'", replace_char_literal, expr_py)
+
+            try:
+                value = eval(expr_py, {}, evaluated)
+                evaluated[var_name] = value
+                made_progress = True
+
+                # Map to dataclass fields
+                field_mapping = {
+                    "CLOCK_SPEED": ("clock_speed", int),
+                    "SCREEN_COLS": ("screen_cols", int),
+                    "SCREEN_ROWS": ("screen_rows", int),
+                    "SCREEN_SIZE": ("screen_size", int),
+                    "START_REGION_CHAR_RAM": ("start_region_char_ram", int),
+                    "END_REGION_CHAR_RAM": ("end_region_char_ram", int),
+                    "START_REGION_COLOR_RAM": ("start_region_color_ram", int),
+                    "END_REGION_COLOR_RAM": ("end_region_color_ram", int),
+                    "DEFAULT_COLOR": ("default_color", int),
+                    "DEFAULT_SCREEN_CHAR": ("default_screen_char", str),
+                }
+
+                if var_name in field_mapping:
+                    field_name, field_type = field_mapping[var_name]
+                    setattr(hw, field_name, field_type(value))
+
+            except Exception as e:
+                remaining.append((var_name, expr))
+
+        if not made_progress and remaining:
+            print(f"Warning: Could not resolve dependencies for: {remaining}")
+            break
+
+        assignments = dict(remaining)
+
+    return hw
 
 
 def positive_int(value: str) -> int:
@@ -56,8 +167,8 @@ def parse_args():
     parser.add_argument(
         "--clock-hz",
         type=positive_float,
-        default=1_000_000.0,
-        help="Target emulated CPU clock in Hz (default: 1000000)",
+        default=None,  # Will be set from hw_limits.inc
+        help="Target emulated CPU clock in Hz (overrides hw_limits.inc)",
     )
     parser.add_argument(
         "--fallback-cycles-per-instruction",
@@ -133,16 +244,26 @@ except ImportError as e:
     sys.exit(1)
 
 
+# Load hardware limits from assembly include file
+hw_config_path = Path("bios/src/hw_limits.inc")
+if not hw_config_path.exists():
+    print(f"ERROR: Hardware limits file not found: {hw_config_path}")
+    sys.exit(1)
+
+hw_config = parse_hw_limits(str(hw_config_path))
+
+
+# Set defaults from hardware config if not overridden by CLI args
 INSTRUCTIONS_PER_BATCH = args.instructions_per_batch
-CPU_CLOCK_HZ = args.clock_hz
+CPU_CLOCK_HZ = args.clock_hz if args.clock_hz else float(hw_config.clock_speed)
 FALLBACK_CYCLES_PER_INSTRUCTION = args.fallback_cycles_per_instruction
 MAX_CATCH_UP_SECONDS = args.max_catch_up_ms / 1000.0
 HOST_YIELD_MS = args.host_yield_ms
 REFRESH_HZ = args.refresh_hz
 REFRESH_INTERVAL_MS = max(1, round(1000.0 / REFRESH_HZ))
 BIOS_FILE = "bios/bios.bin"
-SCREEN_COLS = 40
-SCREEN_ROWS = 24
+SCREEN_COLS = hw_config.screen_cols
+SCREEN_ROWS = hw_config.screen_rows
 SCREEN_SCALE = args.screen_scale
 VIDEO_BACKEND = args.video_backend
 TEXT_FONT_FAMILY = args.text_font_family
@@ -187,11 +308,11 @@ class SystemBus:
         color_write_cb=None,
     ):
         self.char_read_cb = char_read_cb
-        self.char_write_cb = char_write_cb
         self.color_read_cb = color_read_cb
+        self.char_write_cb = char_write_cb
         self.color_write_cb = color_write_cb
 
-        screen_size = SCREEN_COLS * SCREEN_ROWS
+        screen_size = hw_config.screen_size
 
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
         self.rom = bytearray(0x1000)  # 4KB BIOS ROM ($F000-$FFFF)
@@ -214,26 +335,26 @@ class SystemBus:
         except Exception as e:
             print(f"ERROR loading BIOS: {e}")
 
-        # Dynamic memory map table
+        # Dynamic memory map table using hardware configuration
         self.bus_map = [
             MemoryRange(
                 name="ram",
                 start=0x0000,
-                len=0xE000,
+                len=hw_config.start_region_char_ram,
                 read_cb=lambda offset: self.ram[offset],
                 write_cb=self._write_ram,
             ),
             MemoryRange(
                 name="chars",
-                start=0xE000,
-                len=screen_size,
+                start=hw_config.start_region_char_ram,
+                len=hw_config.screen_size,
                 read_cb=self._read_char_mem,
                 write_cb=self._write_char_mem,
             ),
             MemoryRange(
                 name="colors",
-                start=0xE400,
-                len=screen_size,
+                start=hw_config.start_region_color_ram,
+                len=hw_config.screen_size,
                 read_cb=self._read_color_mem,
                 write_cb=self._write_color_mem,
             ),
@@ -623,7 +744,7 @@ class FConsole:
         print("=" * 60)
         print("FCONSOLE EMULATOR")
         print("=" * 60)
-        print(f"Video: {self.vout._rows} rows x {self.vout._columns} columns")
+        print(f"Video: {hw_config.screen_rows} rows x {hw_config.screen_cols} columns")
         print("Mode : py65 6502 (memory mapped bus table active)")
         print(f"Video: {VIDEO_BACKEND} backend")
         if VIDEO_BACKEND == "text":
@@ -655,13 +776,14 @@ def main():
     """Entry point for fconsole emulator."""
     print(
         "Config: "
-        f"clock_hz={CPU_CLOCK_HZ:g}, "
+        f"clock_hz={CPU_CLOCK_HZ:g} ({hw_config.clock_speed}), "
         f"instructions_per_batch={INSTRUCTIONS_PER_BATCH}, "
         f"fallback_cycles_per_instruction={FALLBACK_CYCLES_PER_INSTRUCTION:g}, "
         f"max_catch_up_ms={MAX_CATCH_UP_SECONDS * 1000:g}, "
         f"host_yield_ms={HOST_YIELD_MS}, "
-        f"refresh_hz={REFRESH_HZ:g}, "
         f"screen_scale={SCREEN_SCALE}, "
+        f"refresh_hz={REFRESH_HZ:g}, "
+        f"screen_size={hw_config.screen_cols}x{hw_config.screen_rows}, "
         f"video_backend={VIDEO_BACKEND}, "
         f"text_font_family={TEXT_FONT_FAMILY!r}"
     )
