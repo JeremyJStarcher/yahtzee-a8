@@ -8,23 +8,87 @@ runs a simple 6502 emulator demo via py65 on the video display.
 
 import sys
 import argparse
+import math
+import time
 from typing import Callable, Optional
 
 
+def positive_int(value: str) -> int:
+    """Argparse converter accepting positive integers only."""
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be greater than zero")
+    return parsed
+
+
+def positive_float(value: str) -> float:
+    """Argparse converter accepting positive floating-point values only."""
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be greater than zero")
+    return parsed
+
+
+def nonnegative_float(value: str) -> float:
+    """Argparse converter accepting zero or a positive floating-point value."""
+    parsed = float(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value cannot be negative")
+    return parsed
+
+
 def parse_args():
-    """Parse command-line arguments with defaults matching current behavior."""
+    """Parse emulator and clock-pacing options."""
     parser = argparse.ArgumentParser(
         description="Fconsole - Official Emulator Start Script"
     )
     parser.add_argument(
+        "--instructions-per-batch",
         "--cycles-per-frame",
-        type=int,
+        dest="instructions_per_batch",
+        type=positive_int,
         default=8000,
-        help="Number of CPU cycles per frame (default: 8000)",
+        help=(
+            "Maximum instructions executed before checking the wall clock "
+            "(default: 8000). --cycles-per-frame is retained as a legacy alias."
+        ),
+    )
+    parser.add_argument(
+        "--clock-hz",
+        type=positive_float,
+        default=1_000_000.0,
+        help="Target emulated CPU clock in Hz (default: 1000000)",
+    )
+    parser.add_argument(
+        "--fallback-cycles-per-instruction",
+        type=positive_float,
+        default=3.0,
+        help=(
+            "Approximate cycles per instruction if py65 lacks processorCycles "
+            "(default: 3.0)"
+        ),
+    )
+    parser.add_argument(
+        "--max-catch-up-ms",
+        type=nonnegative_float,
+        default=100.0,
+        help=(
+            "Discard wall-clock lag beyond this amount instead of running a long "
+            "100%% catch-up burst (default: 100)"
+        ),
+    )
+    parser.add_argument(
+        "--host-yield-ms",
+        type=positive_int,
+        default=1,
+        help=(
+            "Minimum delay between CPU batches, even when behind schedule "
+            "(default: 1)"
+        ),
     )
     parser.add_argument(
         "--screen-scale",
-        type=int,
+        type=positive_int,
         default=2,
         help="Screen scaling factor (default: 2)",
     )
@@ -46,7 +110,11 @@ except ImportError as e:
     sys.exit(1)
 
 
-CYCLES_PER_FRAME = args.cycles_per_frame
+INSTRUCTIONS_PER_BATCH = args.instructions_per_batch
+CPU_CLOCK_HZ = args.clock_hz
+FALLBACK_CYCLES_PER_INSTRUCTION = args.fallback_cycles_per_instruction
+MAX_CATCH_UP_SECONDS = args.max_catch_up_ms / 1000.0
+HOST_YIELD_MS = args.host_yield_ms
 BIOS_FILE = "bios/bios.bin"
 SCREEN_COLS = 40
 SCREEN_ROWS = 24
@@ -227,9 +295,24 @@ class Cpu6502Module:
         )
         self.cpu = MPU(memory=self.bus, pc=reset_vector)
 
-    def step(self) -> None:
-        """Execute one instruction."""
+    def step(self) -> float:
+        """Execute one instruction and return the cycles it consumed."""
+        cycles_before = getattr(self.cpu, "processorCycles", None)
         self.cpu.step()
+        cycles_after = getattr(self.cpu, "processorCycles", None)
+
+        if cycles_before is not None and cycles_after is not None:
+            elapsed_cycles = cycles_after - cycles_before
+            if elapsed_cycles > 0:
+                return float(elapsed_cycles)
+
+        # Compatibility fallback for a py65 variant without processorCycles.
+        return FALLBACK_CYCLES_PER_INSTRUCTION
+
+    @property
+    def has_native_cycle_counter(self) -> bool:
+        """Return whether this py65 MPU exposes its accumulated cycle count."""
+        return hasattr(self.cpu, "processorCycles")
 
 
 class FConsole:
@@ -254,6 +337,10 @@ class FConsole:
             color_write_cb=self._on_color_memory_write,
         )
 
+        # Pacing state: emulated time is derived from completed CPU cycles.
+        self._emulated_cycles = 0.0
+        self._clock_origin = time.perf_counter()
+
     def _create_video_window(self) -> None:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
@@ -266,9 +353,10 @@ class FConsole:
         """Create the debug output text window."""
         print("Opening debug output window (dout)...")
 
-        self.dout_root = tk.Tk()
+        self.dout_root = tk.Toplevel(self.vout._root)
         self.dout_root.title("fcon - dout")
         self.dout_root.geometry("600x400")
+        self.dout_root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self.debug_text = tk.Text(
             self.dout_root,
@@ -418,9 +506,11 @@ class FConsole:
             self.vout._root.after(0, self._update_cpu_step)
 
     def _update_cpu_step(self) -> None:
-        """Advance the 6502 CPU instruction execution."""
-        for _ in range(CYCLES_PER_FRAME):
-            self.cpu_module.step()
+        """Execute one batch, then schedule the next batch at CPU-clock speed."""
+        batch_cycles = 0.0
+
+        for _ in range(INSTRUCTIONS_PER_BATCH):
+            batch_cycles += self.cpu_module.step()
 
             n = self.cpu_module.bus[self.cpu_module.cpu.pc]
             # Break instruction
@@ -430,12 +520,29 @@ class FConsole:
             if VID_DEBUG:
                 self._update_cpu_step_debug()
 
+        self._emulated_cycles += batch_cycles
+
         if self.isDirty:
             self.vout.refresh_screen()
             self.isDirty = False
 
-        if self.running:
-            self.vout._root.after(0, self._update_cpu_step)
+        if not self.running:
+            return
+
+        now = time.perf_counter()
+        target_time = self._clock_origin + (self._emulated_cycles / CPU_CLOCK_HZ)
+        lag_seconds = now - target_time
+
+        # A debugger stop, window drag, or overloaded host can leave the emulator
+        # far behind. Do not burn a core indefinitely trying to replay old time.
+        if lag_seconds > MAX_CATCH_UP_SECONDS:
+            self._clock_origin = now - (self._emulated_cycles / CPU_CLOCK_HZ)
+            target_time = now
+
+        ahead_seconds = max(0.0, target_time - now)
+        clock_delay_ms = math.ceil((ahead_seconds * 1000.0) - 1e-9)
+        delay_ms = max(HOST_YIELD_MS, clock_delay_ms)
+        self.vout._root.after(delay_ms, self._update_cpu_step)
 
     def _on_close(self) -> None:
         """Handle vout window close."""
@@ -454,30 +561,39 @@ class FConsole:
         print("=" * 60)
         print(f"Video: {self.vout._rows} rows x {self.vout._columns} columns")
         print("Mode : py65 6502 (memory mapped bus table active)")
-        print("\nClose the 'vout' window to exit.\n")
+        cycle_mode = (
+            "py65 processorCycles"
+            if self.cpu_module.has_native_cycle_counter
+            else f"fallback ({FALLBACK_CYCLES_PER_INSTRUCTION:g} cycles/instruction)"
+        )
+        print(f"Clock: {CPU_CLOCK_HZ:g} Hz; timing source: {cycle_mode}")
+        print("\nClose either window to exit.\n")
 
         self._update_cpu_step()
-        self._run_event_loops()
 
-    def _run_event_loops(self) -> None:
-        """Run both Tkinter event loops cooperatively."""
-        while self.running:
-            try:
-                if hasattr(self.vout, "_root") and self.vout._root is not None:
-                    self.vout._root.update()
-
-                if hasattr(self, "dout_root") and self.dout_root is not None:
-                    self.dout_root.update()
-
-            except tk.TclError:
-                break
-
-        self._on_close()
+        # Tk's blocking event loop sleeps efficiently until an event or an
+        # after() callback is ready. The previous update() polling loop spun at
+        # full speed even while the emulated CPU was supposed to be paused.
+        try:
+            self.vout._root.mainloop()
+        except tk.TclError:
+            pass
+        finally:
+            if self.running:
+                self._on_close()
 
 
 def main():
     """Entry point for fconsole emulator."""
-    print(f"Config: cycles_per_frame={CYCLES_PER_FRAME}, screen_scale={SCREEN_SCALE}")
+    print(
+        "Config: "
+        f"clock_hz={CPU_CLOCK_HZ:g}, "
+        f"instructions_per_batch={INSTRUCTIONS_PER_BATCH}, "
+        f"fallback_cycles_per_instruction={FALLBACK_CYCLES_PER_INSTRUCTION:g}, "
+        f"max_catch_up_ms={MAX_CATCH_UP_SECONDS * 1000:g}, "
+        f"host_yield_ms={HOST_YIELD_MS}, "
+        f"screen_scale={SCREEN_SCALE}"
+    )
     console = FConsole()
     console.run()
     sys.exit(0)
