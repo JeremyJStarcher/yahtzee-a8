@@ -445,12 +445,48 @@ _reset_handler:
     ; Set pointer in Zero Page
     load16 PRINT_PTR, msg_welcome
 
+                    jsr video_test
+
 halt:
-    JSR PRINT_PSTRING
     JMP halt                            ; Safely trap CPU here when done
 
 msg_welcome:
     pstring "Welcome to the Fantasy 6502 Console!"
+
+
+
+.proc video_test
+
+    LDX #100
+@ploop2:
+    pushall
+    JSR PRINT_PSTRING
+    popall
+    DEX 
+    BNE @ploop2
+
+
+    LDX #$00
+    STX CURSX
+    STX CURSY
+
+    LDA #73
+    STA CURRENT_COLOR
+
+
+    LDX #24
+@ploop3:
+    pushall
+    JSR DISPLAY_NEXT_LINE
+    JSR PRINT_PSTRING
+    popall
+    DEX 
+    BNE @ploop3
+
+
+  RtS
+.endproc
+
 
     ; ============================================================================
     ; Interrupt Handlers
