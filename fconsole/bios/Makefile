@@ -9,7 +9,7 @@ FMT = $(PYTHON) ../../dev-tools/fmt6502.py
 
 # Source files
 ASM_SOURCES = src/bios.asm src/vectors.asm
-ASM_INCLUDES = src/branches.inc src/math.inc
+ASM_INCLUDES = src/branches.inc src/math.inc src/hw_limits.inc
 FORMAT_SOURCES = $(ASM_SOURCES) $(ASM_INCLUDES)
 
 # Output files

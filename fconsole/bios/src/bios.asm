@@ -133,7 +133,7 @@ COLOR_PTR: .res 2
     CMP #SCREEN_COLS
     BCC @ready_to_draw
 
-    ; If CURSX >= 40, wrap line before printing this character
+    ; If CURSX >= SCREEN_COLS, wrap line before printing this character
     JSR DISPLAY_NEXT_LINE
 
 @ready_to_draw:
@@ -162,7 +162,7 @@ COLOR_PTR: .res 2
     LDA #$00
     STA CURSX                           ; Reset X to left margin
 
-    INC CURSY                           ; Move down one line (0..23 -> 1..24)
+    INC CURSY                           ; Move down one line
     LDA CURSY
     CMP #SCREEN_ROWS
     BCC @noscroll                       ; CURSY < SCREEN_ROWS
@@ -282,7 +282,58 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ; Clobbers:
 ;   A, flags, TMP_PTR, CHAR_PTR, COLOR_PTR
 
+
 .proc SET_CURSOR
+; -----------------------------------------------------------
+; Calculate:
+;
+;     offset = CURSY * SCREEN_COLS + CURSX
+;
+; Multiplication result:
+;     A         = high byte
+;     COLOR_PTR = low byte
+; -----------------------------------------------------------
+
+    LDA CURSY
+    STA TMP_PTR
+
+    LDA #$00
+    STA COLOR_PTR                       ; Product low byte must start at zero
+
+    LDX #8                              ; Eight bits in CURSY
+
+@multiply:
+    LSR TMP_PTR                         ; Move next multiplier bit into carry
+    BCC @shift_product
+
+    CLC
+    ADC #SCREEN_COLS                    ; Add multiplicand to partial product
+
+@shift_product:
+    ROR A                               ; Shift high product byte
+    ROR COLOR_PTR                       ; Shift low product byte
+
+    DEX
+    BNE @multiply
+
+    STA COLOR_PTR + 1                   ; Save product high byte
+
+    ; Add column coordinate
+    add16_8 COLOR_PTR, COLOR_PTR, CURSX
+
+    ; Both pointers initially contain the screen offset
+    mov16 CHAR_PTR, COLOR_PTR
+
+    ; Add the respective base addresses
+    add16i CHAR_PTR, CHAR_PTR, START_REGION_CHAR_RAM
+    add16i COLOR_PTR, COLOR_PTR, START_REGION_COLOR_RAM
+
+    RTS
+.endproc
+
+
+.proc SET_CURSOR_FIXED_40
+
 ;; -------------------------------------------------------------------
 ;; Step 1: Calculate Row Offset = (CURSY * 40)
 ;;
@@ -427,8 +478,8 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 .endproc
 
 .proc medium_pause
-    pause_ms 2000
-    rts
+; pause_ms 2000
+    RTS
 .endproc
 
 ; ============================================================================
@@ -502,6 +553,9 @@ msg_welcome:
 
 .endscope
 .endrep
+
+
+
 
     JSR medium_pause
 
