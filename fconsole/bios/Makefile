@@ -5,7 +5,7 @@ CA65 = ca65
 LD65 = ld65
 DA65 = da65
 PYTHON = python3
-FMT = $(PYTHON) ../../dev-tools/fmt6502.py
+FMT = $(PYTHON) ../../dev-tools/fmt6502/fmt6502.py
 
 # Source files
 ASM_SOURCES = src/bios.asm src/vectors.asm
