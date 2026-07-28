@@ -10,8 +10,8 @@
     .export _reset_handler
     .export _nmi_handler
     .export JTCLS
-    .exportzp CURSX
-    .exportzp CURSY
+    .exportzp CURS_COL
+    .exportzp CURS_ROW
 
 
     .segment "CODE"
@@ -63,9 +63,9 @@ FILCHAR: .res 1
 SAVEA: .res 1
 
 ; Cursor X position
-CURSX: .res 1
+CURS_COL: .res 1
 ; Cursor Y position
-CURSY: .res 1
+CURS_ROW: .res 1
 ; Current color
 CURRENT_COLOR: .res 1
 ; CHAR ram ptr
@@ -83,7 +83,7 @@ COLOR_PTR: .res 2
 ; Routine: PRINT_PSTRING
 ; Description:
 ;   Prints a Pascal-style string (length byte followed by character payload).
-;   Advances CURSX and CURSY automatically per character.
+;   Advances CURS_COL and CURS_ROW automatically per character.
 ;
 ; Inputs:
 ;   PRINT_PTR (2 bytes, Zero Page) - Pointer to the start of the PSTRING (length byte)
@@ -115,25 +115,25 @@ COLOR_PTR: .res 2
 ; ============================================================================
 ; Routine: DISPLAY_CHAR
 ; Description:
-;   Plots a single character to the screen at position (CURSX, CURSY), updates
+;   Plots a single character to the screen at position (CURS_COL, CURS_ROW), updates
 ;   the corresponding tile in Color RAM with CURRENT_COLOR, and advances
 ;   the cursor (wrapping to the next row if X reaches column 40).
 ;
 ; Inputs:
 ;   A             - Character code to write to screen
-;   CURSX         - Screen X coordinate
-;   CURSY         - Screen Y coordinate
+;   CURS_COL         - Screen X coordinate
+;   CURS_ROW         - Screen Y coordinate
 ;   CURRENT_COLOR - Color code to write to Color RAM
 ; ============================================================================
 .proc DISPLAY_CHAR
     PHA                                 ; Save character
 
     ; 1. Check if we need to scroll/wrap BEFORE drawing the character
-    LDA CURSX
+    LDA CURS_COL
     CMP #SCREEN_COLS
     BCC @ready_to_draw
 
-    ; If CURSX >= SCREEN_COLS, wrap line before printing this character
+    ; If CURS_COL >= SCREEN_COLS, wrap line before printing this character
     JSR DISPLAY_NEXT_LINE
 
 @ready_to_draw:
@@ -147,7 +147,7 @@ COLOR_PTR: .res 2
     STA (COLOR_PTR), Y
 
     ; 3. Advance cursor X position
-    INC CURSX
+    INC CURS_COL
     RTS
 .endproc
 
@@ -155,17 +155,17 @@ COLOR_PTR: .res 2
 ; ============================================================================
 ; Routine: DISPLAY_NEXT_LINE
 ; Description:
-;   Resets CURSX to 0 and advances CURSY to the next line.
+;   Resets CURS_COL to 0 and advances CURS_ROW to the next line.
 ; ============================================================================
 .proc DISPLAY_NEXT_LINE
     pushall
     LDA #$00
-    STA CURSX                           ; Reset X to left margin
+    STA CURS_COL                        ; Reset X to left margin
 
-    INC CURSY                           ; Move down one line
-    LDA CURSY
+    INC CURS_ROW                        ; Move down one line
+    LDA CURS_ROW
     CMP #SCREEN_ROWS
-    BCC @noscroll                       ; CURSY < SCREEN_ROWS
+    BCC @noscroll                       ; CURS_ROW < SCREEN_ROWS
     JSR SCROLL_UP
 @noscroll:
     popall
@@ -186,7 +186,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ; Routine: SCROLL_UP
 ; Description:
 ;   Shifts screen RAM (Char & Color) up by 1 row.
-;   Clears the bottom row and clamps CURSY to SCREEN_ROWS - 1.
+;   Clears the bottom row and clamps CURS_ROW to SCREEN_ROWS - 1.
 ; ============================================================================
 .proc SCROLL_UP
     pushall
@@ -225,7 +225,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 
     ; Clamp cursor to bottom row
     LDA #(SCREEN_ROWS - 1)
-    STA CURSY
+    STA CURS_ROW
 
     pop_ptr TMP_PTR
     pop_ptr PRINT_PTR
@@ -273,7 +273,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ; Routine: SET_CURSOR
 ; Description:
 ;   Calculates the Character RAM and Color RAM addresses corresponding
-;   to the current CURSX and CURSY coordinates.
+;   to the current CURS_COL and CURS_ROW coordinates.
 ;
 ; Outputs:
 ;   CHAR_PTR  - Address in Character RAM
@@ -283,24 +283,57 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ;   A, flags, TMP_PTR, CHAR_PTR, COLOR_PTR
 
 
+
+;.segment "RODATA"
+row_offsets_low:
+    .repeat SCREEN_ROWS, i
+    .byte <(START_REGION_CHAR_RAM + (i * SCREEN_COLS))
+    .endrepeat
+row_offsets_high:
+    .repeat SCREEN_ROWS, i
+    .byte >(START_REGION_CHAR_RAM + (i * SCREEN_COLS))
+    .endrepeat
+
+.segment "CODE"
 .proc SET_CURSOR
+    LDY CURS_ROW
+    LDA row_offsets_low, Y
+    STA CHAR_PTR
+    LDA row_offsets_high, Y
+    STA CHAR_PTR+1
+    ; add column
+    CLC
+    LDA CHAR_PTR
+    ADC CURS_COL
+    STA CHAR_PTR
+    BCC @nocarry
+    INC CHAR_PTR+1
+@nocarry:
+
+    add16i COLOR_PTR, CHAR_PTR, (START_REGION_COLOR_RAM - START_REGION_CHAR_RAM)
+    RTS
+.endproc
+
+
+
+.proc SET_CURSOR_MATH
 ; -----------------------------------------------------------
 ; Calculate:
 ;
-;     offset = CURSY * SCREEN_COLS + CURSX
+;     offset = CURS_ROW * SCREEN_COLS + CURS_COL
 ;
 ; Multiplication result:
 ;     A         = high byte
 ;     COLOR_PTR = low byte
 ; -----------------------------------------------------------
 
-    LDA CURSY
+    LDA CURS_ROW
     STA TMP_PTR
 
     LDA #$00
     STA COLOR_PTR                       ; Product low byte must start at zero
 
-    LDX #8                              ; Eight bits in CURSY
+    LDX #8                              ; Eight bits in CURS_ROW
 
 @multiply:
     LSR TMP_PTR                         ; Move next multiplier bit into carry
@@ -319,7 +352,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     STA COLOR_PTR + 1                   ; Save product high byte
 
     ; Add column coordinate
-    add16_8 COLOR_PTR, COLOR_PTR, CURSX
+    add16_8 COLOR_PTR, COLOR_PTR, CURS_COL
 
     ; Both pointers initially contain the screen offset
     mov16 CHAR_PTR, COLOR_PTR
@@ -335,13 +368,13 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 .proc SET_CURSOR_FIXED_40
 
 ;; -------------------------------------------------------------------
-;; Step 1: Calculate Row Offset = (CURSY * 40)
+;; Step 1: Calculate Row Offset = (CURS_ROW * 40)
 ;;
 ;; Since the 6502 lacks a hardware multiply instruction, we decompose
 ;; 40 into powers of two: 40 = 32 + 8 = (Y * 32) + (Y * 8).
 ;; We calculate (Y * 8) first via 3 bitwise left shifts (ASL/ROL).
 ;; -------------------------------------------------------------------
-    LDA CURSY
+    LDA CURS_ROW
     STA CHAR_PTR                        ; Initialize low byte accumulator
     LDA #$00
     STA CHAR_PTR + 1                    ; Initialize high byte accumulator
@@ -350,20 +383,20 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     asl16 CHAR_PTR
     asl16 CHAR_PTR
 
-    ;; Save intermediate result (CURSY * 8) into temporary zero-page storage
+    ;; Save intermediate result (CURS_ROW * 8) into temporary zero-page storage
     mov16 TMP_PTR, CHAR_PTR
 
-    ;; Shift two more times: (CURSY * 8) * 4 = (CURSY * 32)
+    ;; Shift two more times: (CURS_ROW * 8) * 4 = (CURS_ROW * 32)
     asl16 CHAR_PTR
     asl16 CHAR_PTR
 
-    ;; Add (CURSY * 8) to (CURSY * 32) to yield (CURSY * 40)
+    ;; Add (CURS_ROW * 8) to (CURS_ROW * 32) to yield (CURS_ROW * 40)
     add16 CHAR_PTR, CHAR_PTR, TMP_PTR
 
     ;; -------------------------------------------------------------------
-    ;; Step 2: Add Column Offset (CURSX)
+    ;; Step 2: Add Column Offset (CURS_COL)
     ;; -------------------------------------------------------------------
-    add16_8 CHAR_PTR, CHAR_PTR, CURSX
+    add16_8 CHAR_PTR, CHAR_PTR, CURS_COL
 
     ;; -------------------------------------------------------------------
     ;; Step 3: Compute Base Pointers
@@ -392,8 +425,8 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     JSR MEMFILL_FAST
 
     LDX #$00
-    STX CURSX
-    STX CURSY
+    STX CURS_COL
+    STX CURS_ROW
 
     RTS
 .endproc
@@ -519,17 +552,17 @@ msg_welcome:
 
 
     LDX #$00
-    STX CURSX
-    STX CURSY
+    STX CURS_COL
+    STX CURS_ROW
 
     LDA #73
     STA CURRENT_COLOR
 
 
     LDX #$00
-    STX CURSX
+    STX CURS_COL
     LDX #$01
-    STX CURSY
+    STX CURS_ROW
 
 
 .repeat ::SCREEN_ROWS, I

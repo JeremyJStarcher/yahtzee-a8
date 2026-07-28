@@ -100,7 +100,7 @@ $(LINKED_LISTING): $(ROM_IMAGE)
 # Include-file dependencies.
 #
 # bios.asm includes these files, so changing either one must rebuild bios.o.
-src/bios.o: src/branches.inc src/math.inc
+src/bios.o: $(ASM_INCLUDES) src/timer.mac
 
 
 clean:
