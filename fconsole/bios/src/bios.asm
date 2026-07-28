@@ -511,7 +511,8 @@ row_offsets_high:
 .endproc
 
 .proc medium_pause
-; pause_ms 2000
+; ignore-next-line
+    pause_ms 2000
     RTS
 .endproc
 
@@ -550,7 +551,6 @@ msg_welcome:
     DEX
     BNE @ploop2
 
-
     LDX #$00
     STX CURS_COL
     STX CURS_ROW
@@ -558,12 +558,10 @@ msg_welcome:
     LDA #73
     STA CURRENT_COLOR
 
-
     LDX #$00
     STX CURS_COL
     LDX #$01
     STX CURS_ROW
-
 
 .repeat ::SCREEN_ROWS, I
 .scope
@@ -586,9 +584,6 @@ msg_welcome:
 
 .endscope
 .endrep
-
-
-
 
     JSR medium_pause
 
