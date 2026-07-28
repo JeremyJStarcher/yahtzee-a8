@@ -333,11 +333,17 @@ Opcode recognition determines casing only. It does not, by itself, validate whet
 
 
 ## 7 Bug fixes
-### 7.0
+### 7.1 Scroping rules around labels.
 
 Scoping rules around a label are not understood. This causes a failure
 
 ```
 .repeat ::SCREEN_ROWS, I
 ```
+
+### 7.2 ";ignore-next-line' is not honored.
+
+There are some lines of code that the formatter is not capable of dealing with.
+
+if there is a comment (starting anywhere on the line) with the next *anywhere* in the comment of "ignore-next-line" then the next line should not be checked or validated at all.
 

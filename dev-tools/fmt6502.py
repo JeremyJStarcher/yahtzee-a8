@@ -122,6 +122,9 @@ _NON_NMOS_MNEMONICS = frozenset({
 # `.define` is included because ca65 substitutions are also case-sensitive.
 _DEFINITION_DIRECTIVES = frozenset({".macro", ".define"})
 
+# Marker in comments that causes the next line to be passed through unchanged.
+_IGNORE_NEXT_RE = re.compile(r"ignore-next-line", re.IGNORECASE)
+
 _IDENTIFIER = r"[A-Za-z_@.?][A-Za-z0-9_@.?$]*"
 _SCOPED_IDENTIFIER = rf"{_IDENTIFIER}(?:::{_IDENTIFIER})*"
 _ASSIGNMENT_RE = re.compile(rf"(?:{_SCOPED_IDENTIFIER}|\*)\s*(?::=|=)")
@@ -503,9 +506,17 @@ def _format_with_registry(
     diagnostics: list[FormatDiagnostic] = []
     changed_lines: list[int] = []
     previous_indented: bool | None = None
+    ignore_next = False
 
     for lineno, raw in enumerate(_iter_raw_lines(text), start=1):
         body, ending = _split_line_ending(raw)
+
+        # If the previous comment contained "ignore-next-line", skip this line.
+        if ignore_next:
+            output.append(body + ending)
+            ignore_next = False
+            continue
+
         formatted, new_previous, line_diagnostics = _format_body(
             body,
             lineno=lineno,
@@ -514,6 +525,12 @@ def _format_with_registry(
             registry=registry,
             config=config,
         )
+
+        # Detect whether the formatted line's comment contains the marker.
+        lexed = _lex_line(formatted.lstrip(" \t"))
+        if lexed.comment and _IGNORE_NEXT_RE.search(lexed.comment):
+            ignore_next = True
+
         if formatted != body:
             changed_lines.append(lineno)
         diagnostics.extend(line_diagnostics)

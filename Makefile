@@ -19,6 +19,10 @@ bios-list:
 	$(MAKE) clean
 	./concat_files.sh fconsole/bios/
 
+fcon-list:
+	$(MAKE) clean
+	./concat_files.sh fconsole
+
 devtools-list:
 	$(MAKE) clean
 	./concat_files.sh dev-tools/

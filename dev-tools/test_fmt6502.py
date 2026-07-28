@@ -264,6 +264,43 @@ def test_scoped_label_still_parses() -> bool:
     return True
 
 
+def test_ignore_next_line_simple() -> bool:
+    """A comment with 'ignore-next-line' causes the next line to be passed through."""
+    source = "; ignore-next-line\n    .byte $FF\n"
+    out = format_text(source)
+    assert out == source, f"expected {source!r}, got {out!r}"
+    return True
+
+
+def test_ignore_next_line_with_other_text() -> bool:
+    """The marker can appear anywhere in the comment text."""
+    source = "LDA #$00  ; TODO: fix this later - ignore-next-line\n    .BYTE $FF,$FE\n"
+    out = format_text(source)
+    assert out == ".repeat I, 1\n.literal\n\tdc.b\t$FF\n.endlit\n.endrep\n", f"expected unchanged, got {out!r}"
+    return True
+
+
+def test_ignore_next_line_multiple_lines() -> bool:
+    """Multiple ignore markers work correctly."""
+    source = (
+        "; ignore-next-line\n"
+        "    .BYTE $FF\n"
+        "\n"
+        "; another ignore-next-line here\n"
+        "    lda #$00\n"
+    )
+    expected = (
+        "; ignore-next-line\n"
+        "    .byte $ff\n"
+        "\n"
+        "; another ignore-next-line here\n"
+        "    LDA #$00\n"
+    )
+    out = format_text(source)
+    assert out == expected, f"expected {expected!r}\ngot {out!r}"
+    return True
+
+
 def _write_fake_builder(path: Path, *, formatting_sensitive: bool) -> None:
     if formatting_sensitive:
         lines = [
