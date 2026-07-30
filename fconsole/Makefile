@@ -1,9 +1,10 @@
 SHELL := /bin/bash
 
+include ../venv.mk
+
+.DEFAULT_GOAL := all
+
 ROOT := $(CURDIR)
-VENV_HOME := $(ROOT)/../venv/hosts
-VENV_DIR := $(VENV_HOME)/venv-$(shell hostname)
-VENV_PY := $(VENV_DIR)/bin/python
 RUFF := $(VENV_DIR)/bin/ruff
 PYREFLY := $(VENV_DIR)/bin/pyrefly
 
@@ -44,30 +45,6 @@ BASE_RUN_ARGS = \
 	clean \
 	ensure-venv \
 	build-bios
-
-# This Makefile requires a Python virtual environment at:
-#
-#   ../venv/hosts/venv-<hostname>
-#
-ensure-venv:
-	@if [ ! -d "$(VENV_DIR)" ]; then \
-		echo "Creating virtualenv at $(VENV_DIR)..."; \
-		mkdir -p "$(VENV_HOME)"; \
-		python3 -m venv "$(VENV_DIR)" || { \
-			echo "Failed to create virtualenv"; \
-			rm -rf "$(VENV_DIR)"; \
-			exit 1; \
-		}; \
-		echo "Installing requirements..."; \
-		"$(VENV_PY)" -m pip install --upgrade pip setuptools wheel || true; \
-		"$(VENV_PY)" -m pip install -r "$(ROOT)/../venv/requirements.txt" || { \
-			echo "Failed to install requirements"; \
-			rm -rf "$(VENV_DIR)"; \
-			exit 1; \
-		}; \
-	else \
-		echo "Virtualenv already exists at $(VENV_DIR)"; \
-	fi
 
 all: run
 

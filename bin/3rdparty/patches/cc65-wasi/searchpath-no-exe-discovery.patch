@@ -1,0 +1,44 @@
+diff --git a/3rdparty/cc65/src/common/searchpath.c b/3rdparty/cc65/src/common/searchpath.c
+--- a/3rdparty/cc65/src/common/searchpath.c
++++ b/3rdparty/cc65/src/common/searchpath.c
+@@ -167,7 +167,7 @@
+ #define PATHSEP "\\"
+ #undef PATH_MAX
+ #define PATH_MAX _MAX_PATH
+-#else
++#elif !defined(__wasi__)
+ #define PATHSEP "/"
+ 
+ /*
+@@ -267,6 +267,14 @@
+ 
+ void AddSubSearchPathFromBin (SearchPaths* P, const char* SubDir)
+ {
++#if defined(__wasi__)
++    /* WASI: resources are mapped through explicit preopens by the
++    ** launcher.  argv[0]-based executable discovery and realpath()
++    ** are not meaningful in a WASI guest. */
++    (void) P;
++    (void) SubDir;
++    return;
++#else
+     char* Ptr;
+     char Dir[PATH_MAX];
+ 
+@@ -276,7 +284,7 @@
+         return;
+     }
+ 
+-#else /* POSIX */
++#else /* POSIX (non-WASI) */
+ 
+     GetProgPath(Dir, ArgVec[0]);
+ 
+@@ -301,6 +309,7 @@
+ 
+     /* Add the search path */
+     AddSearchPath (P, Dir);
++#endif /* !__wasi__ */
+ }
+ 
+ 

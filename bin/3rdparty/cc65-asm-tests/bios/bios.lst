@@ -1,0 +1,3368 @@
+; da65 V2.19 - WASI 2.19
+; Created:    2026-07-30 23:19:38
+; Input file: bios.bin
+; Page:       1
+
+
+        .setcpu "6502"
+
+L2165           := $2165
+L3031           := $3031
+L3032           := $3032
+L3131           := $3131
+L3132           := $3132
+L3231           := $3231
+L3232           := $3232
+L3331           := $3331
+L3332           := $3332
+L3431           := $3431
+L3432           := $3432
+L3531           := $3531
+L3631           := $3631
+L3731           := $3731
+L3831           := $3831
+L3931           := $3931
+L4E49           := $4E49
+L6874           := $6874
+L6F43           := $6F43
+L7048           := $7048
+LF000:  sec
+        lda     $00
+        sbc     #$01
+        sta     $00
+        lda     $01
+        sbc     #$00
+        sta     $01
+        lda     $02
+        sbc     #$00
+        sta     $02
+        ora     $01
+        ora     $00
+        bne     LF000
+        rts
+
+LF01A:  rts
+
+LF01B:  ldy     #$00
+        lda     ($05),y
+        tax
+        beq     LF03B
+LF022:  iny
+        lda     ($05),y
+        php
+        sta     $08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     $08
+        jsr     LF03C
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        dex
+        bne     LF022
+LF03B:  rts
+
+LF03C:  pha
+        lda     $09
+        cmp     #$28
+        bcc     LF046
+        jsr     LF055
+LF046:  jsr     LF12B
+        ldy     #$00
+        pla
+        sta     ($0C),y
+        lda     $0B
+        sta     ($0E),y
+        inc     $09
+        rts
+
+LF055:  php
+        sta     $08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     $08
+        lda     #$00
+        sta     $09
+        inc     $0A
+        lda     $0A
+        cmp     #$18
+        bcc     LF06E
+        jsr     LF075
+LF06E:  pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        rts
+
+LF075:  php
+        sta     $08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     $08
+        lda     $05
+        pha
+        lda     $06
+        pha
+        lda     $03
+        pha
+        lda     $04
+        pha
+        lda     #$28
+        sta     $05
+        lda     #$D0
+        sta     $06
+        lda     #$00
+        sta     $03
+        lda     #$D0
+        sta     $04
+        jsr     LF0D7
+        lda     #$28
+        sta     $05
+        lda     #$E0
+        sta     $06
+        lda     #$00
+        sta     $03
+        lda     #$E0
+        sta     $04
+        jsr     LF0D7
+        ldy     #$27
+LF0B3:  lda     #$20
+        sta     $D398,y
+        lda     $0B
+        sta     $E398,y
+        dey
+        .byte   $10
+LF0BF:  .byte   $F3
+        lda     #$17
+        sta     $0A
+        pla
+        sta     $04
+        pla
+        sta     $03
+        pla
+        sta     $06
+        pla
+        sta     $05
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        rts
+
+LF0D7:  ldx     #$03
+        beq     LF0EB
+        ldy     #$00
+LF0DD:  lda     ($05),y
+        sta     ($03),y
+        iny
+        bne     LF0DD
+        .byte   $E6
+LF0E5:  asl     $E6
+LF0E7:  .byte   $04
+        dex
+LF0E9:  bne     LF0DD
+LF0EB:  .byte   $A0
+LF0EC:  brk
+        cpy     #$98
+        beq     LF0FA
+LF0F1:  lda     ($05),y
+        sta     ($03),y
+        iny
+        cpy     #$98
+        bne     LF0F1
+LF0FA:  rts
+
+LF0FB:  brk
+        plp
+        bvc     LF177
+        ldy     #$C8
+        beq     LF11B
+        rti
+
+        pla
+        bcc     LF0BF
+LF107:  cpx     #$08
+        bmi     LF163
+        .byte   $80
+        tay
+        bne     LF107
+        jsr     L7048
+        tya
+LF113:  bne     LF0E5
+        bne     LF0E7
+        bne     LF0E9
+        bne     LF0EC
+LF11B:  cmp     ($D1),y
+        cmp     ($D1),y
+        cmp     ($D2),y
+        .byte   $D2
+        .byte   $D2
+        .byte   $D2
+        .byte   $D2
+        .byte   $D2
+        .byte   $D2
+        .byte   $D3
+        .byte   $D3
+        .byte   $D3
+        .byte   $D3
+LF12B:  ldy     $0A
+        lda     LF0FB,y
+        sta     $0C
+        lda     LF113,y
+        sta     $0D
+        clc
+        lda     $0C
+        adc     $09
+        sta     $0C
+        bcc     LF142
+        inc     $0D
+LF142:  clc
+        lda     $0C
+        adc     #$00
+        sta     $0E
+        lda     $0D
+        adc     #$10
+        sta     $0F
+        rts
+
+        lda     $0A
+        sta     $03
+        lda     #$00
+        sta     $0E
+        ldx     #$08
+        lsr     $03
+        bcc     LF161
+        clc
+        adc     #$28
+LF161:  ror     a
+        .byte   $66
+LF163:  asl     $D0CA
+        .byte   $F3
+        sta     $0F
+        clc
+        lda     $0E
+        adc     $09
+        sta     $0E
+        lda     $0F
+        adc     #$00
+        sta     $0F
+        .byte   $A5
+LF177:  asl     $0C85
+        lda     $0F
+        sta     $0D
+        clc
+        lda     $0C
+        adc     #$00
+        sta     $0C
+        lda     $0D
+        adc     #$D0
+        sta     $0D
+        clc
+        lda     $0E
+        adc     #$00
+        sta     $0E
+        lda     $0F
+        adc     #$E0
+        sta     $0F
+        rts
+
+        lda     $0A
+        sta     $0C
+        lda     #$00
+        sta     $0D
+        asl     $0C
+        rol     $0D
+        asl     $0C
+        rol     $0D
+        asl     $0C
+        rol     $0D
+        lda     $0C
+        sta     $03
+        lda     $0D
+        sta     $04
+        asl     $0C
+        rol     $0D
+        asl     $0C
+        rol     $0D
+        clc
+        lda     $0C
+        adc     $03
+        sta     $0C
+        lda     $0D
+        adc     $04
+        sta     $0D
+        clc
+        lda     $0C
+        adc     $09
+        sta     $0C
+        lda     $0D
+        adc     #$00
+        sta     $0D
+        clc
+        lda     $0C
+        adc     #$00
+        sta     $0C
+        lda     $0D
+        adc     #$D0
+        sta     $0D
+        clc
+        lda     $0C
+        adc     #$00
+        sta     $0E
+        lda     $0D
+        adc     #$10
+        sta     $0F
+        rts
+
+LF1F2:  lda     #$00
+        sta     $03
+        lda     #$D0
+        sta     $04
+        lda     #$C0
+        sta     $05
+        lda     #$D3
+        sta     $06
+        lda     #$20
+        jsr     LF223
+        lda     #$00
+        sta     $03
+        lda     #$E0
+        sta     $04
+        lda     #$C0
+        sta     $05
+        lda     #$E3
+        sta     $06
+        lda     $0B
+        jsr     LF223
+        ldx     #$00
+        stx     $09
+        stx     $0A
+        rts
+
+LF223:  tax
+        ldy     #$00
+LF226:  lda     $03
+        beq     LF23D
+        cmp     $05
+        bne     LF234
+        lda     $04
+        cmp     $06
+        beq     LF259
+LF234:  txa
+        sta     ($03),y
+        inc     $03
+        bne     LF226
+        inc     $04
+LF23D:  lda     $04
+        cmp     $06
+        beq     LF24E
+        txa
+LF244:  sta     ($03),y
+        iny
+        bne     LF244
+        inc     $04
+        jmp     LF23D
+
+LF24E:  txa
+LF24F:  cpy     $05
+        beq     LF259
+        sta     ($03),y
+        iny
+        jmp     LF24F
+
+LF259:  rts
+
+LF25A:  lda     #$6F
+        sta     $0B
+        jsr     LF1F2
+        rts
+
+LF262:  php
+        pha
+        cld
+        lda     #$A3
+        sta     $00
+        lda     #$9D
+        sta     $01
+        lda     #$02
+        sta     $02
+        jsr     LF000
+        bit     $00
+        nop
+        nop
+        nop
+        nop
+        nop
+        pla
+        plp
+        rts
+
+        sei
+        ldx     #$FF
+        txs
+        cld
+        cli
+        jsr     LF25A
+        jsr     LF2C0
+        jsr     LF25A
+        lda     #$9B
+        sta     $05
+        lda     #$F2
+        sta     $06
+        jsr     LF01B
+LF298:  jmp     LF298
+
+        bit     $57
+        adc     $6C
+        .byte   $63
+        .byte   $6F
+        adc     $2065
+        .byte   $74
+        .byte   $6F
+        jsr     L6874
+        adc     $20
+        lsr     $61
+        ror     $6174
+        .byte   $73
+        adc     $3620,y
+        and     $30,x
+        .byte   $32
+        jsr     L6F43
+        ror     $6F73
+        jmp     (L2165)
+
+LF2C0:  lda     #$9B
+        sta     $05
+        lda     #$F2
+        sta     $06
+        ldx     #$64
+LF2CA:  php
+        sta     $08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     $08
+        jsr     LF01B
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        dex
+        bne     LF2CA
+        ldx     #$00
+        stx     $09
+        stx     $0A
+        lda     #$49
+        sta     $0B
+        ldx     #$00
+        stx     $09
+        ldx     #$01
+        stx     $0A
+        jmp     LF2FE
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $31
+LF2FE:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$F5
+        sta     a:$05
+        lda     #$F2
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF32C
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $32
+LF32C:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$23
+        sta     a:$05
+        lda     #$F3
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF35A
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $33
+LF35A:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$51
+        sta     a:$05
+        lda     #$F3
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF388
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $34
+LF388:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$7F
+        sta     a:$05
+        lda     #$F3
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF3B6
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $35
+LF3B6:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$AD
+        sta     a:$05
+        lda     #$F3
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF3E4
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $36
+LF3E4:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$DB
+        sta     a:$05
+        lda     #$F3
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF412
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $37
+LF412:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$09
+        sta     a:$05
+        lda     #$F4
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF440
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        sec
+LF440:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$37
+        sta     a:$05
+        lda     #$F4
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF46E
+
+        php
+        jmp     L4E49
+
+        eor     $20
+        .byte   $23
+        .byte   $20
+        .byte   $39
+LF46E:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$65
+        sta     a:$05
+        lda     #$F4
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF49D
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3031
+LF49D:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$93
+        sta     a:$05
+        lda     #$F4
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF4CC
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3131
+LF4CC:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$C2
+        sta     a:$05
+        lda     #$F4
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF4FB
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3231
+LF4FB:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$F1
+        sta     a:$05
+        lda     #$F4
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF52A
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3331
+LF52A:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$20
+        sta     a:$05
+        lda     #$F5
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF559
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3431
+LF559:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$4F
+        sta     a:$05
+        lda     #$F5
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF588
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3531
+LF588:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$7E
+        sta     a:$05
+        lda     #$F5
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF5B7
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3631
+LF5B7:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$AD
+        sta     a:$05
+        lda     #$F5
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF5E6
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3731
+LF5E6:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$DC
+        sta     a:$05
+        lda     #$F5
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF615
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3831
+LF615:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$0B
+        sta     a:$05
+        lda     #$F6
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF644
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3931
+LF644:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$3A
+        sta     a:$05
+        lda     #$F6
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF673
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3032
+LF673:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$69
+        sta     a:$05
+        lda     #$F6
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF6A2
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3132
+LF6A2:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$98
+        sta     a:$05
+        lda     #$F6
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF6D1
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3232
+LF6D1:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$C7
+        sta     a:$05
+        lda     #$F6
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF700
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3332
+LF700:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$F6
+        sta     a:$05
+        lda     #$F6
+        sta     a:$06
+        jsr     LF01B
+        jsr     LF055
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jmp     LF72F
+
+        ora     #$4C
+        eor     #$4E
+        eor     $20
+        .byte   $23
+        jsr     L3432
+LF72F:  php
+        sta     a:$08
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda     a:$08
+        lda     #$25
+        sta     a:$05
+        lda     #$F7
+        sta     a:$06
+        jsr     LF01B
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        jsr     LF262
+        rts
+
+        rti
+
+        rti
+
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        jmp     LF01A
+
+        jmp     LF1F2
+
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        brk
+        .byte   $52
+        .byte   $F7
+        ror     $53F2,x
+        .byte   $F7

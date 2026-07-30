@@ -1,10 +1,26 @@
 # ca65 Build System for 6502 BIOS
 
-# Tool paths
-CA65 = ca65
-LD65 = ld65
-DA65 = da65
-PYTHON = python3
+include ../../venv.mk
+
+.DEFAULT_GOAL := all
+
+# --- Native vs. WASI tool selection ---
+USE_NATIVE_CC65 ?= 0
+
+PYTHON ?= $(VENV_PY)
+PROJECT_ROOT := $(abspath ../..)
+RUN_WASI := $(PYTHON) $(PROJECT_ROOT)/bin/run_wasi.py
+
+ifeq ($(USE_NATIVE_CC65),1)
+CA65 := ca65
+LD65 := ld65
+DA65 := da65
+else
+CA65 := $(RUN_WASI) ca65
+LD65 := $(RUN_WASI) ld65
+DA65 := $(RUN_WASI) da65
+endif
+
 FMT = $(PYTHON) ../../dev-tools/fmt6502/fmt6502.py
 
 # Source files
@@ -41,7 +57,6 @@ LD65_FLAGS = -C $(LINKER_CONFIG) -m $(ROM_IMAGE).map
 
 
 all: $(LINKED_LISTING)
-
 
 # Rewrite source files atomically.
 #

@@ -5,3 +5,8 @@ __pycache__
 *.bin.map
 fconsole/bios/bios.lst
 venv/hosts
+
+# WASI build artefacts
+bin/wasi/
+.runtime/
+vendor/wheels/*.whl

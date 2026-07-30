@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "tools": {
+    "ar65": {
+      "module": "wasi/ar65.wasm",
+      "mounts": []
+    },
+    "ca65": {
+      "module": "wasi/ca65.wasm",
+      "mounts": [
+        {
+          "host": "3rdparty/cc65/asminc",
+          "guest": "/cc65/asminc"
+        }
+      ],
+      "environment": {
+        "CA65_INC": "/cc65/asminc"
+      }
+    },
+    "cc65": {
+      "module": "wasi/cc65.wasm",
+      "mounts": [
+        {
+          "host": "3rdparty/cc65/asminc",
+          "guest": "/cc65/asminc"
+        },
+        {
+          "host": "3rdparty/cc65/include",
+          "guest": "/cc65/include"
+        }
+      ],
+      "environment": {
+        "CA65_INC": "/cc65/asminc",
+        "CC65_INC": "/cc65/include"
+      }
+    },
+    "chrcvt65": {
+      "module": "wasi/chrcvt65.wasm",
+      "mounts": []
+    },
+    "co65": {
+      "module": "wasi/co65.wasm",
+      "mounts": []
+    },
+    "da65": {
+      "module": "wasi/da65.wasm",
+      "mounts": []
+    },
+    "grc65": {
+      "module": "wasi/grc65.wasm",
+      "mounts": []
+    },
+    "ld65": {
+      "module": "wasi/ld65.wasm",
+      "mounts": [
+        {
+          "host": "3rdparty/cc65/cfg",
+          "guest": "/cc65/cfg"
+        },
+        {
+          "host": "3rdparty/cc65/lib",
+          "guest": "/cc65/lib",
+          "optional": true
+        }
+      ],
+      "environment": {
+        "LD65_CFG": "/cc65/cfg",
+        "LD65_LIB": "/cc65/lib",
+        "LD65_OBJ": "/cc65/lib"
+      }
+    },
+    "od65": {
+      "module": "wasi/od65.wasm",
+      "mounts": []
+    },
+    "sp65": {
+      "module": "wasi/sp65.wasm",
+      "mounts": []
+    }
+  }
+}
