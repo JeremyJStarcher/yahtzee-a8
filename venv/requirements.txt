@@ -3,5 +3,5 @@ py65==1.2.0
 pyrefly==1.1.1
 ruff==0.15.20
 setuptools==83.0.0
+wasmtime==47.0.1
 wheel==0.47.0
-wasmtime>=47.0.0,<48.0.0

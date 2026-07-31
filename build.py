@@ -50,9 +50,21 @@ def _venv_dir() -> Path:
     return _repo_root() / "venv" / "hosts" / f"venv-{hostname}"
 
 
+def _venv_bin_dir() -> Path:
+    """Path to the venv 'bin' directory ('Scripts' on Windows)."""
+    return _venv_dir() / ("Scripts" if sys.platform == "win32" else "bin")
+
+
+def _venv_tool(name: str) -> Path:
+    """Full path to a tool in the venv bin dir (appends .exe on Windows)."""
+    if sys.platform == "win32":
+        return _venv_bin_dir() / f"{name}.exe"
+    return _venv_bin_dir() / name
+
+
 def _venv_python() -> Path:
     """Path to the venv Python interpreter."""
-    return _venv_dir() / "bin" / "python"
+    return _venv_tool("python")
 
 
 def _run_wasi_script() -> Path:
@@ -209,16 +221,15 @@ def cmd_clean(args: argparse.Namespace) -> None:
 def cmd_lint(args: argparse.Namespace) -> None:
     """Run ruff and pyrefly linters."""
     ensure_venv()
-    vdir = _venv_dir()
     d = _repo_root() / "fconsole"
-    _run(vdir / "bin" / "ruff", "check", ".", "--fix", cwd=d)
-    _run(vdir / "bin" / "pyrefly", "check", ".", cwd=d)
+    _run(_venv_tool("ruff"), "check", ".", "--fix", cwd=d)
+    _run(_venv_tool("pyrefly"), "check", ".", cwd=d)
 
 
 def cmd_format(args: argparse.Namespace) -> None:
     """Format Python sources with ruff."""
     ensure_venv()
-    _run(_venv_dir() / "bin" / "ruff", "format", ".",
+    _run(_venv_tool("ruff"), "format", ".",
          cwd=_repo_root() / "fconsole")
 
 
@@ -242,7 +253,7 @@ def cmd_format_asm(args: argparse.Namespace) -> None:
 def cmd_typecheck(args: argparse.Namespace) -> None:
     """Type-check Python sources with pyrefly."""
     ensure_venv()
-    _run(_venv_dir() / "bin" / "pyrefly", "check", ".",
+    _run(_venv_tool("pyrefly"), "check", ".",
          cwd=_repo_root() / "fconsole")
 
 
