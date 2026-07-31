@@ -17,22 +17,22 @@ class Video:
 
     # fmt: off
     CHARS = [
-        "▀","▁","▂","▃","▄","▅","▆","▇","█","▉","▊","▋","▌","▍","▎","▏",
-        "▐","░","▒","▓","▔","▕","▖","▗","▘","▙","▚","▛","▜","▝","▞","▟",
-        " ","!","\"","#","$","%","&","'","(",")","*","+",",","-",".","/",
-        "0","1","2","3","4","5","6","7","8","9",":",";","<","=",">","?",
-        "@","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O",
-        "P","Q","R","S","T","U","V","W","X","Y","Z","[","\\","]","^","_",
-        "`","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o",
-        "p","q","r","s","t","u","v","w","x","y","z","{","|","}","~","",
-        "─","━","│","┃","┄","┅","┆","┇","┈","┉","┊","┋","┌","┍","┎","┏",
-        "┐","┑","┒","┓","└","┕","┖","┗","┘","┙","┚","┛","├","┝","┞","┟",
-        "┠","┡","┢","┣","┤","┥","┦","┧","┨","┩","┪","┫","┬","┭","┮","┯",
-        "┰","┱","┲","┳","┴","┵","┶","┷","┸","┹","┺","┻","┼","┽","┾","┿",
-        "╀","╁","╂","╃","╄","╅","╆","╇","╋","╊","╉","╋","╌","╍","╎","╏",
-        "═","║","╒","╓","╔","╕","╖","╗","╘","╙","╚","╛","╜","╝","╞","╟",
-        "╠","╡","╢","╣","╤","╥","╦","╧","╨","╩","╪","╫","╬","╭","╮","╯",
-        "╰","╱","╲","╳","╴","╵","╶","╷","╸","╹","╺","╻","╼","╽","╿","╾"
+"┲","▊","┠","┪","┷","╴","▝","╜","▆","╽","╌","┶","┴","╻","▟","┰",
+"┬","┾","╝","╲","╥","═","┙","╪","┸","█","┹","┞","▛","┿","╵","┄",
+" ","!","\"","#","$","%","&","'","(",")","*","+",",","-",".","/",
+"0","1","2","3","4","5","6","7","8","9",":",";","<","=",">","?",
+"@","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O",
+"P","Q","R","S","T","U","V","W","X","Y","Z","[","\\","]","^","_",
+"`","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o",
+"p","q","r","s","t","u","v","w","x","y","z","{","|","}","~","",
+"╠","╏","┥","┒","╾","┎","┛","┩","▋","┫","╊","┱","┵","┓","▘","┆",
+"╱","┏","┋","▕","╘","╛","╟","└","╆","┯","╿","╗","┮","▇","║","┨",
+"▀","╖","┳","╬","╩","╨","├","▃","▞","┦","▙","╦","┡","╢","╣","▖",
+"┭","╸","╅","╼","┣","┝","┚","╰","┇","╙","╯","╶","╇","▎","┽","┑",
+"╋","╒","┻","▗","─","┈","▁","╀","╳","▜","┍","┗","╹","╷","▐","▄",
+"┤","┧","╄","╋","╓","│","╉","░","╍","╭","┌","╚","╤","╺","╂","╕",
+"▂","▔","╞","┉","▚","╁","┖","┐","▌","▉","╫","┺","┃","━","▒","▍",
+"╎","┅","╔","┘","┼","╧","▅","┊","╃","╮","╡","┢","▓","┟","┕","▏",
     ]
     # fmt: on
 
@@ -52,9 +52,13 @@ class Video:
 
         cls._font_glyphs = {}
 
-        # Map each FontChar entry into our glyph dictionary
-        for font_idx, font_char in enumerate(FONT_DATA):
-            cls._font_glyphs[font_idx] = bytearray(font_char.layout)
+        # Map each FontChar entry into our glyph dictionary by print_order
+        for font_char in FONT_DATA:
+            if font_char.print_order >= 0:
+                cls._font_glyphs[font_char.print_order] = bytearray(font_char.layout)
+                if font_char.print_order == 32:
+                    print(f"CHECKPOINT {font_char.print_order} {font_char.layout}")
+
 
     # Character dimensions in pixels
     CHAR_WIDTH: int = 8
@@ -314,78 +318,11 @@ class Video:
             String representation of the character
         """
         index = char_byte
+
         if index < len(self.CHARS):
             return self.CHARS[index]
         else:
             return "?"
-
-    def _draw_bitmap_char(
-        self,
-        canvas: Canvas,
-        x: int,
-        y: int,
-        char_byte: int,
-        fg_color: str,
-        bg_color: str,
-        scale: int,
-    ) -> bool:
-        """
-        Draw a single character using embedded font bitmap data.
-
-        Uses pixel-by-pixel rectangle drawing for authentic 8-bit look.
-
-        Args:
-            canvas: Tkinter canvas to draw on
-            x, y: Top-left corner position in pixels
-            char_byte: Character byte (high bit masked)
-            fg_color: Foreground color hex string
-            bg_color: Background color hex string
-            scale: Scaling factor
-
-        Returns:
-            True if bitmap was drawn, False if fallback needed
-        """
-        # Get glyph data from embedded font using 7-bit index
-        glyph_index = char_byte
-        glyph_data = self._font_glyphs.get(glyph_index)
-
-        if glyph_data is None or len(glyph_data) != 8:
-            print(len(self._font_glyphs))
-            print(self._font_glyphs)
-            # No bitmap available - fallback to text rendering
-            return False
-
-        # Draw background first (fills entire cell)
-        canvas.create_rectangle(
-            x,
-            y,
-            x + self.CHAR_WIDTH * scale,
-            y + self.CHAR_HEIGHT * scale,
-            fill=bg_color,
-            outline="",
-        )
-
-        # Draw foreground pixels where bits are set
-        pixel_size = max(1, scale)
-        for row in range(self.CHAR_HEIGHT):
-            byte_val: int = glyph_data[row]
-            for col in range(self.CHAR_WIDTH):
-                # Check if this pixel should be drawn (MSB-first bit order)
-                bit_position = col  # 7 - col
-                if byte_val & (1 << bit_position):
-                    # Draw a small rectangle for this pixel
-                    px = x + col * scale
-                    py = y + row * scale
-                    canvas.create_rectangle(
-                        px,
-                        py,
-                        px + pixel_size,
-                        py + pixel_size,
-                        fill=fg_color,
-                        outline="",
-                    )
-
-        return True
 
     def _get_colors(
         self, color_byte: int
@@ -437,6 +374,9 @@ class Video:
         for offset in range(len(self._screen_memory)):
             char_byte = self._screen_memory[offset]
             color_byte = self._color_memory[offset]
+
+            ##########jjz print(f"****************************** {char_byte}")
+
 
             if (
                 self._prev_screen[offset] == char_byte

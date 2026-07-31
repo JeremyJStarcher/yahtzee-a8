@@ -527,8 +527,8 @@ _reset_handler:
     CLI                                 ; Interrupts!
 
     JSR reset_screen
-    JSR video_test
-    JSR reset_screen
+    ;JSR video_test
+    ;JSR reset_screen
 
     load16 PRINT_PTR, msg_welcome
     JSR PRINT_PSTRING
@@ -536,8 +536,12 @@ halt:
     JMP halt                            ; Safely trap CPU here when done
 
 msg_welcome:
-    pstring "╳░Welcome to the Fantasy 6502 Console!░╳"
+    ;pstring "\XC8Welcome to the Fantasy 6502 Console!\xc8"
+    .byte 5
+    .byte $C8
+    .byte "WELCOME TO"
 
+    
 .proc video_test
 
 ; Set pointer in Zero Page
