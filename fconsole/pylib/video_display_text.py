@@ -14,32 +14,13 @@ import tkinter as tk
 from tkinter import Canvas
 from tkinter import font as tkfont
 
+from .font import PRINT_ORDER_CHARS
+
 
 class Video:
     """A native-text video display with character and color memory."""
 
-    # Keep this table identical to the bitmap renderer so screen codes remain
-    # interchangeable between the two backends.
-    # fmt: off
-    CHARS = [
-        "▀","▁","▂","▃","▄","▅","▆","▇","█","▉","▊","▋","▌","▍","▎","▏",
-        "▐","░","▒","▓","▔","▕","▖","▗","▘","▙","▚","▛","▜","▝","▞","▟",
-        " ","!","\"","#","$","%","&","'","(",")","*","+",",","-",".","/",
-        "0","1","2","3","4","5","6","7","8","9",":",";","<","=",">","?",
-        "@","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O",
-        "P","Q","R","S","T","U","V","W","X","Y","Z","[","\\","]","^","_",
-        "`","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o",
-        "p","q","r","s","t","u","v","w","x","y","z","{","|","}","~","\x7f",
-        "─","━","│","┃","┄","┅","┆","┇","┈","┉","┊","┋","┌","┍","┎","┏",
-        "┐","┑","┒","┓","└","┕","┖","┗","┘","┙","┚","┛","├","┝","┞","┟",
-        "┠","┡","┢","┣","┤","┥","┦","┧","┨","┩","┪","┫","┬","┭","┮","┯",
-        "┰","┱","┲","┳","┴","┵","┶","┷","┸","┹","┺","┻","┼","┽","┾","┿",
-        "╀","╁","╂","╃","╄","╅","╆","╇","╋","╊","╉","╋","╌","╍","╎","╏",
-        "═","║","╒","╓","╔","╕","╖","╗","╘","╙","╚","╛","╜","╝","╞","╟",
-        "╠","╡","╢","╣","╤","╥","╦","╧","╨","╩","╪","╫","╬","╭","╮","╯",
-        "╰","╱","╲","╳","╴","╵","╶","╷","╸","╹","╺","╻","╼","╽","╿","╾"
-    ]
-    # fmt: on
+    CHARS = PRINT_ORDER_CHARS
 
     # Logical character dimensions retained for API familiarity.  The actual
     # native-text cell dimensions are derived from the selected Tk font.
@@ -73,7 +54,6 @@ class Video:
 
     _CHAR_TO_CODE: dict[str, int] = {}
     for _index, _character in enumerate(CHARS):
-        # Match list.index(): duplicate Unicode glyphs resolve to the first code.
         _CHAR_TO_CODE.setdefault(_character, _index)
     del _index, _character
 

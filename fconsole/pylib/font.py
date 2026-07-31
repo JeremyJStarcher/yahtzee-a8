@@ -277,6 +277,35 @@ FONT_DATA: list[FontChar] = [
 # fmt: on
 
 
+def _build_char_lists():
+    """Build character lookup tables from FONT_DATA."""
+    n = len(FONT_DATA)
+
+    # Initialize with empty strings so unmapped positions stay blank.
+    print_chars = [""] * n
+    screen_chars = [""] * n
+
+    for char in FONT_DATA:
+        po = char.print_order
+        so = char.screen_order
+        cp_char = chr(char.codepoint)
+
+        if 0 <= po < n:
+            print_chars[po] = cp_char
+        if 0 <= so < n:
+            screen_chars[so] = cp_char
+
+    return print_chars, screen_chars
+
+
+# Character lists derived directly from FONT_DATA order values.  Each list is
+# indexed by the corresponding order value (print_order or screen_order) and
+# contains the Unicode character for that slot.
+PRINT_ORDER_CHARS: list[str] = []
+SCREEN_ORDER_CHARS: list[str] = []
+PRINT_ORDER_CHARS, SCREEN_ORDER_CHARS = _build_char_lists()
+
+
 def _assign_orders() -> None:
     """Assign screen_order and print_order to all font characters."""
     n = len(FONT_DATA)
