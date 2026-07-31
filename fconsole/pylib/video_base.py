@@ -117,6 +117,18 @@ class BaseVideo:
         """Current scaling factor."""
         return self._scale
 
+    # -- Character display ---------------------------------------------------
+
+    def _get_char_display(self, char_byte: int) -> str:
+        """Convert a character byte to its displayable Unicode string.
+
+        Uses the ``CHARS`` table to map byte values to characters.
+        Returns ``"?"`` for out-of-range indices.
+        """
+        if char_byte < len(self.CHARS):
+            return self.CHARS[char_byte]
+        return "?"
+
     # -- Screencode lookup ---------------------------------------------------
 
     def get_screencode(self, ch: str) -> int:

@@ -13,12 +13,11 @@ import sys
 import time
 import tkinter as tk
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from pylib import video_display as bitmap_vd
 from pylib import video_display_text as text_vd
-
 
 # ---------------------------------------------------------------------------
 # Configuration data classes
@@ -107,7 +106,7 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
                 print(f"Warning: Could not parse line {line_num}: {e}")
 
     # Map assembly variable names to HardwareLimits dataclass fields.
-    _FIELD_MAP: dict[str, tuple[str, type]] = {
+    _field_map: dict[str, tuple[str, type]] = {
         "CLOCK_SPEED": ("clock_speed", int),
         "SCREEN_COLS": ("screen_cols", int),
         "SCREEN_ROWS": ("screen_rows", int),
@@ -148,8 +147,8 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
                 evaluated[var_name] = value
                 made_progress = True
 
-                if var_name in _FIELD_MAP:
-                    field_name, field_type = _FIELD_MAP[var_name]
+                if var_name in _field_map:
+                    field_name, field_type = _field_map[var_name]
                     setattr(hw, field_name, field_type(value))
 
             except Exception:

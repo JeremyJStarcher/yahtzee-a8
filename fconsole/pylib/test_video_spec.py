@@ -243,7 +243,7 @@ def test_constructor() -> bool:
 
     # Invalid: non-integer rows
     try:
-        v = vd.Video(5.5, 10)
+        v = vd.Video(5.5, 10)  # pyrefly: ignore[bad-argument-type]
         print("✗ Should reject float rows")
         v.close()
         return False
@@ -336,7 +336,7 @@ def test_offset_validation() -> bool:
 
     # Invalid: non-integer offset
     try:
-        v.get_screen(5.5)
+        v.get_screen(5.5)  # pyrefly: ignore[bad-argument-type]
         print("✗ Should reject non-integer offset")
         v.close()
         return False

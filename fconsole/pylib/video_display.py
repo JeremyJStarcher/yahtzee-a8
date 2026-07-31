@@ -7,8 +7,10 @@ and color memory.  This module uses bitmap PhotoImage cells for authentic
 pixel-art rendering.
 """
 
+from __future__ import annotations
+
 import tkinter as tk
-from tkinter import Canvas, PhotoImage
+from tkinter import PhotoImage
 
 from .font import FONT_DATA
 from .video_base import BaseVideo
