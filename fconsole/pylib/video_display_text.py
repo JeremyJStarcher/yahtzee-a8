@@ -14,13 +14,13 @@ import tkinter as tk
 from tkinter import Canvas
 from tkinter import font as tkfont
 
-from .font import PRINT_ORDER_CHARS
+from .font import SCREEN_ORDER_CHARS
 
 
 class Video:
     """A native-text video display with character and color memory."""
 
-    CHARS = PRINT_ORDER_CHARS
+    CHARS = SCREEN_ORDER_CHARS
 
     # Logical character dimensions retained for API familiarity.  The actual
     # native-text cell dimensions are derived from the selected Tk font.

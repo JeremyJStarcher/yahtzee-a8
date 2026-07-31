@@ -9,13 +9,17 @@ and color memory.
 import tkinter as tk
 from tkinter import Canvas, PhotoImage
 
-from .font import FONT_DATA, PRINT_ORDER_CHARS
+from .font import FONT_DATA, SCREEN_ORDER_CHARS, PRINT_ORDER_CHARS
 
+print("SO: ##################################################")
+print(SCREEN_ORDER_CHARS)
+print("PO: ##################################################")
+print(PRINT_ORDER_CHARS)
 
 class Video:
     """A single video display instance managing its own window and memory."""
 
-    CHARS = PRINT_ORDER_CHARS
+    CHARS = SCREEN_ORDER_CHARS
 
     # Bitmap glyph data indexed by character code (populated from FONT_DATA)
     _font_glyphs: dict[int, bytearray] = {}
@@ -35,11 +39,7 @@ class Video:
 
         # Map each FontChar entry into our glyph dictionary by print_order
         for font_char in FONT_DATA:
-            if font_char.print_order >= 0:
-                cls._font_glyphs[font_char.print_order] = bytearray(font_char.layout)
-                if font_char.print_order == 32:
-                    print(f"CHECKPOINT {font_char.print_order} {font_char.layout}")
-
+            cls._font_glyphs[font_char.screen_order] = bytearray(font_char.layout)
 
     # Character dimensions in pixels
     CHAR_WIDTH: int = 8

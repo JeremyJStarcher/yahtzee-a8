@@ -306,6 +306,44 @@ SCREEN_ORDER_CHARS: list[str] = []
 PRINT_ORDER_CHARS, SCREEN_ORDER_CHARS = _build_char_lists()
 
 
+def write_p2s_xlate(filename="p2s_xlate.inc") -> None:
+    """
+    Write a 6502 assembly translation table mapping print codes to screen codes.
+
+    For each byte value ``i`` treated as a print-order index (0..n-1), finds the
+    :class:`FontChar` whose ``print_order == i`` and writes that character's
+    ``screen_order`` as a ``.DB`` byte.
+
+    Args:
+        filename: Output path for the generated include file.
+                  Defaults to ``"p2s_xlate.inc"`` in the current directory.
+    """
+    # Build lookup: print_order -> screen_order
+    p2s_map: dict[int, int] = {}
+    for char in FONT_DATA:
+        if 0 <= char.print_order < len(FONT_DATA):
+            p2s_map[char.print_order] = char.screen_order
+
+    n = len(FONT_DATA)
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("; Translation table: print_code -> screen_code\n")
+        f.write(f"; Generated from {len(FONT_DATA)} font characters\n")
+        f.write(";\n")
+
+        values_per_line = 16
+        values: list[str] = []
+
+        for i in range(n):
+            sc = p2s_map.get(i, 0x20)  # Default to space ($20) if unmapped
+            values.append(f"${sc:02X}")
+
+            if (i + 1) % values_per_line == 0 or i == n - 1:
+                f.write(".byte " + ", ".join(values))
+                f.write("\n")
+                values.clear()
+
+
 def _assign_orders() -> None:
     """Assign screen_order and print_order to all font characters."""
     n = len(FONT_DATA)
@@ -376,6 +414,14 @@ def print_char_list() -> None:
             values.append(f'"{desc}"')
 
         print(",".join(values) + ",")
+
+def lookup_by_codepoint(codepoint: int):
+    for ch in FONT_DATA:
+        if ch.codepoint == codepoint:
+            print(ch)
+
 if __name__ == "__main__":
     #_reorder_font()
-    print_char_list()
+    # print_char_list()
+    # write_p2s_xlate()
+    lookup_by_codepoint(32)
