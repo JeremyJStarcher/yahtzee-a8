@@ -22,7 +22,6 @@ print(
     f"  END_REGION_COLOR_RAM: ${hw.end_region_color_ram:04X} (expected: $E400+960=$E7C0)"
 )
 print(f"  DEFAULT_COLOR: ${hw.default_color:02X} (expected: $6F=111)")
-print(f"  DEFAULT_SCREEN_VAL: {hw.default_screen_val} (expected: screencode for space)")
 
 # Verify values
 assert hw.clock_speed == 1000000, f"CLOCK_SPEED mismatch: {hw.clock_speed}"

@@ -33,7 +33,6 @@ class HardwareLimits:
     start_region_color_ram: int = 0
     end_region_color_ram: int = 0
     default_color: int = 0
-    default_screen_val: int = 0
 
 
 def parse_hw_limits(filepath: str) -> HardwareLimits:
@@ -109,7 +108,6 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
                     "START_REGION_COLOR_RAM": ("start_region_color_ram", int),
                     "END_REGION_COLOR_RAM": ("end_region_color_ram", int),
                     "DEFAULT_COLOR": ("default_color", int),
-                    "DEFAULT_SCREEN_CHAR": ("default_screen_val", int),
                 }
 
                 if var_name in field_mapping:
@@ -517,12 +515,6 @@ class FConsole:
                 columns=SCREEN_COLS,
                 scale=SCREEN_SCALE,
             )
-        # Resolve the space character's screen code now that the video backend is ready
-        hw_config.default_screen_val = self.vout.get_screencode(" ")
-        print(
-            f"Default screen value (space screencode): {hw_config.default_screen_val}"
-        )
-
         self.vout._root.title("fcon - vout")
         self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
 

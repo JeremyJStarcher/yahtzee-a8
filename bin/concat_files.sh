@@ -56,10 +56,25 @@ find "$target_dir" -type f -print0 | while IFS= read -r -d '' file; do
                     ;;
             esac
 
-            case "$rel_path" in
-                $pattern)
-                    skip=1
-                    break
+            # Trailing '/' means the pattern names a directory to be
+            # ignored together with every file underneath it.
+            case "$pattern" in
+                */)
+                    dir_pattern="${pattern%/}"
+                    case "$rel_path" in
+                        $dir_pattern|$dir_pattern/*)
+                            skip=1
+                            break
+                            ;;
+                    esac
+                    ;;
+                *)
+                    case "$rel_path" in
+                        $pattern)
+                            skip=1
+                            break
+                            ;;
+                    esac
                     ;;
             esac
         done < "$ignore_file"
@@ -74,6 +89,7 @@ find "$target_dir" -type f -print0 | while IFS= read -r -d '' file; do
         continue
     fi
 
+    echo "$rel_path"
     # Write the opening tag, the file content, and the closing tag
     {
         echo "<file $rel_path>"

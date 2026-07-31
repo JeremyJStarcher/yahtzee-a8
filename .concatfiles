@@ -7,3 +7,5 @@
 *.pdf
 *.zip
 *.atr
+*.wasi
+venv/hosts/

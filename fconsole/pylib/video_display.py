@@ -9,7 +9,7 @@ and color memory.
 import tkinter as tk
 from tkinter import Canvas, PhotoImage
 
-from .font import FONT_DATA, SCREEN_ORDER_CHARS, PRINT_ORDER_CHARS
+from .font import C64_COLORS, DEFAULT_COLOR, FONT_DATA, SCREEN_ORDER_CHARS, PRINT_ORDER_CHARS
 
 print("SO: ##################################################")
 print(SCREEN_ORDER_CHARS)
@@ -41,32 +41,13 @@ class Video:
         for font_char in FONT_DATA:
             cls._font_glyphs[font_char.screen_order] = bytearray(font_char.layout)
 
+    # Shared palette and defaults (imported from pylib.font)
+    C64_COLORS = C64_COLORS
+    DEFAULT_COLOR = DEFAULT_COLOR
+
     # Character dimensions in pixels
     CHAR_WIDTH: int = 8
     CHAR_HEIGHT: int = 8
-
-    # Commodore 64 color palette (16 colors)
-    C64_COLORS = [
-        (0x00, 0x00, 0x00),  # 0: Black
-        (0xFF, 0xFF, 0xFF),  # 1: White
-        (0x68, 0x37, 0x2B),  # 2: Red
-        (0x70, 0xA4, 0xB2),  # 3: Cyan
-        (0x6F, 0x3D, 0x86),  # 4: Purple
-        (0x58, 0x8D, 0x43),  # 5: Green
-        (0x35, 0x28, 0x79),  # 6: Blue
-        (0xB8, 0xC7, 0x6F),  # 7: Yellow
-        (0x6F, 0x4F, 0x25),  # 8: Orange
-        (0x43, 0x39, 0x00),  # 9: Brown
-        (0x9A, 0x67, 0x59),  # 10: Light Red
-        (0x44, 0x44, 0x44),  # 11: Dark Gray
-        (0x6C, 0x6C, 0x6C),  # 12: Medium Gray
-        (0x9A, 0xD2, 0x84),  # 13: Light Green
-        (0x6C, 0x5E, 0xB5),  # 14: Light Blue
-        (0x95, 0x95, 0x95),  # 15: Light Gray
-    ]
-
-    # Default color: Background=Blue(6), Foreground=Yellow(7)
-    DEFAULT_COLOR = 0x67
 
     def __init__(self, rows, columns, scale: int = 1, border: int = 1) -> None:
         """
