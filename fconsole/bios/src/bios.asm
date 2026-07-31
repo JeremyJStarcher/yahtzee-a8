@@ -536,7 +536,7 @@ halt:
     JMP halt                            ; Safely trap CPU here when done
 
 msg_welcome:
-    pstring "Welcome to the Fantasy 6502 Console!"
+    pstring "╳░Welcome to the Fantasy 6502 Console!░╳"
 
 .proc video_test
 
