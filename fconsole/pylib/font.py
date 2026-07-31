@@ -371,7 +371,13 @@ def write_p2s_xlate(filename="p2s_xlate.inc") -> None:
 
 
 def _assign_orders() -> None:
-    """Assign screen_order and print_order to all font characters."""
+    """Assign screen_order and print_order to all font characters.
+
+    **Data-generation utility only.**  This function was used to populate the
+    ``print_order`` and ``screen_order`` fields in the hard-coded ``FONT_DATA``
+    table above.  It is not called during normal emulator operation and is
+    retained only for documentation / reproducibility of the initial ordering.
+    """
     n = len(FONT_DATA)
 
     # Generate random screen order (permutation of 0..n-1)
@@ -404,8 +410,10 @@ def _assign_orders() -> None:
 
 def _reorder_font():
     """
-    This creates a new ordering of the characters, that was mostly used to populate
-    the data in the table above.  It shouldn't be needed again. 
+    **Data-generation utility only.**  Creates a new ordering of the characters
+    and prints the resulting ``FontChar(...)`` entries so they can be pasted into
+    ``FONT_DATA``.  This was used to populate the hard-coded table above and is
+    not called during normal emulator operation.  It should not be needed again.
     """
     _assign_orders()
     #print("FONT_DATA = [")

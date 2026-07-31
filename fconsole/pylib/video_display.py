@@ -9,12 +9,7 @@ and color memory.
 import tkinter as tk
 from tkinter import Canvas, PhotoImage
 
-from .font import C64_COLORS, DEFAULT_COLOR, FONT_DATA, SCREEN_ORDER_CHARS, PRINT_ORDER_CHARS
-
-print("SO: ##################################################")
-print(SCREEN_ORDER_CHARS)
-print("PO: ##################################################")
-print(PRINT_ORDER_CHARS)
+from .font import C64_COLORS, DEFAULT_COLOR, FONT_DATA, SCREEN_ORDER_CHARS
 
 class Video:
     """A single video display instance managing its own window and memory."""

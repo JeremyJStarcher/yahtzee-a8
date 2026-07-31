@@ -68,6 +68,19 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
             except Exception as e:
                 print(f"Warning: Could not parse line {line_num}: {e}")
 
+    # Map assembly variable names to HardwareLimits dataclass fields.
+    _FIELD_MAP: dict[str, tuple[str, type]] = {
+        "CLOCK_SPEED": ("clock_speed", int),
+        "SCREEN_COLS": ("screen_cols", int),
+        "SCREEN_ROWS": ("screen_rows", int),
+        "SCREEN_SIZE": ("screen_size", int),
+        "START_REGION_CHAR_RAM": ("start_region_char_ram", int),
+        "END_REGION_CHAR_RAM": ("end_region_char_ram", int),
+        "START_REGION_COLOR_RAM": ("start_region_color_ram", int),
+        "END_REGION_COLOR_RAM": ("end_region_color_ram", int),
+        "DEFAULT_COLOR": ("default_color", int),
+    }
+
     # Second pass: evaluate expressions using already-parsed variables
     evaluated = {}
     max_iterations = len(assignments) + 1  # Prevent infinite loops
@@ -97,21 +110,8 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
                 evaluated[var_name] = value
                 made_progress = True
 
-                # Map to dataclass fields
-                field_mapping = {
-                    "CLOCK_SPEED": ("clock_speed", int),
-                    "SCREEN_COLS": ("screen_cols", int),
-                    "SCREEN_ROWS": ("screen_rows", int),
-                    "SCREEN_SIZE": ("screen_size", int),
-                    "START_REGION_CHAR_RAM": ("start_region_char_ram", int),
-                    "END_REGION_CHAR_RAM": ("end_region_char_ram", int),
-                    "START_REGION_COLOR_RAM": ("start_region_color_ram", int),
-                    "END_REGION_COLOR_RAM": ("end_region_color_ram", int),
-                    "DEFAULT_COLOR": ("default_color", int),
-                }
-
-                if var_name in field_mapping:
-                    field_name, field_type = field_mapping[var_name]
+                if var_name in _FIELD_MAP:
+                    field_name, field_type = _FIELD_MAP[var_name]
                     setattr(hw, field_name, field_type(value))
 
             except Exception:
@@ -263,7 +263,6 @@ SCREEN_ROWS = hw_config.screen_rows
 SCREEN_SCALE = args.screen_scale
 VIDEO_BACKEND = args.video_backend
 TEXT_FONT_FAMILY = args.text_font_family
-VID_DEBUG = False
 
 
 @dataclass
@@ -561,111 +560,44 @@ class FConsole:
         self._pending_color_writes[offset] = value
         self.isDirty = True
 
-    def ord2(self, ch: str) -> int:
-        return self.vout.get_screencode(ch)
+    @staticmethod
+    def _format_cpu_state(cpu, bus) -> str:
+        """Format the 6502 register state as a human-readable string.
+
+        Returns a single line showing A, X, Y, SP, NV-BDIZC flags,
+        and the reset vector value, suitable for console / debug output.
+        """
+        p = cpu.p
+        return (
+            f"{cpu.a:02X} "
+            f"{cpu.x:02X} "
+            f"{cpu.y:02X} "
+            f"{cpu.sp:02X} "
+            f"{(p >> 7) & 1}"
+            f"{(p >> 6) & 1}"
+            f"{(p >> 5) & 1}"
+            f"-"
+            f"{(p >> 3) & 1}"
+            f"{(p >> 2) & 1}"
+            f"{(p >> 1) & 1}"
+            f"{p & 1}"
+            f" {bus[0xFFFD]:02X}"
+            f"{bus[0xFFFC]:02X}"
+        )
 
     def _log_cpu_state_to_console(self) -> None:
-        """Advance the 6502 CPU one instruction and log state to console window."""
-
-        # vec = 0xFFFC
-        vec = 0x00F0
+        """Log current 6502 register state to the debug console."""
 
         output_lines = [
-            # f"PC: {pc:04X}",
             " A  X  Y SP NV-BDIZC Vector",
             "---------------------",
-            f"{self.cpu_module.cpu.a:02X} "
-            f"{self.cpu_module.cpu.x:02X} "
-            f"{self.cpu_module.cpu.y:02X} "
-            f"{self.cpu_module.cpu.sp:02X} "
-            f"{(self.cpu_module.cpu.p >> 7) & 1}"
-            f"{(self.cpu_module.cpu.p >> 6) & 1}"
-            f"{(self.cpu_module.cpu.p >> 5) & 1}"
-            f"-"
-            f"{(self.cpu_module.cpu.p >> 3) & 1}"
-            f"{(self.cpu_module.cpu.p >> 2) & 1}"
-            f"{(self.cpu_module.cpu.p >> 1) & 1}"
-            f"{self.cpu_module.cpu.p & 1}"
-            f" {self.cpu_module.bus[vec + 1]:02X}"
-            f"{self.cpu_module.bus[vec]:02X}",
+            self._format_cpu_state(self.cpu_module.cpu, self.cpu_module.bus),
             "",
         ]
 
         output = "\n".join(output_lines)
         self.console_print(output)
         print(output)
-
-    def _update_cpu_step_debug(self) -> None:
-        """Advance the 6502 CPU one instruction per tick and show state."""
-
-        cols = SCREEN_COLS
-        # rows = SCREEN_ROWS
-
-        # Execute one NOP at a time from $0000
-        self.cpu_module.step()
-
-        # Show the current PC in hex so we can verify it advances
-        pc = self.cpu_module.cpu.pc
-        pc_str = f"{pc:04X}"
-
-        for i, ch in enumerate(pc_str):
-            row = 1
-            col = 2 + i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        label = "PC"
-        for i, ch in enumerate(label):
-            row = 1
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        separator = "----------"
-        for i, ch in enumerate(separator):
-            row = 3
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        note = "ALL MEM=$EA ╝(NOP)"
-        for i, ch in enumerate(note):
-            row = 5
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        regs_label = "  A  X  Y  SP NV-BDIZC Vector"
-        for i, ch in enumerate(regs_label):
-            row = 7
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        reg_vals = (
-            f"  "
-            f"{self.cpu_module.cpu.a:02X} "
-            f"{self.cpu_module.cpu.x:02X} "
-            f"{self.cpu_module.cpu.y:02X} "
-            f"{self.cpu_module.cpu.sp:02X} "
-            f"{(self.cpu_module.cpu.p >> 7) & 1}"
-            f"{(self.cpu_module.cpu.p >> 6) & 1}"
-            f"{(self.cpu_module.cpu.p >> 5) & 1}"
-            f"-"
-            f"{(self.cpu_module.cpu.p >> 3) & 1}"
-            f"{(self.cpu_module.cpu.p >> 2) & 1}"
-            f"{(self.cpu_module.cpu.p >> 1) & 1}"
-            f"{self.cpu_module.cpu.p & 1}"
-            f" {self.cpu_module.bus[0xFFFD]:02X}"
-            f"{self.cpu_module.bus[0xFFFC]:02X}"
-        )
-        for i, ch in enumerate(reg_vals):
-            row = 8
-            col = i
-            self.vout.set_screen(row * cols + col, self.ord2(ch))
-
-        # Refresh display
-        self.vout.refresh_screen()
-
-        # Schedule next frame (~15 FPS)
-        if self.running:
-            # self.vout._root.after(66, self._update_cpu_step)
-            self.vout._root.after(0, self._update_cpu_step)
 
     def _update_video_frame(self) -> None:
         """Flush coalesced VRAM writes and redraw at a bounded frame rate."""
@@ -698,9 +630,6 @@ class FConsole:
             # Break instruction
             if n == 0x00:
                 self._log_cpu_state_to_console()
-
-            if VID_DEBUG:
-                self._update_cpu_step_debug()
 
         self._emulated_cycles += batch_cycles
 
