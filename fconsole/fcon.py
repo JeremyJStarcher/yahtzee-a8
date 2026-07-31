@@ -6,14 +6,18 @@ Opens video output (vout) and debug output (dout) windows,
 runs a simple 6502 emulator demo via py65 on the video display.
 """
 
-import sys
-import re
-import time
-import math
 import argparse
+import math
+import re
+import sys
+import time
+import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+
+from pylib import video_display as bitmap_vd
+from pylib import video_display_text as text_vd
 
 
 @dataclass
@@ -43,7 +47,7 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
 
     # First pass: collect all assignments as raw strings
     assignments = {}
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         for line_num, line in enumerate(f, 1):
             # Strip comments (everything after semicolon)
             if ";" in line:
@@ -112,7 +116,7 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
                     field_name, field_type = field_mapping[var_name]
                     setattr(hw, field_name, field_type(value))
 
-            except Exception as e:
+            except Exception:
                 remaining.append((var_name, expr))
 
         if not made_progress and remaining:
@@ -230,14 +234,8 @@ def parse_args():
 
 args = parse_args()
 
-import tkinter as tk
-from dataclasses import dataclass
-
-from pylib import video_display as bitmap_vd
-from pylib import video_display_text as text_vd
-
 try:
-    from py65.devices.mpu6502 import MPU
+    from py65.devices.mpu6502 import MPU  # pyrefly: ignore[missing-import]
 except ImportError as e:
     print(f"ERROR: Missing dependency: {e}")
     print("Please install py65: pip install py65")
@@ -276,9 +274,9 @@ class MemoryRange:
     start: int
     end: int = -1
     len: int = -1
-    read_cb: Optional[Callable[[int], int]] = None
-    write_cb: Optional[Callable[[int, int], None]] = None
-    default_read_val: Optional[int] = None
+    read_cb: Callable[[int], int] | None = None
+    write_cb: Callable[[int, int], None] | None = None
+    default_read_val: int | None = None
 
     def __post_init__(self):
         if self.end == -1 and self.len == -1:
@@ -514,7 +512,7 @@ class FConsole:
                 f"cell={self.vout.cell_width}x{self.vout.cell_height}px"
             )
         else:
-            self.vout = bitmap_vd.Video(
+            self.vout = bitmap_vd.Video(  # pyrefly: ignore[bad-assignment]
                 rows=SCREEN_ROWS,
                 columns=SCREEN_COLS,
                 scale=SCREEN_SCALE,
@@ -571,9 +569,6 @@ class FConsole:
     def _log_cpu_state_to_console(self) -> None:
         """Advance the 6502 CPU one instruction and log state to console window."""
 
-        # Show the current PC in hex so we can verify it advances
-        pc = self.cpu_module.cpu.pc
-
         # vec = 0xFFFC
         vec = 0x00F0
 
@@ -595,7 +590,7 @@ class FConsole:
             f"{self.cpu_module.cpu.p & 1}"
             f" {self.cpu_module.bus[vec + 1]:02X}"
             f"{self.cpu_module.bus[vec]:02X}",
-            f"",
+            "",
         ]
 
         output = "\n".join(output_lines)

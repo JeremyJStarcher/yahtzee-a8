@@ -7,8 +7,7 @@ and color memory.
 """
 
 import tkinter as tk
-from tkinter import Canvas
-from tkinter import PhotoImage
+from tkinter import Canvas, PhotoImage
 
 from .font import FONT_DATA
 

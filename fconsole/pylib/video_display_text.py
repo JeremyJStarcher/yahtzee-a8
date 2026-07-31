@@ -13,7 +13,6 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import Canvas
 from tkinter import font as tkfont
-from typing import Optional
 
 
 class Video:
@@ -84,7 +83,7 @@ class Video:
         columns: int,
         scale: int = 1,
         border: int = 1,
-        font_family: Optional[str] = None,
+        font_family: str | None = None,
     ) -> None:
         self._validate_dimensions(rows, columns, scale, border)
 
@@ -117,8 +116,8 @@ class Video:
         self._background_items: list[int] = []
         self._text_items: list[int] = []
 
-        self._selection_anchor: Optional[int] = None
-        self._selection_end: Optional[int] = None
+        self._selection_anchor: int | None = None
+        self._selection_end: int | None = None
 
         self._configure_font_and_geometry()
         self._create_cell_items()
@@ -325,8 +324,8 @@ class Video:
 
     def get_text(
         self,
-        start_offset: Optional[int] = None,
-        end_offset: Optional[int] = None,
+        start_offset: int | None = None,
+        end_offset: int | None = None,
         *,
         trim_right: bool = True,
     ) -> str:
@@ -355,7 +354,7 @@ class Video:
 
         return "\n".join(lines)
 
-    def _event_to_offset(self, event: tk.Event) -> Optional[int]:
+    def _event_to_offset(self, event: tk.Event) -> int | None:
         col = event.x // self._cell_width - self._border
         row = event.y // self._cell_height - self._border
         if row < 0 or row >= self._rows or col < 0 or col >= self._columns:
@@ -386,13 +385,13 @@ class Video:
     def _selection_finish(self, event: tk.Event) -> str:
         return self._selection_drag(event)
 
-    def _select_all(self, _event: Optional[tk.Event] = None) -> str:
+    def _select_all(self, _event: tk.Event | None = None) -> str:
         self._selection_anchor = 0
         self._selection_end = len(self._screen_memory) - 1
         self._redraw_selection()
         return "break"
 
-    def _clear_selection(self, _event: Optional[tk.Event] = None) -> str:
+    def _clear_selection(self, _event: tk.Event | None = None) -> str:
         self._selection_anchor = None
         self._selection_end = None
         self._redraw_selection()
@@ -428,7 +427,7 @@ class Video:
             )
         self._canvas.tag_raise("selection")
 
-    def _copy_selection(self, _event: Optional[tk.Event] = None) -> str:
+    def _copy_selection(self, _event: tk.Event | None = None) -> str:
         if self._selection_anchor is not None and self._selection_end is not None:
             text = self.get_text(self._selection_anchor, self._selection_end)
         else:
