@@ -13,11 +13,16 @@ import sys
 import time
 import tkinter as tk
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pylib import video_display as bitmap_vd
 from pylib import video_display_text as text_vd
+
+
+# ---------------------------------------------------------------------------
+# Configuration data classes
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -35,6 +40,39 @@ class HardwareLimits:
     default_color: int = 0
 
 
+@dataclass
+class EmulatorConfig:
+    """All runtime configuration, derived from CLI args and hardware limits."""
+
+    # Display
+    screen_cols: int
+    screen_rows: int
+    screen_scale: int
+    video_backend: str
+    text_font_family: str | None
+
+    # CPU pacing
+    instructions_per_batch: int
+    clock_hz: float
+    fallback_cycles_per_instruction: float
+    max_catch_up_seconds: float
+    host_yield_ms: int
+    refresh_interval_ms: int
+
+    # Memory layout (from hw_limits.inc)
+    screen_size: int
+    start_region_char_ram: int
+    start_region_color_ram: int
+
+    # BIOS
+    bios_file: str = "bios/bios.bin"
+
+
+# ---------------------------------------------------------------------------
+# HW limits parser
+# ---------------------------------------------------------------------------
+
+
 def parse_hw_limits(filepath: str) -> HardwareLimits:
     """
     Parse assembly include file with assignment expressions.
@@ -45,7 +83,7 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
     hw = HardwareLimits()
 
     # First pass: collect all assignments as raw strings
-    assignments = {}
+    assignments: dict[str, str] = {}
     with open(filepath) as f:
         for line_num, line in enumerate(f, 1):
             # Strip comments (everything after semicolon)
@@ -82,11 +120,11 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
     }
 
     # Second pass: evaluate expressions using already-parsed variables
-    evaluated = {}
+    evaluated: dict[str, int] = {}
     max_iterations = len(assignments) + 1  # Prevent infinite loops
 
     for _ in range(max_iterations):
-        remaining = []
+        remaining: list[tuple[str, str]] = []
         made_progress = False
 
         for var_name, expr in assignments.items():
@@ -99,8 +137,8 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
             # Replace $hex notation with 0xhex
             expr_py = re.sub(r"\$([0-9A-Fa-f]+)", r"0x\1", expr_py)
 
-            # Handle character literals like ' ' -> chr(32) so eval keeps them as strings
-            def replace_char_literal(match):
+            # Handle character literals like ' ' -> chr(32)
+            def replace_char_literal(match: re.Match[str]) -> str:
                 return f"chr({ord(match.group(1))})"
 
             expr_py = re.sub(r"'(.?)'", replace_char_literal, expr_py)
@@ -124,6 +162,11 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
         assignments = dict(remaining)
 
     return hw
+
+
+# ---------------------------------------------------------------------------
+# Argparse helpers
+# ---------------------------------------------------------------------------
 
 
 def positive_int(value: str) -> int:
@@ -150,7 +193,7 @@ def nonnegative_float(value: str) -> float:
     return parsed
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse emulator and clock-pacing options."""
     parser = argparse.ArgumentParser(
         description="Fconsole - Official Emulator Start Script"
@@ -195,7 +238,8 @@ def parse_args():
         type=positive_int,
         default=1,
         help=(
-            "Minimum delay between CPU batches, even when behind schedule (default: 1)"
+            "Minimum delay between CPU batches, even when behind schedule "
+            "(default: 1)"
         ),
     )
     parser.add_argument(
@@ -225,44 +269,42 @@ def parse_args():
     parser.add_argument(
         "--text-font-family",
         default=None,
-        help=("Optional font family for --video-backend text; defaults to TkFixedFont"),
+        help=(
+            "Optional font family for --video-backend text; defaults to "
+            "TkFixedFont"
+        ),
     )
     return parser.parse_args()
 
 
-args = parse_args()
+def build_config(
+    args: argparse.Namespace, hw: HardwareLimits
+) -> EmulatorConfig:
+    """Merge CLI arguments and hardware limits into a single config object."""
+    clock_hz = args.clock_hz if args.clock_hz else float(hw.clock_speed)
+    refresh_interval_ms = max(1, round(1000.0 / args.refresh_hz))
 
-try:
-    from py65.devices.mpu6502 import MPU  # pyrefly: ignore[missing-import]
-except ImportError as e:
-    print(f"ERROR: Missing dependency: {e}")
-    print("Please install py65: pip install py65")
-    sys.exit(1)
+    return EmulatorConfig(
+        screen_cols=hw.screen_cols,
+        screen_rows=hw.screen_rows,
+        screen_scale=args.screen_scale,
+        video_backend=args.video_backend,
+        text_font_family=args.text_font_family,
+        instructions_per_batch=args.instructions_per_batch,
+        clock_hz=clock_hz,
+        fallback_cycles_per_instruction=args.fallback_cycles_per_instruction,
+        max_catch_up_seconds=args.max_catch_up_ms / 1000.0,
+        host_yield_ms=args.host_yield_ms,
+        refresh_interval_ms=refresh_interval_ms,
+        screen_size=hw.screen_size,
+        start_region_char_ram=hw.start_region_char_ram,
+        start_region_color_ram=hw.start_region_color_ram,
+    )
 
 
-# Load hardware limits from assembly include file
-hw_config_path = Path("bios/src/hw_limits.inc")
-if not hw_config_path.exists():
-    print(f"ERROR: Hardware limits file not found: {hw_config_path}")
-    sys.exit(1)
-
-hw_config = parse_hw_limits(str(hw_config_path))
-
-
-# Set defaults from hardware config if not overridden by CLI args
-INSTRUCTIONS_PER_BATCH = args.instructions_per_batch
-CPU_CLOCK_HZ = args.clock_hz if args.clock_hz else float(hw_config.clock_speed)
-FALLBACK_CYCLES_PER_INSTRUCTION = args.fallback_cycles_per_instruction
-MAX_CATCH_UP_SECONDS = args.max_catch_up_ms / 1000.0
-HOST_YIELD_MS = args.host_yield_ms
-REFRESH_HZ = args.refresh_hz
-REFRESH_INTERVAL_MS = max(1, round(1000.0 / REFRESH_HZ))
-BIOS_FILE = "bios/bios.bin"
-SCREEN_COLS = hw_config.screen_cols
-SCREEN_ROWS = hw_config.screen_rows
-SCREEN_SCALE = args.screen_scale
-VIDEO_BACKEND = args.video_backend
-TEXT_FONT_FAMILY = args.text_font_family
+# ---------------------------------------------------------------------------
+# Emulator core
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -275,7 +317,7 @@ class MemoryRange:
     write_cb: Callable[[int, int], None] | None = None
     default_read_val: int | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.end == -1 and self.len == -1:
             raise ValueError("Range error: end and length cannot both be empty")
 
@@ -291,65 +333,60 @@ class MemoryRange:
 
 
 class SystemBus:
-    """
-    Custom system bus dispatching memory reads and writes across configured ranges.
-    """
+    """Custom system bus dispatching memory reads and writes across
+    configured ranges."""
 
     def __init__(
         self,
-        char_read_cb=None,
-        char_write_cb=None,
-        color_read_cb=None,
-        color_write_cb=None,
-    ):
-        self.char_read_cb = char_read_cb
-        self.color_read_cb = color_read_cb
+        config: EmulatorConfig,
+        char_write_cb: Callable[[int, int], None] | None = None,
+        color_write_cb: Callable[[int, int], None] | None = None,
+    ) -> None:
         self.char_write_cb = char_write_cb
         self.color_write_cb = color_write_cb
-
-        screen_size = hw_config.screen_size
 
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
         self.rom = bytearray(0x1000)  # 4KB BIOS ROM ($F000-$FFFF)
 
-        # Fallback local buffers in case no display callback is attached
-        self._fallback_char_ram = bytearray(screen_size)
-        self._fallback_color_ram = bytearray(screen_size)
+        # Local VRAM buffers; writes are forwarded to the display callbacks.
+        self._fallback_char_ram = bytearray(config.screen_size)
+        self._fallback_color_ram = bytearray(config.screen_size)
 
         # Load BIOS binary into ROM if available
         try:
-            with open(BIOS_FILE, "rb") as f:
+            with open(config.bios_file, "rb") as f:
                 bios_data = f.read()
                 copy_size = min(len(bios_data), len(self.rom))
                 self.rom[:copy_size] = bios_data[:copy_size]
                 print(
-                    f"Loaded BIOS: {BIOS_FILE} ({len(bios_data)} 0x{len(bios_data):04X} bytes)"
+                    f"Loaded BIOS: {config.bios_file} "
+                    f"({len(bios_data)} 0x{len(bios_data):04X} bytes)"
                 )
         except FileNotFoundError:
-            print(f"WARNING: BIOS file not found: {BIOS_FILE}")
+            print(f"WARNING: BIOS file not found: {config.bios_file}")
         except Exception as e:
             print(f"ERROR loading BIOS: {e}")
 
-        # Dynamic memory map table using hardware configuration
-        self.bus_map = [
+        # Dynamic memory map table
+        self.bus_map: list[MemoryRange] = [
             MemoryRange(
                 name="ram",
                 start=0x0000,
-                len=hw_config.start_region_char_ram,
+                len=config.start_region_char_ram,
                 read_cb=lambda offset: self.ram[offset],
                 write_cb=self._write_ram,
             ),
             MemoryRange(
                 name="chars",
-                start=hw_config.start_region_char_ram,
-                len=hw_config.screen_size,
+                start=config.start_region_char_ram,
+                len=config.screen_size,
                 read_cb=self._read_char_mem,
                 write_cb=self._write_char_mem,
             ),
             MemoryRange(
                 name="colors",
-                start=hw_config.start_region_color_ram,
-                len=hw_config.screen_size,
+                start=config.start_region_color_ram,
+                len=config.screen_size,
                 read_cb=self._read_color_mem,
                 write_cb=self._write_color_mem,
             ),
@@ -358,18 +395,17 @@ class SystemBus:
                 start=0xF000,
                 end=0xFFFF,
                 read_cb=lambda offset: self.rom[offset],
-                # Explicitly no write_cb so writes to ROM are ignored
             ),
         ]
 
-    # --- RAM Handlers ---
+    # -- RAM ----------------------------------------------------------------
+
     def _write_ram(self, offset: int, value: int) -> None:
         self.ram[offset] = value & 0xFF
 
-    # --- Character Memory Handlers ---
+    # -- Character memory ---------------------------------------------------
+
     def _read_char_mem(self, offset: int) -> int:
-        # Emulated VRAM is authoritative. Never cross into the GUI merely to
-        # service a 6502 memory read.
         return self._fallback_char_ram[offset]
 
     def _write_char_mem(self, offset: int, value: int) -> None:
@@ -380,9 +416,9 @@ class SystemBus:
         if self.char_write_cb:
             self.char_write_cb(offset, val)
 
-    # --- Color Memory Handlers ---
+    # -- Color memory -------------------------------------------------------
+
     def _read_color_mem(self, offset: int) -> int:
-        # As with character RAM, keep GUI access out of the CPU hot path.
         return self._fallback_color_ram[offset]
 
     def _write_color_mem(self, offset: int, value: int) -> None:
@@ -392,6 +428,8 @@ class SystemBus:
         self._fallback_color_ram[offset] = val
         if self.color_write_cb:
             self.color_write_cb(offset, val)
+
+    # -- Bus protocol -------------------------------------------------------
 
     def __getitem__(self, address: int) -> int:
         for m_range in self.bus_map:
@@ -420,26 +458,26 @@ class Cpu6502Module:
 
     def __init__(
         self,
-        char_read_cb=None,
-        char_write_cb=None,
-        color_read_cb=None,
-        color_write_cb=None,
-    ):
-        reset_vector_address = 0xFFFC
+        config: EmulatorConfig,
+        mpu_class: type,
+        char_write_cb: Callable[[int, int], None] | None = None,
+        color_write_cb: Callable[[int, int], None] | None = None,
+    ) -> None:
+        self._fallback_cycles_per_instruction = (
+            config.fallback_cycles_per_instruction
+        )
 
-        # Create system bus wired to full read/write callbacks
         self.bus = SystemBus(
-            char_read_cb=char_read_cb,
+            config,
             char_write_cb=char_write_cb,
-            color_read_cb=color_read_cb,
             color_write_cb=color_write_cb,
         )
 
-        # Create CPU starting at the reset vector
+        reset_vector_address = 0xFFFC
         reset_vector = self.bus[reset_vector_address] + (
             self.bus[reset_vector_address + 1] * 256
         )
-        self.cpu = MPU(memory=self.bus, pc=reset_vector)
+        self.cpu = mpu_class(memory=self.bus, pc=reset_vector)
 
     def step(self) -> float:
         """Execute one instruction and return the cycles it consumed."""
@@ -452,24 +490,24 @@ class Cpu6502Module:
             if elapsed_cycles > 0:
                 return float(elapsed_cycles)
 
-        # Compatibility fallback for a py65 variant without processorCycles.
-        return FALLBACK_CYCLES_PER_INSTRUCTION
+        return self._fallback_cycles_per_instruction
 
     @property
     def has_native_cycle_counter(self) -> bool:
-        """Return whether this py65 MPU exposes its accumulated cycle count."""
+        """Return whether this py65 MPU exposes its accumulated cycle
+        count."""
         return hasattr(self.cpu, "processorCycles")
 
 
 class FConsole:
     """Main emulator controller managing both output windows."""
 
-    def __init__(self) -> None:
+    def __init__(self, config: EmulatorConfig, mpu_class: type) -> None:
+        self.config = config
         self.running = True
         self.isDirty = True
 
-        # Coalesce repeated writes to the same cell. The display is updated by
-        # a separate frame timer rather than from inside CPU execution.
+        # Coalesce repeated writes to the same cell.
         self._pending_char_writes: dict[int, int] = {}
         self._pending_color_writes: dict[int, int] = {}
 
@@ -480,15 +518,16 @@ class FConsole:
         # Send test message directly to the dout text window
         self.console_print("Hello World!")
 
-        # Initialize 6502 module with bidirectional video memory callbacks
+        # Initialize 6502 module with write-only display callbacks.
+        # Reads are handled entirely within the bus's local VRAM buffers.
         self.cpu_module = Cpu6502Module(
-            char_read_cb=self._on_char_memory_read,
+            config,
+            mpu_class,
             char_write_cb=self._on_char_memory_write,
-            color_read_cb=self._on_color_memory_read,
             color_write_cb=self._on_color_memory_write,
         )
 
-        # Pacing state: emulated time is derived from completed CPU cycles.
+        # Pacing state
         self._emulated_cycles = 0.0
         self._clock_origin = time.perf_counter()
 
@@ -496,12 +535,13 @@ class FConsole:
         """Create the primary video output window."""
         print("Opening video output window (vout)...")
 
-        if VIDEO_BACKEND == "text":
+        cfg = self.config
+        if cfg.video_backend == "text":
             self.vout = text_vd.Video(
-                rows=SCREEN_ROWS,
-                columns=SCREEN_COLS,
-                scale=SCREEN_SCALE,
-                font_family=TEXT_FONT_FAMILY,
+                rows=cfg.screen_rows,
+                columns=cfg.screen_cols,
+                scale=cfg.screen_scale,
+                font_family=cfg.text_font_family,
             )
             print(
                 "Text renderer: "
@@ -510,9 +550,9 @@ class FConsole:
             )
         else:
             self.vout = bitmap_vd.Video(  # pyrefly: ignore[bad-assignment]
-                rows=SCREEN_ROWS,
-                columns=SCREEN_COLS,
-                scale=SCREEN_SCALE,
+                rows=cfg.screen_rows,
+                columns=cfg.screen_cols,
+                scale=cfg.screen_scale,
             )
         self.vout._root.title("fcon - vout")
         self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -530,49 +570,40 @@ class FConsole:
             self.dout_root,
             wrap=tk.WORD,
             bg="black",
-            fg="#00FF00",  # Green terminal text
+            fg="#00FF00",
             insertbackground="#00FF00",
         )
         self.debug_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
     def console_print(self, text: str) -> None:
-        """Explicitly write text directly into the debug window (dout)."""
+        """Write text directly into the debug window (dout)."""
         if hasattr(self, "debug_text") and self.debug_text:
             self.debug_text.insert(tk.END, str(text) + "\n")
             self.debug_text.see(tk.END)
 
-    # --- Bidirectional Video Callbacks ---
-    def _on_char_memory_read(self, offset: int) -> int:
-        """Compatibility callback; CPU reads use the bus-owned VRAM buffer."""
-        return self.cpu_module.bus._fallback_char_ram[offset]
+    # -- Video memory write callbacks ---------------------------------------
 
     def _on_char_memory_write(self, offset: int, value: int) -> None:
         """Queue a character-cell update for the next video frame."""
         self._pending_char_writes[offset] = value
         self.isDirty = True
 
-    def _on_color_memory_read(self, offset: int) -> int:
-        """Compatibility callback; CPU reads use the bus-owned VRAM buffer."""
-        return self.cpu_module.bus._fallback_color_ram[offset]
-
     def _on_color_memory_write(self, offset: int, value: int) -> None:
         """Queue a color-cell update for the next video frame."""
         self._pending_color_writes[offset] = value
         self.isDirty = True
 
-    @staticmethod
-    def _format_cpu_state(cpu, bus) -> str:
-        """Format the 6502 register state as a human-readable string.
+    # -- CPU state formatting -----------------------------------------------
 
-        Returns a single line showing A, X, Y, SP, NV-BDIZC flags,
-        and the reset vector value, suitable for console / debug output.
-        """
-        p = cpu.p
+    @staticmethod
+    def _format_cpu_state(cpu: object, bus: object) -> str:
+        """Format the 6502 register state as a human-readable string."""
+        p = cpu.p  # type: ignore[attr-defined]
         return (
-            f"{cpu.a:02X} "
-            f"{cpu.x:02X} "
-            f"{cpu.y:02X} "
-            f"{cpu.sp:02X} "
+            f"{cpu.a:02X} "  # type: ignore[attr-defined]
+            f"{cpu.x:02X} "  # type: ignore[attr-defined]
+            f"{cpu.y:02X} "  # type: ignore[attr-defined]
+            f"{cpu.sp:02X} "  # type: ignore[attr-defined]
             f"{(p >> 7) & 1}"
             f"{(p >> 6) & 1}"
             f"{(p >> 5) & 1}"
@@ -587,17 +618,17 @@ class FConsole:
 
     def _log_cpu_state_to_console(self) -> None:
         """Log current 6502 register state to the debug console."""
-
         output_lines = [
             " A  X  Y SP NV-BDIZC Vector",
             "---------------------",
             self._format_cpu_state(self.cpu_module.cpu, self.cpu_module.bus),
             "",
         ]
-
         output = "\n".join(output_lines)
         self.console_print(output)
         print(output)
+
+    # -- Frame / step loops -------------------------------------------------
 
     def _update_video_frame(self) -> None:
         """Flush coalesced VRAM writes and redraw at a bounded frame rate."""
@@ -605,8 +636,6 @@ class FConsole:
             return
 
         if self.isDirty:
-            # A cell written ten times between frames is transferred once, with
-            # only its final value.
             for offset, value in self._pending_char_writes.items():
                 self.vout.set_screen(offset, value)
             for offset, value in self._pending_color_writes.items():
@@ -617,18 +646,21 @@ class FConsole:
             self.vout.refresh_screen()
             self.isDirty = False
 
-        self.vout._root.after(REFRESH_INTERVAL_MS, self._update_video_frame)
+        self.vout._root.after(
+            self.config.refresh_interval_ms, self._update_video_frame
+        )
 
     def _update_cpu_step(self) -> None:
-        """Execute one batch, then schedule the next batch at CPU-clock speed."""
+        """Execute one batch, then schedule the next batch at CPU-clock
+        speed."""
+        cfg = self.config
         batch_cycles = 0.0
 
-        for _ in range(INSTRUCTIONS_PER_BATCH):
+        for _ in range(cfg.instructions_per_batch):
             batch_cycles += self.cpu_module.step()
 
             n = self.cpu_module.bus[self.cpu_module.cpu.pc]
-            # Break instruction
-            if n == 0x00:
+            if n == 0x00:  # Break instruction
                 self._log_cpu_state_to_console()
 
         self._emulated_cycles += batch_cycles
@@ -637,24 +669,25 @@ class FConsole:
             return
 
         now = time.perf_counter()
-        target_time = self._clock_origin + (self._emulated_cycles / CPU_CLOCK_HZ)
+        target_time = self._clock_origin + (
+            self._emulated_cycles / cfg.clock_hz
+        )
         lag_seconds = now - target_time
 
-        # A debugger stop, window drag, or overloaded host can leave the emulator
-        # far behind. Do not burn a core indefinitely trying to replay old time.
-        if lag_seconds > MAX_CATCH_UP_SECONDS:
-            self._clock_origin = now - (self._emulated_cycles / CPU_CLOCK_HZ)
+        if lag_seconds > cfg.max_catch_up_seconds:
+            self._clock_origin = now - (
+                self._emulated_cycles / cfg.clock_hz
+            )
             target_time = now
 
         ahead_seconds = max(0.0, target_time - now)
         clock_delay_ms = math.ceil((ahead_seconds * 1000.0) - 1e-9)
-        delay_ms = max(HOST_YIELD_MS, clock_delay_ms)
+        delay_ms = max(cfg.host_yield_ms, clock_delay_ms)
         self.vout._root.after(delay_ms, self._update_cpu_step)
 
     def _on_close(self) -> None:
         """Handle vout window close."""
         self.running = False
-
         try:
             self.vout.close()
             self.dout_root.destroy()
@@ -663,28 +696,29 @@ class FConsole:
 
     def run(self) -> None:
         """Start the main emulator loop."""
+        cfg = self.config
         print("=" * 60)
         print("FCONSOLE EMULATOR")
         print("=" * 60)
-        print(f"Video: {hw_config.screen_rows} rows x {hw_config.screen_cols} columns")
+        print(f"Video: {cfg.screen_rows} rows x {cfg.screen_cols} columns")
         print("Mode : py65 6502 (memory mapped bus table active)")
-        print(f"Video: {VIDEO_BACKEND} backend")
-        if VIDEO_BACKEND == "text":
+        print(f"Video: {cfg.video_backend} backend")
+        if cfg.video_backend == "text":
             print("Copy : drag to select, Ctrl+C to copy; Ctrl+A selects all")
         cycle_mode = (
             "py65 processorCycles"
             if self.cpu_module.has_native_cycle_counter
-            else f"fallback ({FALLBACK_CYCLES_PER_INSTRUCTION:g} cycles/instruction)"
+            else (
+                f"fallback ({cfg.fallback_cycles_per_instruction:g} "
+                "cycles/instruction)"
+            )
         )
-        print(f"Clock: {CPU_CLOCK_HZ:g} Hz; timing source: {cycle_mode}")
+        print(f"Clock: {cfg.clock_hz:g} Hz; timing source: {cycle_mode}")
         print("\nClose either window to exit.\n")
 
         self._update_cpu_step()
         self._update_video_frame()
 
-        # Tk's blocking event loop sleeps efficiently until an event or an
-        # after() callback is ready. The previous update() polling loop spun at
-        # full speed even while the emulated CPU was supposed to be paused.
         try:
             self.vout._root.mainloop()
         except tk.TclError:
@@ -694,22 +728,47 @@ class FConsole:
                 self._on_close()
 
 
-def main():
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
     """Entry point for fconsole emulator."""
+    args = parse_args()
+
+    hw_config_path = Path("bios/src/hw_limits.inc")
+    if not hw_config_path.exists():
+        print(f"ERROR: Hardware limits file not found: {hw_config_path}")
+        sys.exit(1)
+
+    hw_config = parse_hw_limits(str(hw_config_path))
+    config = build_config(args, hw_config)
+
     print(
         "Config: "
-        f"clock_hz={CPU_CLOCK_HZ:g} ({hw_config.clock_speed}), "
-        f"instructions_per_batch={INSTRUCTIONS_PER_BATCH}, "
-        f"fallback_cycles_per_instruction={FALLBACK_CYCLES_PER_INSTRUCTION:g}, "
-        f"max_catch_up_ms={MAX_CATCH_UP_SECONDS * 1000:g}, "
-        f"host_yield_ms={HOST_YIELD_MS}, "
-        f"screen_scale={SCREEN_SCALE}, "
-        f"refresh_hz={REFRESH_HZ:g}, "
-        f"screen_size={hw_config.screen_cols}x{hw_config.screen_rows}, "
-        f"video_backend={VIDEO_BACKEND}, "
-        f"text_font_family={TEXT_FONT_FAMILY!r}"
+        f"clock_hz={config.clock_hz:g} ({hw_config.clock_speed}), "
+        f"instructions_per_batch={config.instructions_per_batch}, "
+        f"fallback_cycles_per_instruction="
+        f"{config.fallback_cycles_per_instruction:g}, "
+        f"max_catch_up_ms={config.max_catch_up_seconds * 1000:g}, "
+        f"host_yield_ms={config.host_yield_ms}, "
+        f"screen_scale={config.screen_scale}, "
+        f"refresh_hz={1000.0 / config.refresh_interval_ms:g}, "
+        f"screen_size={config.screen_cols}x{config.screen_rows}, "
+        f"video_backend={config.video_backend}, "
+        f"text_font_family={config.text_font_family!r}"
     )
-    console = FConsole()
+
+    # py65 is imported lazily so that parse_hw_limits can be tested without it.
+    try:
+        from py65.devices.mpu6502 import MPU  # pyrefly: ignore[missing-import]
+    except ImportError as e:
+        print(f"ERROR: Missing dependency: {e}")
+        print("Please install py65: pip install py65")
+        sys.exit(1)
+
+    console = FConsole(config, MPU)
     console.run()
     sys.exit(0)
 
