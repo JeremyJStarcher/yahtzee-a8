@@ -3,97 +3,51 @@ Video Display Component for 8-bit Computer Emulator
 
 Implements a Tkinter-based video display subsystem supporting multiple
 simultaneous Video instances, each with its own window, screen memory,
-and color memory.
+and color memory.  This module uses bitmap PhotoImage cells for authentic
+pixel-art rendering.
 """
 
 import tkinter as tk
 from tkinter import Canvas, PhotoImage
 
-from .font import C64_COLORS, DEFAULT_COLOR, FONT_DATA, SCREEN_ORDER_CHARS
+from .font import FONT_DATA
+from .video_base import BaseVideo
 
-class Video:
-    """A single video display instance managing its own window and memory."""
 
-    CHARS = SCREEN_ORDER_CHARS
+class Video(BaseVideo):
+    """Bitmap-rendered video display with per-pixel glyph drawing."""
 
-    # Bitmap glyph data indexed by character code (populated from FONT_DATA)
+    # Bitmap glyph data indexed by screen code (populated from FONT_DATA)
     _font_glyphs: dict[int, bytearray] = {}
 
     @classmethod
     def _build_font_mappings(cls) -> None:
-        """
-        Build _font_glyphs dictionary from embedded FONT_DATA.
+        """Build ``_font_glyphs`` dictionary from embedded ``FONT_DATA``.
 
         Populates the bitmap lookup table so characters can be rendered
         using their 8×8 pixel patterns instead of Unicode fallback.
+        Called once, lazily, on first ``Video`` instantiation.
         """
         if cls._font_glyphs:  # Already built
             return
 
         cls._font_glyphs = {}
-
-        # Map each FontChar entry into our glyph dictionary by print_order
         for font_char in FONT_DATA:
             cls._font_glyphs[font_char.screen_order] = bytearray(font_char.layout)
 
-    # Shared palette and defaults (imported from pylib.font)
-    C64_COLORS = C64_COLORS
-    DEFAULT_COLOR = DEFAULT_COLOR
-
-    # Character dimensions in pixels
-    CHAR_WIDTH: int = 8
-    CHAR_HEIGHT: int = 8
-
-    def __init__(self, rows, columns, scale: int = 1, border: int = 1) -> None:
-        """
-        Create a new video display instance.
-
-        Args:
-            rows: Number of character rows (must be positive integer)
-            columns: Number of character columns (must be positive integer)
-            scale: Optional scaling factor (default 1). Each cell is scaled by this factor.
-                   For example, scale=2 makes each 8×8 pixel cell become 16×16 pixels.
-            border: Optional border around the display in character units (default 1).
-                    Creates padding on all four sides. Use 0 for no border.
-
-        Raises:
-            ValueError: If rows or columns are not positive integers, or if scale < 1, or border < 0
-            TypeError: If parameters are not correct types
-        """
-        # Validate parameters
-        if not isinstance(rows, int) or not isinstance(columns, int):
-            raise TypeError("Rows and columns must be integers")
-
-        if rows <= 0 or columns <= 0:
-            raise ValueError("Rows and columns must be positive integers")
-
-        if not isinstance(scale, int) or scale < 1:
-            raise ValueError("Scale must be a positive integer >= 1")
-
-        if not isinstance(border, int) or border < 0:
-            raise ValueError("Border must be a non-negative integer")
-
-        self._rows = rows
-        self._columns = columns
-        self._scale = scale
-        self._border = border
-        self._root: tk.Tk
-        self._canvas: Canvas
+    def __init__(
+        self, rows: int, columns: int, scale: int = 1, border: int = 1
+    ) -> None:
+        super().__init__(rows, columns, scale, border)
 
         # Build font mappings from embedded FONT_DATA on first use
         Video._build_font_mappings()
 
-        # Initialize memory arrays with space characters and default color
-        total_cells = rows * columns
-        self._screen_memory = bytearray([0x20] * total_cells)
-        self._color_memory = bytearray([self.DEFAULT_COLOR] * total_cells)
-        self._cell_images = {}
-        self._cell_tags = {}
+        # Bitmap-specific per-cell state
+        self._cell_images: dict[int, PhotoImage] = {}
+        self._cell_tags: dict[int, int] = {}
         self._prev_screen = bytearray(len(self._screen_memory))
         self._prev_color = bytearray(len(self._color_memory))
-
-        # Dirty tracking - track which cells need redrawing
-        self._dirty = True
 
         # Create Tkinter window and canvas
         self._root = tk.Tk()
@@ -101,12 +55,9 @@ class Video:
             f"Video Display ({rows}x{columns}) [scale={scale}x][border={border}]"
         )
 
-        # Calculate display size including border (scaled by character dimensions)
-        # Border adds padding on both sides: left+right or top+bottom
         width = (columns + 2 * border) * self.CHAR_WIDTH * scale
         height = (rows + 2 * border) * self.CHAR_HEIGHT * scale
 
-        # Set the root window geometry to match the canvas size
         self._root.geometry(f"{width}x{height}")
         self._root.resizable(False, False)
 
@@ -118,22 +69,9 @@ class Video:
         # Initial draw
         self.refresh_screen()
 
-    @property
-    def scale(self) -> int:
-        """Get the current scaling factor."""
-        return self._scale
-
-    @scale.setter
-    def scale(self, value) -> None:
-        """
-        Set a new scaling factor.
-
-        Args:
-            value: New scale factor (must be positive integer >= 1)
-
-        Raises:
-            ValueError: If value is not valid
-        """
+    @BaseVideo.scale.setter
+    def scale(self, value: int) -> None:
+        """Set a new scaling factor, rebuilding cached images."""
         if not isinstance(value, int) or value < 1:
             raise ValueError("Scale must be a positive integer >= 1")
 
@@ -146,12 +84,12 @@ class Video:
             self._cell_images.clear()
             self._cell_tags.clear()
 
-            # Resize window and canvas (include border in calculation)
             width = (self._columns + 2 * self._border) * self.CHAR_WIDTH * value
             height = (self._rows + 2 * self._border) * self.CHAR_HEIGHT * value
 
             self._root.title(
-                f"Video Display ({self._rows}x{self._columns}) [scale={value}x][border={self._border}]"
+                f"Video Display ({self._rows}x{self._columns}) "
+                f"[scale={value}x][border={self._border}]"
             )
             self._root.geometry(f"{width}x{height}")
             self._canvas.config(width=width, height=height)
@@ -159,162 +97,16 @@ class Video:
             # Force redraw on next refresh
             self.refresh_screen()
 
-    def _validate_offset(self, offset) -> bool:
-        """
-        Validate that an offset is within valid range.
-
-        Args:
-            offset: Memory offset to validate
-
-        Returns:
-            True if valid
-
-        Raises:
-            IndexError: If offset is out of range
-            TypeError: If offset is not numeric
-        """
-        if not isinstance(offset, int):
-            raise TypeError("Offset must be an integer")
-
-        total_cells = self._rows * self._columns
-        if offset < 0 or offset >= total_cells:
-            print(f"_rows {self._rows} // cols {self._columns}")
-            raise IndexError(f"Offset {offset} out of range [0, {total_cells - 1}]")
-
-        return True
-
-    def set_screen(self, offset, character) -> None:
-        """
-        Set a character in screen memory.
-
-        Args:
-            offset: Cell offset (row-major order)
-            character: Character byte value (will be masked with 0xFF)
-
-        Raises:
-            IndexError: If offset is invalid
-            TypeError: If parameters are not correct types
-        """
-        self._validate_offset(offset)
-
-        # Mask the character value
-        char_byte = character & 0xFF
-
-        # Only update and mark dirty if changed
-        if self._screen_memory[offset] != char_byte:
-            self._screen_memory[offset] = char_byte
-            self._dirty = True
-
-    def get_screen(self, offset):
-        """
-        Get a character from screen memory.
-
-        Args:
-            offset: Cell offset (row-major order)
-
-        Returns:
-            The character byte at that offset
-
-        Raises:
-            IndexError: If offset is invalid
-            TypeError: If offset is not an integer
-        """
-        self._validate_offset(offset)
-        return self._screen_memory[offset]
-
-    def set_color(self, offset, color) -> None:
-        """
-        Set a color byte in color memory.
-
-        Args:
-            offset: Cell offset (row-major order)
-            color: Color byte (bits 7-4: background, bits 3-0: foreground)
-                   Will be masked with 0xFF
-
-        Raises:
-            IndexError: If offset is invalid
-            TypeError: If parameters are not correct types
-        """
-        self._validate_offset(offset)
-
-        # Mask the color value
-        color_byte = color & 0xFF
-
-        # Only update and mark dirty if changed
-        if self._color_memory[offset] != color_byte:
-            self._color_memory[offset] = color_byte
-            self._dirty = True
-
-    def get_color(self, offset):
-        """
-        Get a color byte from color memory.
-
-        Args:
-            offset: Cell offset (row-major order)
-
-        Returns:
-            The color byte at that offset
-
-        Raises:
-            IndexError: If offset is invalid
-            TypeError: If offset is not an integer
-        """
-        self._validate_offset(offset)
-        return self._color_memory[offset]
-
-    def _get_char_display(self, char_byte: int) -> str:
-        """
-        Convert a character byte to displayable string.
-
-        Uses CHARS table to map byte values to display characters.
-
-        Args:
-            char_byte: Character byte value
-
-        Returns:
-            String representation of the character
-        """
-        index = char_byte
-
-        if index < len(self.CHARS):
-            return self.CHARS[index]
-        else:
-            return "?"
-
     def _get_colors(
         self, color_byte: int
     ) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
-        """
-        Extract background and foreground colors from color byte.
-
-        Args:
-            color_byte: Color byte (bits 7-4: bg, bits 3-0: fg)
-
-        Returns:
-            Tuple of (background_color_rgb, foreground_color_rgb)
-        """
-        bg_index = (color_byte >> 4) & 0x0F
-        fg_index = color_byte & 0x0F
-
-        # Clamp to valid range
-        bg_index = min(bg_index, 15)
-        fg_index = min(fg_index, 15)
-
-        bg_color = self.C64_COLORS[bg_index]
-        fg_color = self.C64_COLORS[fg_index]
-
-        return bg_color, fg_color
+        """Extract (bg_rgb, fg_rgb) tuples from a color byte."""
+        bg_index = min((color_byte >> 4) & 0x0F, 15)
+        fg_index = min(color_byte & 0x0F, 15)
+        return self.C64_COLORS[bg_index], self.C64_COLORS[fg_index]
 
     def refresh_screen(self) -> None:
-        """
-        Refresh the display by redrawing all cells.
-
-        This method:
-        1. Redraws the display
-        2. Processes pending Tkinter events
-        3. Keeps the window responsive
-        4. Is safe to call when nothing changed
-        """
+        """Redraw all cells using bitmap PhotoImage glyphs."""
         if not hasattr(self, "_canvas") or self._canvas is None:
             return
 
@@ -322,7 +114,7 @@ class Video:
             try:
                 self._root.update_idletasks()
             except tk.TclError:
-                pass  # Window was closed
+                pass
             return
 
         width = self.CHAR_WIDTH * self._scale
@@ -331,9 +123,6 @@ class Video:
         for offset in range(len(self._screen_memory)):
             char_byte = self._screen_memory[offset]
             color_byte = self._color_memory[offset]
-
-            ##########jjz print(f"****************************** {char_byte}")
-
 
             if (
                 self._prev_screen[offset] == char_byte
@@ -383,19 +172,7 @@ class Video:
 
         self._dirty = False
 
-        # Process pending events to keep window responsive
         try:
             self._root.update_idletasks()
         except tk.TclError:
-            pass  # Window was closed
-
-    def close(self) -> None:
-        """Close the display and clean up resources."""
-        if hasattr(self, "_root") and self._root is not None:
-            try:
-                self._root.destroy()
-            except Exception:
-                pass
-
-    def get_screencode(self, ch: str) -> int:
-        return self.CHARS.index(ch)
+            pass

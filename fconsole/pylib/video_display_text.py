@@ -14,29 +14,19 @@ import tkinter as tk
 from tkinter import Canvas
 from tkinter import font as tkfont
 
-from .font import C64_COLORS, DEFAULT_COLOR, SCREEN_ORDER_CHARS
+from .font import SCREEN_ORDER_CHARS
+from .video_base import BaseVideo
 
 
-class Video:
+class Video(BaseVideo):
     """A native-text video display with character and color memory."""
-
-    CHARS = SCREEN_ORDER_CHARS
-
-    # Shared palette and defaults (imported from pylib.font)
-    C64_COLORS = C64_COLORS
-    DEFAULT_COLOR = DEFAULT_COLOR
-
-    # Logical character dimensions retained for API familiarity.  The actual
-    # native-text cell dimensions are derived from the selected Tk font.
-    CHAR_WIDTH = 8
-    CHAR_HEIGHT = 8
 
     # Tk normally cannot display U+007F.  This visible Unicode control-picture
     # substitute keeps screen code $7F inspectable in native-text mode.
-    _DISPLAY_SUBSTITUTIONS = {0x7F: "␡"}
+    _DISPLAY_SUBSTITUTIONS = {0x7F: "\u2421"}
 
     _CHAR_TO_CODE: dict[str, int] = {}
-    for _index, _character in enumerate(CHARS):
+    for _index, _character in enumerate(SCREEN_ORDER_CHARS):
         _CHAR_TO_CODE.setdefault(_character, _index)
     del _index, _character
 
@@ -48,19 +38,12 @@ class Video:
         border: int = 1,
         font_family: str | None = None,
     ) -> None:
-        self._validate_dimensions(rows, columns, scale, border)
+        super().__init__(rows, columns, scale, border)
 
-        self._rows = rows
-        self._columns = columns
-        self._scale = scale
-        self._border = border
         self._requested_font_family = font_family
 
-        total_cells = rows * columns
-        self._screen_memory = bytearray([0x20] * total_cells)
-        self._color_memory = bytearray([self.DEFAULT_COLOR] * total_cells)
-        self._dirty_cells = set(range(total_cells))
-        self._dirty = True
+        # Per-cell dirty tracking (overrides the base class's simple flag)
+        self._dirty_cells: set[int] = set(range(len(self._screen_memory)))
 
         self._root = tk.Tk()
         self._root.title("Native Text Video Display")
@@ -69,7 +52,8 @@ class Video:
         self._canvas.pack()
 
         self._palette_hex = [
-            f"#{red:02x}{green:02x}{blue:02x}" for red, green, blue in self.C64_COLORS
+            f"#{red:02x}{green:02x}{blue:02x}"
+            for red, green, blue in self.C64_COLORS
         ]
 
         self._font: tkfont.Font
@@ -88,22 +72,16 @@ class Video:
         self.refresh_screen()
         self._canvas.focus_set()
 
-    @staticmethod
-    def _validate_dimensions(rows: int, columns: int, scale: int, border: int) -> None:
-        if not isinstance(rows, int) or not isinstance(columns, int):
-            raise TypeError("Rows and columns must be integers")
-        if rows <= 0 or columns <= 0:
-            raise ValueError("Rows and columns must be positive integers")
-        if not isinstance(scale, int) or scale < 1:
-            raise ValueError("Scale must be a positive integer >= 1")
-        if not isinstance(border, int) or border < 0:
-            raise ValueError("Border must be a non-negative integer")
+    # -- Dirty tracking override ---------------------------------------------
 
-    @property
-    def scale(self) -> int:
-        return self._scale
+    def _mark_cell_dirty(self, offset: int) -> None:
+        """Track per-cell dirtiness for sparse redraws."""
+        self._dirty_cells.add(offset)
+        super()._mark_cell_dirty(offset)
 
-    @scale.setter
+    # -- Scaling -------------------------------------------------------------
+
+    @BaseVideo.scale.setter
     def scale(self, value: int) -> None:
         if not isinstance(value, int) or value < 1:
             raise ValueError("Scale must be a positive integer >= 1")
@@ -117,6 +95,8 @@ class Video:
         self._dirty = True
         self.refresh_screen()
 
+    # -- Font / geometry properties ------------------------------------------
+
     @property
     def font_family(self) -> str:
         """Return the actual font family selected by Tk."""
@@ -124,10 +104,12 @@ class Video:
 
     @property
     def cell_width(self) -> int:
+        """Measured cell width in pixels for the current font."""
         return self._cell_width
 
     @property
     def cell_height(self) -> int:
+        """Measured cell height in pixels for the current font."""
         return self._cell_height
 
     def _configure_font_and_geometry(self) -> None:
@@ -178,12 +160,7 @@ class Video:
             y2 = y1 + self._cell_height
 
             bg_item = self._canvas.create_rectangle(
-                x1,
-                y1,
-                x2,
-                y2,
-                fill=default_bg,
-                outline="",
+                x1, y1, x2, y2, fill=default_bg, outline="",
             )
             text_item = self._canvas.create_text(
                 x1 + self._cell_width / 2,
@@ -208,39 +185,7 @@ class Video:
         self._root.bind("<Control-A>", self._select_all)
         self._root.bind("<Escape>", self._clear_selection)
 
-    def _validate_offset(self, offset: int) -> None:
-        if not isinstance(offset, int):
-            raise TypeError("Offset must be an integer")
-        if offset < 0 or offset >= len(self._screen_memory):
-            raise IndexError(
-                f"Offset {offset} out of range [0, {len(self._screen_memory) - 1}]"
-            )
-
-    def set_screen(self, offset: int, character: int) -> None:
-        self._validate_offset(offset)
-        char_byte = character & 0xFF
-        if self._screen_memory[offset] == char_byte:
-            return
-        self._screen_memory[offset] = char_byte
-        self._dirty_cells.add(offset)
-        self._dirty = True
-
-    def get_screen(self, offset: int) -> int:
-        self._validate_offset(offset)
-        return self._screen_memory[offset]
-
-    def set_color(self, offset: int, color: int) -> None:
-        self._validate_offset(offset)
-        color_byte = color & 0xFF
-        if self._color_memory[offset] == color_byte:
-            return
-        self._color_memory[offset] = color_byte
-        self._dirty_cells.add(offset)
-        self._dirty = True
-
-    def get_color(self, offset: int) -> int:
-        self._validate_offset(offset)
-        return self._color_memory[offset]
+    # -- Display helpers -----------------------------------------------------
 
     def _display_character(self, char_byte: int) -> str:
         return self._DISPLAY_SUBSTITUTIONS.get(char_byte, self.CHARS[char_byte])
@@ -250,6 +195,21 @@ class Video:
         fg_index = color_byte & 0x0F
         return self._palette_hex[bg_index], self._palette_hex[fg_index]
 
+    # -- Screencode override (uses pre-built reverse map) --------------------
+
+    def get_screencode(self, ch: str) -> int:
+        """Return the first screen code corresponding to a Unicode character."""
+        if not isinstance(ch, str) or len(ch) != 1:
+            raise ValueError("ch must be exactly one Unicode character")
+        try:
+            return self._CHAR_TO_CODE[ch]
+        except KeyError as error:
+            raise ValueError(
+                f"Character is not in the screen-code table: {ch!r}"
+            ) from error
+
+    # -- Refresh -------------------------------------------------------------
+
     def refresh_screen(self) -> None:
         """Apply only changed cells to the persistent Canvas objects."""
         if not hasattr(self, "_canvas") or self._canvas is None:
@@ -258,7 +218,9 @@ class Video:
         if self._dirty:
             for offset in tuple(self._dirty_cells):
                 bg_hex, fg_hex = self._get_color_hex(self._color_memory[offset])
-                self._canvas.itemconfigure(self._background_items[offset], fill=bg_hex)
+                self._canvas.itemconfigure(
+                    self._background_items[offset], fill=bg_hex
+                )
                 self._canvas.itemconfigure(
                     self._text_items[offset],
                     text=self._display_character(self._screen_memory[offset]),
@@ -274,16 +236,7 @@ class Video:
         except tk.TclError:
             pass
 
-    def get_screencode(self, ch: str) -> int:
-        """Return the first screen code corresponding to a Unicode character."""
-        if not isinstance(ch, str) or len(ch) != 1:
-            raise ValueError("ch must be exactly one Unicode character")
-        try:
-            return self._CHAR_TO_CODE[ch]
-        except KeyError as error:
-            raise ValueError(
-                f"Character is not in the screen-code table: {ch!r}"
-            ) from error
+    # -- Text export ---------------------------------------------------------
 
     def get_text(
         self,
@@ -316,6 +269,8 @@ class Video:
             lines.append(line.rstrip(" ") if trim_right else line)
 
         return "\n".join(lines)
+
+    # -- Selection handling --------------------------------------------------
 
     def _event_to_offset(self, event: tk.Event) -> int | None:
         col = event.x // self._cell_width - self._border
@@ -403,10 +358,3 @@ class Video:
         except tk.TclError:
             pass
         return "break"
-
-    def close(self) -> None:
-        if hasattr(self, "_root") and self._root is not None:
-            try:
-                self._root.destroy()
-            except Exception:
-                pass
