@@ -164,7 +164,7 @@ FONT_DATA: list[FontChar] = [
     FontChar([0x00, 0x00, 0x63, 0x36, 0x1C, 0x36, 0x63, 0x00], 0x0078, "(x)",print_order=120, screen_order=89),
     FontChar([0x00, 0x00, 0x33, 0x33, 0x33, 0x3E, 0x30, 0x1F], 0x0079, "(y)",print_order=121, screen_order=210),
     FontChar([0x00, 0x00, 0x3F, 0x19, 0x0C, 0x26, 0x3F, 0x00], 0x007A, "(z)",print_order=122, screen_order=109),
-    FontChar([0x38, 0x0C, 0x0C, 0x07, 0x0C, 0x0C, 0x38, 0x00], 0x007B, "(  FontChar([)",print_order=123, screen_order=68),
+    FontChar([0x38, 0x0C, 0x0C, 0x07, 0x0C, 0x0C, 0x38, 0x00], 0x007B, "({)",print_order=123, screen_order=68),
     FontChar([0x18, 0x18, 0x18, 0x00, 0x18, 0x18, 0x18, 0x00], 0x007C, "(|)",print_order=124, screen_order=166),
     FontChar([0x07, 0x0C, 0x0C, 0x38, 0x0C, 0x0C, 0x07, 0x00], 0x007D, "(})",print_order=125, screen_order=112),
     FontChar([0x6E, 0x3B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], 0x007E, "(~)",print_order=126, screen_order=117),
@@ -302,33 +302,20 @@ FONT_DATA: list[FontChar] = [
 # fmt: on
 
 
-def _build_char_lists():
-    """Build character lookup tables from FONT_DATA."""
+def _build_screen_char_list() -> list[str]:
+    """Build the screen-order character lookup table from FONT_DATA."""
     n = len(FONT_DATA)
-
-    # Initialize with empty strings so unmapped positions stay blank.
-    print_chars = [""] * n
     screen_chars = [""] * n
-
     for char in FONT_DATA:
-        po = char.print_order
         so = char.screen_order
-        cp_char = chr(char.codepoint)
-
-        if 0 <= po < n:
-            print_chars[po] = cp_char
         if 0 <= so < n:
-            screen_chars[so] = cp_char
+            screen_chars[so] = chr(char.codepoint)
+    return screen_chars
 
-    return print_chars, screen_chars
 
-
-# Character lists derived directly from FONT_DATA order values.  Each list is
-# indexed by the corresponding order value (print_order or screen_order) and
-# contains the Unicode character for that slot.
-PRINT_ORDER_CHARS: list[str] = []
-SCREEN_ORDER_CHARS: list[str] = []
-PRINT_ORDER_CHARS, SCREEN_ORDER_CHARS = _build_char_lists()
+# Screen-order character list: indexed by screen_order, contains the Unicode
+# character for that slot.
+SCREEN_ORDER_CHARS: list[str] = _build_screen_char_list()
 
 
 def write_p2s_xlate(filename="p2s_xlate.inc") -> None:

@@ -308,23 +308,19 @@ def build_config(
 
 @dataclass
 class MemoryRange:
-    name: str
     start: int
     end: int = -1
-    len: int = -1
+    length: int = -1
     read_cb: Callable[[int], int] | None = None
     write_cb: Callable[[int, int], None] | None = None
-    default_read_val: int | None = None
 
     def __post_init__(self) -> None:
-        if self.end == -1 and self.len == -1:
+        if self.end == -1 and self.length == -1:
             raise ValueError("Range error: end and length cannot both be empty")
-
         if self.end == -1:
-            self.end = self.start + self.len - 1
-
-        if self.len == -1:
-            self.len = self.end - self.start + 1
+            self.end = self.start + self.length - 1
+        elif self.length == -1:
+            self.length = self.end - self.start + 1
 
     def contains(self, address: int) -> bool:
         """Check if an address falls within this memory range."""
@@ -369,28 +365,24 @@ class SystemBus:
         # Dynamic memory map table
         self.bus_map: list[MemoryRange] = [
             MemoryRange(
-                name="ram",
                 start=0x0000,
-                len=config.start_region_char_ram,
+                length=config.start_region_char_ram,
                 read_cb=lambda offset: self.ram[offset],
                 write_cb=self._write_ram,
             ),
             MemoryRange(
-                name="chars",
                 start=config.start_region_char_ram,
-                len=config.screen_size,
+                length=config.screen_size,
                 read_cb=self._read_char_mem,
                 write_cb=self._write_char_mem,
             ),
             MemoryRange(
-                name="colors",
                 start=config.start_region_color_ram,
-                len=config.screen_size,
+                length=config.screen_size,
                 read_cb=self._read_color_mem,
                 write_cb=self._write_color_mem,
             ),
             MemoryRange(
-                name="bios",
                 start=0xF000,
                 end=0xFFFF,
                 read_cb=lambda offset: self.rom[offset],
@@ -436,8 +428,6 @@ class SystemBus:
                 offset = address - m_range.start
                 if m_range.read_cb:
                     return m_range.read_cb(offset)
-                if m_range.default_read_val is not None:
-                    return m_range.default_read_val
                 break
 
         # Unmapped space returns NOP instruction ($EA)
