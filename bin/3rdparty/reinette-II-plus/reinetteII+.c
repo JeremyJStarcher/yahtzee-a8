@@ -151,22 +151,134 @@ inline static uint8_t readPaddle(int pdl) {
 
 //====================================================================== SPEAKER
 
-#define audioBufferSize 4096                                                    // found to be large enought
-Sint8 audioBuffer[2][audioBufferSize] = { 0 };                                  // see in main() for more details
-SDL_AudioDeviceID audioDevice;
-bool muted = false;                                                             // mute/unmute switch
+/*
+ * Audio is generated one fixed 1/60-second frame at a time.  This keeps the
+ * audio clock independent of the artificial Disk II speed-up loop, which can
+ * execute far more than 1/60 second of emulated CPU time in one host frame.
+ *
+ * The SDL callback is always supplied with valid PCM.  When the producer ring
+ * is empty it writes digital zero, so an empty queued-audio device can never be
+ * the source of a periodic click.
+ */
+#define AUDIO_RATE                 48000
+#define AUDIO_FRAME_RATE           60
+#define AUDIO_FRAME_SAMPLES        (AUDIO_RATE / AUDIO_FRAME_RATE)
+#define AUDIO_CPU_CYCLES_PER_FRAME 17050LL
+#define AUDIO_RING_SIZE            65536u
+#define AUDIO_RING_MASK            (AUDIO_RING_SIZE - 1u)
 
-static void playSound() {
-	static long long int lastTick = 0LL;
-	static bool SPKR = false;                                                     // $C030 Speaker toggle
+static Sint16 audioRing[AUDIO_RING_SIZE];
+static Sint16 audioFrame[AUDIO_FRAME_SAMPLES];
+static SDL_atomic_t audioReadIndex;
+static SDL_atomic_t audioWriteIndex;
+static SDL_atomic_t audioMuted;
+static SDL_AudioDeviceID audioDevice = 0;
+static uint8_t volume = 4;
 
-	if (!muted) {
-		SPKR = !SPKR;                                                               // toggle speaker state
-		Uint32 length = (int)((double)(ticks - lastTick) / 10.65625f);              // 1023000Hz / 96000Hz = 10.65625
-		lastTick = ticks;
-		if (length > audioBufferSize) length = audioBufferSize;
-		SDL_QueueAudio(audioDevice, audioBuffer[SPKR], length | 1);                 // | 1 TO HEAR HIGH FREQ SOUNDS
+/* These variables are touched only by the emulator/main thread. */
+static bool speakerLevel = false;
+static bool audioFrameOpen = false;
+static long long int audioFrameStartTick = 0LL;
+static int audioFramePosition = 0;
+
+/* High-pass state removes the DC component of the Apple II speaker latch. */
+static float audioPreviousInput = -1.0f;
+static float audioPreviousOutput = 0.0f;
+
+static void audioPushSample(Sint16 sample) {
+	unsigned int writeIndex = (unsigned int)SDL_AtomicGet(&audioWriteIndex);
+	unsigned int nextIndex = (writeIndex + 1u) & AUDIO_RING_MASK;
+	unsigned int readIndex = (unsigned int)SDL_AtomicGet(&audioReadIndex);
+
+	if (nextIndex == readIndex)
+		return;                                                                     // ring full: drop newest sample
+
+	audioRing[writeIndex] = sample;
+	SDL_AtomicSet(&audioWriteIndex, (int)nextIndex);
+}
+
+static void audioRenderTo(int endPosition) {
+	if (endPosition < audioFramePosition)
+		return;
+	if (endPosition > AUDIO_FRAME_SAMPLES)
+		endPosition = AUDIO_FRAME_SAMPLES;
+
+	const float input = speakerLevel ? 1.0f : -1.0f;
+	const float highPass = 0.995f;
+	const float gain = (float)volume * 256.0f;
+
+	while (audioFramePosition < endPosition) {
+		float output = highPass *
+			(audioPreviousOutput + input - audioPreviousInput);
+		audioPreviousInput = input;
+		audioPreviousOutput = output;
+
+		float scaled = output * gain;
+		if (scaled > 32767.0f) scaled = 32767.0f;
+		if (scaled < -32768.0f) scaled = -32768.0f;
+		audioFrame[audioFramePosition++] = (Sint16)scaled;
 	}
+}
+
+static void audioBeginFrame(void) {
+	audioFrameStartTick = ticks;
+	audioFramePosition = 0;
+	audioFrameOpen = true;
+}
+
+static void audioEndFrame(void) {
+	if (!audioFrameOpen)
+		return;
+
+	audioRenderTo(AUDIO_FRAME_SAMPLES);
+	audioFrameOpen = false;
+
+	for (int i = 0; i < AUDIO_FRAME_SAMPLES; i++)
+		audioPushSample(audioFrame[i]);
+}
+
+static void audioPrimeSilence(void) {
+	/* Four frames provide about 67 ms of scheduling headroom. */
+	for (int i = 0; i < AUDIO_FRAME_SAMPLES * 4; i++)
+		audioPushSample(0);
+}
+
+static void audioCallback(void *userdata, Uint8 *stream, int length) {
+	(void)userdata;
+	Sint16 *output = (Sint16 *)stream;
+	int sampleCount = length / (int)sizeof(Sint16);
+	unsigned int readIndex = (unsigned int)SDL_AtomicGet(&audioReadIndex);
+	const bool isMuted = SDL_AtomicGet(&audioMuted) != 0;
+
+	for (int i = 0; i < sampleCount; i++) {
+		unsigned int writeIndex =
+			(unsigned int)SDL_AtomicGet(&audioWriteIndex);
+		Sint16 sample = 0;
+
+		if (readIndex != writeIndex) {
+			sample = audioRing[readIndex];
+			readIndex = (readIndex + 1u) & AUDIO_RING_MASK;
+		}
+
+		output[i] = isMuted ? 0 : sample;
+	}
+
+	SDL_AtomicSet(&audioReadIndex, (int)readIndex);
+}
+
+static void playSound(void) {
+	/* Emit the old latch level up to this exact soft-switch access. */
+	if (audioFrameOpen) {
+		long long int elapsed = ticks - audioFrameStartTick;
+		int samplePosition = (int)(elapsed * AUDIO_FRAME_SAMPLES /
+			AUDIO_CPU_CYCLES_PER_FRAME);
+		if (samplePosition < 0) samplePosition = 0;
+		if (samplePosition > AUDIO_FRAME_SAMPLES)
+			samplePosition = AUDIO_FRAME_SAMPLES;
+		audioRenderTo(samplePosition);
+	}
+
+	speakerLevel = !speakerLevel;
 }
 
 
@@ -445,14 +557,25 @@ int main(int argc, char *argv[]) {
 
 	//=================================================== SDL AUDIO INITIALIZATION
 
-	SDL_AudioSpec desired = { 96000, AUDIO_S8, 1, 0, 4096, 0, 0, NULL, NULL };
-	audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, SDL_FALSE);        // get the audio device ID
-	SDL_PauseAudioDevice(audioDevice, muted);                                     // unmute it (muted is false)
-	uint8_t volume = 4;
+	SDL_AudioSpec desired;
+	SDL_AudioSpec obtained;
+	SDL_zero(desired);
+	desired.freq = AUDIO_RATE;
+	desired.format = AUDIO_S16SYS;
+	desired.channels = 1;
+	desired.samples = 1024;
+	desired.callback = audioCallback;
 
-	for (int i = 0; i < audioBufferSize; i++) {                                   // two audio buffers,
-		audioBuffer[true][i] = volume;                                              // one used when SPKR is true
-		audioBuffer[false][i] = -volume;                                            // the other when SPKR is false
+	SDL_AtomicSet(&audioReadIndex, 0);
+	SDL_AtomicSet(&audioWriteIndex, 0);
+	SDL_AtomicSet(&audioMuted, 0);
+
+	audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, 0);
+	if (!audioDevice) {
+		fprintf(stderr, "failed to open SDL audio: %s\n", SDL_GetError());
+	} else {
+		audioPrimeSilence();
+		SDL_PauseAudioDevice(audioDevice, 0);
 	}
 
 
@@ -592,9 +715,13 @@ int main(int argc, char *argv[]) {
 	while (running) {
 
 		if (!paused) {                                                              // the apple II is clocked at 1023000.0 Hhz
+			audioBeginFrame();
 			puce6502Exec(17050);                                                      // execute instructions for 1/60 of a second
-			while (disk[curDrv].motorOn && ++tries)                                   // until motor is off or i reaches 255+1=0
-				puce6502Exec(5000);                                                     // speed up drive access artificially
+			audioEndFrame();                                                         // exactly 800 samples, regardless of disk speed-up
+
+			/* Keep disk acceleration bounded so it cannot starve the SDL audio thread. */
+			for (tries = 0; disk[curDrv].motorOn && tries < 32; tries++)
+				puce6502Exec(5000);                                                     // still about 10x normal speed
 		}
 
 
@@ -689,10 +816,9 @@ int main(int argc, char *argv[]) {
 				case SDLK_F4:                                                           // VOLUME
 					if (shift && (volume < 120)) volume++;                                // increase volume
 					if (ctrl && (volume > 0)) volume--;                                   // decrease volume
-					if (!ctrl && !shift) muted = !muted;                                  // toggle mute / unmute
-					for (int i = 0; i < audioBufferSize; i++) {                           // update the audio buffers,
-						audioBuffer[true][i] = volume;                                      // one used when SPKR is true
-						audioBuffer[false][i] = -volume;                                    // the other when SPKR is false
+					if (!ctrl && !shift) {
+						int isMuted = SDL_AtomicGet(&audioMuted);
+						SDL_AtomicSet(&audioMuted, !isMuted);                               // toggle mute / unmute
 					}
 				break;
 
@@ -999,7 +1125,12 @@ int main(int argc, char *argv[]) {
 		printerFile = NULL;
 	}
 
-	SDL_AudioQuit();
+	if (audioDevice) {
+		SDL_PauseAudioDevice(audioDevice, 1);
+		SDL_CloseAudioDevice(audioDevice);
+		audioDevice = 0;
+	}
+
 	SDL_Quit();
 	return 0;
 }
