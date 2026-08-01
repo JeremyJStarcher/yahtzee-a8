@@ -1,5 +1,13 @@
 # reinette II plus
 
+### RECENT MODIFICATIONS
+
+This version of the program has been modified.
+
+* Updated the makefile so it made under pure linux.
+* Removed the flickering/overlapping text on display.  This made the software unusable.
+* Added printer support on slot 3
+
 ### reinette goes graphical !
 
 ![screenshots](assets/screenshots.png)
@@ -66,7 +74,8 @@ Use the functions keys to control the emulator itself :
 * F7       : reset the zoom to 2:1
 * shift F7 : increase zoom up to 8:1 max
 * ctrl  F7 : decrease zoom down to 1:1 pixels
-* F10       : pause / un-pause the emulator
+* F9       : Turn on / off the printer
+* F10      : pause / un-pause the emulator
 * F11      : reset
 * F12      : about, help
 

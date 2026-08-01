@@ -51,6 +51,61 @@ uint8_t bk2[BK2SIZE];   // bank 2 of Language Card 4K in $D000-$DFFF
 #define SL6SIZE  0x0100
 uint8_t sl6[SL6SIZE];   // P5A disk ][ prom in slot 6
 
+// printer card, slot 3
+// $C300-$C3FF is the card firmware ROM; $C0B0-$C0BF is slot 3 device I/O.
+#define SL3START   0xC300
+#define SL3SIZE    0x0100
+#define SL3IOSTART 0xC0B0
+uint8_t slot3[SL3SIZE];
+FILE *printerFile = NULL;
+bool printerOnline = true;
+
+static void initPrinterCard(void) {
+	// Minimal, slot-dependent COUT firmware:
+	//   C300: STA $C0B0   ; send the character in A to the emulated device
+	//   C303: RTS
+	memset(slot3, 0xFF, sizeof(slot3));
+	slot3[0x00] = 0x8D;
+	slot3[0x01] = 0xB0;
+	slot3[0x02] = 0xC0;
+	slot3[0x03] = 0x60;
+}
+
+static bool openPrinterFile(void) {
+	if (!printerOnline)
+		return false;
+	if (printerFile)
+		return true;
+
+	printerFile = fopen("print.txt", "ab");
+	if (!printerFile)
+		printerOnline = false;
+	return printerFile != NULL;
+}
+
+static void printerWriteByte(uint8_t value) {
+	static bool previousWasCR = false;
+
+	if (!openPrinterFile())
+		return;
+
+	uint8_t c = value & 0x7F;  // Apple text normally arrives with bit 7 set.
+	if (c == '\r') {
+		fputc('\n', printerFile);
+		previousWasCR = true;
+		fflush(printerFile);
+	} else if (c == '\n') {
+		// Avoid doubling a CR/LF pair, but still accept software that sends LF only.
+		if (!previousWasCR)
+			fputc('\n', printerFile);
+		previousWasCR = false;
+		fflush(printerFile);
+	} else {
+		previousWasCR = false;
+		if (c >= 0x20 && c < 0x7F)
+			fputc(c, printerFile);
+	}
+}
 
 //================================================================ SOFT SWITCHES
 
@@ -249,6 +304,12 @@ uint8_t softSwitches(uint16_t address, uint8_t value, bool WRT) {
 
   	case 0xC070: resetPaddles(); break;                                         // paddle timer RST
 
+	case SL3IOSTART:                                                                // SLOT 3 printer data
+		if (WRT) printerWriteByte(value);
+		return 0;
+	case SL3IOSTART + 1:                                                                // SLOT 3 printer status
+		return printerOnline ? 0x80 : 0x00;
+
     case 0xC080:                                                                // LANGUAGE CARD :
   	case 0xC084: LCBK2 = 1; LCRD = 1; LCWR = 0;      LCWFF = 0;    break;       // LC2RD
   	case 0xC081:
@@ -322,6 +383,9 @@ uint8_t readMem(uint16_t address) {
 	if ((address & 0xFF00) == SL6START)
 		return sl6[address - SL6START];                                             // disk][
 
+	if ((address & 0xFF00) == SL3START)
+		return slot3[address - SL3START];
+
 	if ((address & 0xF000) == 0xC000)
 		return softSwitches(address, 0, false);                                     // Soft Switches
 
@@ -334,6 +398,9 @@ void writeMem(uint16_t address, uint8_t value) {
 		ram[address] = value;                                                       // RAM
 		return;
 	}
+
+	if ((address & 0xFF00) == SL3START)                                           // slot 3 PROM is read-only
+		return;
 
 	if (LCWR && (address >= ROMSTART)) {
 		if (LCBK2 && (address < 0xE000)) {
@@ -510,6 +577,8 @@ int main(int argc, char *argv[]) {
 
 	if (argc > 1) insertFloppy(wdo, argv[1], 0);                                  // load floppy if provided at command line
 
+	initPrinterCard();                                                            // install slot 3 firmware PROM
+
 	// reset the CPU
 	puce6502RST();                                                                // reset the 6502
 
@@ -647,6 +716,18 @@ int main(int argc, char *argv[]) {
 					SDL_RenderSetScale(rdr, zoom, zoom);                                  // update renderer size
 				break;
 
+				case SDLK_F9:                                                            // PRINTER TOGGLE
+					if (shift) {
+						printerOnline = !printerOnline;
+						if (printerOnline && !printerFile) {                               // lazy-open on first use
+							printerFile = fopen("print.txt", "a");
+							if (!printerFile) printerOnline = false;
+						}
+						SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Printer",
+							printerOnline ? "Printer online (slot 3)" : "Printer offline", NULL);
+					}
+				break;
+	
 				case SDLK_F10: paused = !paused; break;                                  // toggle pause
 
 				case SDLK_F11: puce6502RST(); break;                                    // simulate a reset
@@ -775,6 +856,18 @@ int main(int argc, char *argv[]) {
 
 		//============================================================= VIDEO OUTPUT
 
+		static bool prevTEXT = true, prevMIXED = false, prevPAGE2 = false, prevHIRES = false;
+		if (prevTEXT != TEXT || prevMIXED != MIXED || prevPAGE2 != PAGE2 || prevHIRES != HIRES) {
+			memset(TextCache,  -1, sizeof(TextCache));
+			memset(LoResCache, -1, sizeof(LoResCache));
+			memset(HiResCache, -1, sizeof(HiResCache));
+			memset(previousBit, 0, sizeof(previousBit));
+			prevTEXT   = TEXT;
+			prevMIXED  = MIXED;
+			prevPAGE2  = PAGE2;
+			prevHIRES  = HIRES;
+		}
+
 		// HIGH RES GRAPHICS
 		if (!TEXT && HIRES) {
 			uint16_t word;
@@ -866,18 +959,15 @@ int main(int argc, char *argv[]) {
 					else if (glyph < 0x40) glyphAttr = A_INVERSE;                         // is INVERSE ?
 					else glyphAttr = A_FLASH;                                             // it's FLASH !
 
-					if (glyphAttr==A_FLASH || TextCache[line][col]!=glyph || !flashCycle){
-						TextCache[line][col] = glyph;
+					TextCache[line][col] = glyph;
+					glyph &= 0x7F;                                                        // unset bit 7
+					if (glyph > 0x5F) glyph &= 0x3F;                                      // shifts to match
+					if (glyph < 0x20) glyph |= 0x40;                                      // the ASCII codes
 
-						glyph &= 0x7F;                                                        // unset bit 7
-						if (glyph > 0x5F) glyph &= 0x3F;                                      // shifts to match
-						if (glyph < 0x20) glyph |= 0x40;                                      // the ASCII codes
-
-						if (glyphAttr==A_NORMAL || (glyphAttr==A_FLASH && flashCycle<15))
-							SDL_RenderCopy(rdr, normCharTexture, &charRects[glyph], &dstRect);
-						else
-							SDL_RenderCopy(rdr, revCharTexture, &charRects[glyph], &dstRect);
-					}
+					if (glyphAttr==A_NORMAL || (glyphAttr==A_FLASH && flashCycle<15))
+						SDL_RenderCopy(rdr, normCharTexture, &charRects[glyph], &dstRect);
+					else
+						SDL_RenderCopy(rdr, revCharTexture, &charRects[glyph], &dstRect);
 				}
 			}
 		}
@@ -903,6 +993,11 @@ int main(int argc, char *argv[]) {
 
 
 	//================================================ RELEASE RESSOURSES AND EXIT
+
+	if (printerFile) {
+		fclose(printerFile);
+		printerFile = NULL;
+	}
 
 	SDL_AudioQuit();
 	SDL_Quit();
