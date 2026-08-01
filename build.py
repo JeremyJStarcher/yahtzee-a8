@@ -15,6 +15,7 @@ Usage:
     ./build.py format            Format Python sources (ruff)
     ./build.py format-asm        Format 6502 assembly sources (fmt6502)
     ./build.py typecheck         Type-check Python sources (pyrefly)
+    ./build.py test              Run all known test suites
 
 Run options (forwarded to fcon.py):
     ./build.py run --clock-hz 2000000 --video-backend text --screen-scale 2
@@ -249,7 +250,6 @@ def cmd_format_asm(args: argparse.Namespace) -> None:
          "--in-place", *sources,
          cwd=bios_d)
 
-
 def cmd_typecheck(args: argparse.Namespace) -> None:
     """Type-check Python sources with pyrefly."""
     ensure_venv()
@@ -257,9 +257,54 @@ def cmd_typecheck(args: argparse.Namespace) -> None:
          cwd=_repo_root() / "fconsole")
 
 
+def cmd_test(args: argparse.Namespace) -> None:
+    """Run all known test suites."""
+    vpy = ensure_venv()
+    root = _repo_root()
+    failures: list[str] = []
+
+    def _test(script: Path, *, cwd: Path | None = None) -> None:
+        name = str(script.relative_to(root))
+        print(f"\n--- {name} ---", flush=True)
+        r = subprocess.run(
+            [str(vpy), str(script)],
+            cwd=cwd or root,
+            capture_output=True,
+            text=True,
+        )
+        sys.stdout.write(r.stdout)
+        sys.stderr.write(r.stderr)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        if r.returncode != 0:
+            failures.append(f"{name} (exit {r.returncode})")
+
+    # fmt6502 unit tests (no external deps beyond stdlib)
+    _test(root / "dev-tools" / "fmt6502" / "test_fmt6502.py")
+
+    # Hardware limits parser (no external deps)
+    _test(root / "fconsole" / "test_hw_parser.py",
+          cwd=root / "fconsole")
+
+    # WASI launcher integration tests (requires wasmtime + .wasm modules)
+    _test(root / "bin" / "3rdparty" / "cc65-tests" / "test_runner.py")
+
+    # BIOS pipeline integration test (requires WASI cc65 modules)
+    _test(root / "bin" / "3rdparty" / "cc65-tests" / "test_cc65_pipeline.py")
+
+    if failures:
+        print(f"\n{len(failures)} test suite(s) failed:")
+        for f in failures:
+            print(f"  FAIL  {f}")
+        sys.exit(1)
+
+    print("\nAll test suites passed.")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def _add_run_args(parser: argparse.ArgumentParser,
                   clock_hz: float = 1_000_000,
@@ -335,6 +380,10 @@ def main() -> None:
     # ---- typecheck ----
     sp.add_parser("typecheck",
                   help="Type-check Python sources (pyrefly)").set_defaults(func=cmd_typecheck)
+
+    # ---- test ----
+    sp.add_parser("test",
+                  help="Run all known test suites").set_defaults(func=cmd_test)
 
     args = parser.parse_args()
     args.func(args)

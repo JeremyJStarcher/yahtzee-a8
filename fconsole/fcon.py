@@ -8,7 +8,6 @@ runs a simple 6502 emulator demo via py65 on the video display.
 
 import argparse
 import math
-import re
 import sys
 import time
 import tkinter as tk
@@ -72,12 +71,176 @@ class EmulatorConfig:
 # ---------------------------------------------------------------------------
 
 
+def _eval_asm_expr(expr: str, variables: dict[str, int]) -> int:
+    """Evaluate a simple assembly-style arithmetic expression.
+
+    Supports decimal and ``$hex`` integer literals, ``'c'`` character
+    literals, variable references, parentheses, and the operators
+    ``+``, ``-``, ``*``, ``/`` (integer division, truncates toward
+    zero).
+    """
+    _tokens: list[str] = []
+    _pos = 0
+
+    # -- tokenize -----------------------------------------------------------
+    i = 0
+    while i < len(expr):
+        ch = expr[i]
+        if ch.isspace():
+            i += 1
+            continue
+        if ch in "+-*/()":
+            _tokens.append(ch)
+            i += 1
+            continue
+        if ch == "$":
+            j = i + 1
+            while j < len(expr) and expr[j] in "0123456789ABCDEFabcdef":
+                j += 1
+            if j == i + 1:
+                raise ValueError(
+                    f"expected hex digits after '$' at position {i} in {expr!r}"
+                )
+            _tokens.append(expr[i:j])
+            i = j
+            continue
+        if ch == "'":
+            j = i + 1
+            if j >= len(expr):
+                raise ValueError(
+                    f"unterminated character literal at position {i} in {expr!r}"
+                )
+            # Allow backslash escape: '\n', '\\', '\'', etc.
+            if expr[j] == "\\":
+                j += 1
+                if j >= len(expr):
+                    raise ValueError(
+                        f"unterminated escape in character literal at position {i} in {expr!r}"
+                    )
+                ch_val = _SIMPLE_ESCAPES.get(expr[j], ord(expr[j]))
+            else:
+                ch_val = ord(expr[j])
+            j += 1
+            if j >= len(expr) or expr[j] != "'":
+                raise ValueError(
+                    f"unterminated character literal at position {i} in {expr!r}"
+                )
+            _tokens.append(str(ch_val))
+            i = j + 1
+            continue
+        if ch.isdigit():
+            j = i
+            while j < len(expr) and expr[j].isdigit():
+                j += 1
+            _tokens.append(expr[i:j])
+            i = j
+            continue
+        if ch.isalpha() or ch == "_":
+            j = i
+            while j < len(expr) and (expr[j].isalnum() or expr[j] == "_"):
+                j += 1
+            _tokens.append(expr[i:j])
+            i = j
+            continue
+        raise ValueError(
+            f"unexpected character {ch!r} at position {i} in {expr!r}"
+        )
+
+    # -- recursive-descent parser -------------------------------------------
+
+    def _peek() -> str | None:
+        nonlocal _pos
+        return _tokens[_pos] if _pos < len(_tokens) else None
+
+    def _advance() -> str:
+        nonlocal _pos
+        tok = _tokens[_pos]
+        _pos += 1
+        return tok
+
+    def _expect(expected: str) -> None:
+        tok = _peek()
+        if tok != expected:
+            raise ValueError(
+                f"expected {expected!r}, got {tok!r} in {expr!r}"
+            )
+        _advance()
+
+    def _parse_expr() -> int:
+        left = _parse_term()
+        while (tok := _peek()) in ("+", "-"):
+            _advance()
+            right = _parse_term()
+            if tok == "+":
+                left += right
+            else:
+                left -= right
+        return left
+
+    def _parse_term() -> int:
+        left = _parse_factor()
+        while (tok := _peek()) in ("*", "/"):
+            _advance()
+            right = _parse_factor()
+            if tok == "*":
+                left *= right
+            elif right == 0:
+                raise ValueError(f"division by zero in {expr!r}")
+            else:
+                # Integer division truncating toward zero (Python // floors).
+                left = int(left / right)
+        return left
+
+    def _parse_factor() -> int:
+        tok = _peek()
+        if tok is None:
+            raise ValueError(f"unexpected end of expression in {expr!r}")
+        if tok == "(":
+            _advance()
+            value = _parse_expr()
+            _expect(")")
+            return value
+        if tok.startswith("$"):
+            return int(_advance()[1:], 16)
+        if tok.isdigit() or (tok.startswith("-") and tok[1:].isdigit()):
+            # Handle negative integer literals (the tokenizer doesn't
+            # capture leading '-', but we keep this for robustness).
+            return int(_advance())
+        if tok[0].isalpha() or tok[0] == "_":
+            name = _advance()
+            if name not in variables:
+                raise ValueError(
+                    f"undefined variable {name!r} in {expr!r}"
+                )
+            return variables[name]
+        raise ValueError(f"unexpected token {tok!r} in {expr!r}")
+
+    result = _parse_expr()
+    if _pos != len(_tokens):
+        raise ValueError(
+            f"unexpected trailing tokens in {expr!r}: "
+            f"{_tokens[_pos:]!r}"
+        )
+    return result
+
+
+_SIMPLE_ESCAPES: dict[str, int] = {
+    "n": ord("\n"),
+    "r": ord("\r"),
+    "t": ord("\t"),
+    "\\": ord("\\"),
+    "'": ord("'"),
+    '"': ord('"'),
+}
+
+
 def parse_hw_limits(filepath: str) -> HardwareLimits:
     """
     Parse assembly include file with assignment expressions.
 
-    Handles decimal, hex ($XX), arithmetic expressions, and character literals.
-    Uses eval() safely since this is an internal trusted file.
+    Handles decimal, hex ($XX), arithmetic expressions, and character
+    literals (``'c'``).  Uses a small recursive-descent evaluator so
+    that only the expected expression grammar is accepted.
     """
     hw = HardwareLimits()
 
@@ -130,29 +293,21 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
             if var_name in evaluated:
                 continue
 
-            # Convert assembly syntax to Python
-            expr_py = expr
-
-            # Replace $hex notation with 0xhex
-            expr_py = re.sub(r"\$([0-9A-Fa-f]+)", r"0x\1", expr_py)
-
-            # Handle character literals like ' ' -> chr(32)
-            def replace_char_literal(match: re.Match[str]) -> str:
-                return f"chr({ord(match.group(1))})"
-
-            expr_py = re.sub(r"'(.?)'", replace_char_literal, expr_py)
-
             try:
-                value = eval(expr_py, {}, evaluated)
-                evaluated[var_name] = value
-                made_progress = True
-
-                if var_name in _field_map:
-                    field_name, field_type = _field_map[var_name]
-                    setattr(hw, field_name, field_type(value))
-
-            except Exception:
+                value = _eval_asm_expr(expr, evaluated)
+            except (ValueError, ZeroDivisionError) as exc:
+                print(
+                    f"Warning: Could not evaluate {var_name!r}: {exc}"
+                )
                 remaining.append((var_name, expr))
+                continue
+
+            evaluated[var_name] = value
+            made_progress = True
+
+            if var_name in _field_map:
+                field_name, field_type = _field_map[var_name]
+                setattr(hw, field_name, field_type(value))
 
         if not made_progress and remaining:
             print(f"Warning: Could not resolve dependencies for: {remaining}")

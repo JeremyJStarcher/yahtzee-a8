@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -105,15 +106,19 @@ def _get_wasmtime() -> Any:
             "(pip install wasmtime) or place wheels in vendor/wheels/."
         )
 
-    # Run the bootstrap script in-process by executing it as a module
-    import runpy
-    try:
-        runpy.run_path(str(bootstrap_path))
-    except SystemExit:
-        # bootstrap_runtime may exit on failure
-        raise
-    except Exception as exc:
-        _die(f"Bootstrap failed: {exc}")
+    # Run bootstrap as a subprocess so __name__ == "__main__" works.
+    r = subprocess.run(
+        [sys.executable, str(bootstrap_path)],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        _die(f"Bootstrap failed (exit {r.returncode}):\n{r.stderr}")
+
+    # The bootstrap installs into .runtime/site-packages/ — add it to sys.path.
+    runtime_sp = _repo_root() / ".." / ".runtime" / "site-packages"
+    runtime_sp = runtime_sp.resolve()
+    if runtime_sp.is_dir() and str(runtime_sp) not in sys.path:
+        sys.path.insert(0, str(runtime_sp))
 
     import wasmtime  # type: ignore[import-untyped,no-redef]
     return wasmtime

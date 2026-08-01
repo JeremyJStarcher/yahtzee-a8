@@ -72,14 +72,15 @@ def test_bios_pipeline(tmp_path: Path) -> None:
 def test_bios_makefile() -> None:
     """Run 'make' in bios/ and verify the output matches the golden image."""
     bios_dir = REPO_ROOT / "bin/3rdparty/cc65-asm-tests/bios"
+    make_env = {**__import__("os").environ, "PYTHON": sys.executable}
 
     # Clean
     subprocess.run(["make", "clean"], cwd=str(bios_dir),
-                   capture_output=True, check=True)
+                   capture_output=True, check=True, env=make_env)
 
     # Build
     proc = subprocess.run(["make"], cwd=str(bios_dir),
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, env=make_env)
     assert proc.returncode == 0, (
         f"BIOS make failed (exit {proc.returncode}):\n{proc.stderr}"
     )
