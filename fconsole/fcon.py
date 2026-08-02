@@ -142,9 +142,7 @@ def _eval_asm_expr(expr: str, variables: dict[str, int]) -> int:
             _tokens.append(expr[i:j])
             i = j
             continue
-        raise ValueError(
-            f"unexpected character {ch!r} at position {i} in {expr!r}"
-        )
+        raise ValueError(f"unexpected character {ch!r} at position {i} in {expr!r}")
 
     # -- recursive-descent parser -------------------------------------------
 
@@ -161,9 +159,7 @@ def _eval_asm_expr(expr: str, variables: dict[str, int]) -> int:
     def _expect(expected: str) -> None:
         tok = _peek()
         if tok != expected:
-            raise ValueError(
-                f"expected {expected!r}, got {tok!r} in {expr!r}"
-            )
+            raise ValueError(f"expected {expected!r}, got {tok!r} in {expr!r}")
         _advance()
 
     def _parse_expr() -> int:
@@ -209,18 +205,13 @@ def _eval_asm_expr(expr: str, variables: dict[str, int]) -> int:
         if tok[0].isalpha() or tok[0] == "_":
             name = _advance()
             if name not in variables:
-                raise ValueError(
-                    f"undefined variable {name!r} in {expr!r}"
-                )
+                raise ValueError(f"undefined variable {name!r} in {expr!r}")
             return variables[name]
         raise ValueError(f"unexpected token {tok!r} in {expr!r}")
 
     result = _parse_expr()
     if _pos != len(_tokens):
-        raise ValueError(
-            f"unexpected trailing tokens in {expr!r}: "
-            f"{_tokens[_pos:]!r}"
-        )
+        raise ValueError(f"unexpected trailing tokens in {expr!r}: {_tokens[_pos:]!r}")
     return result
 
 
@@ -296,9 +287,7 @@ def parse_hw_limits(filepath: str) -> HardwareLimits:
             try:
                 value = _eval_asm_expr(expr, evaluated)
             except (ValueError, ZeroDivisionError) as exc:
-                print(
-                    f"Warning: Could not evaluate {var_name!r}: {exc}"
-                )
+                print(f"Warning: Could not evaluate {var_name!r}: {exc}")
                 remaining.append((var_name, expr))
                 continue
 
@@ -392,8 +381,7 @@ def parse_args() -> argparse.Namespace:
         type=positive_int,
         default=1,
         help=(
-            "Minimum delay between CPU batches, even when behind schedule "
-            "(default: 1)"
+            "Minimum delay between CPU batches, even when behind schedule (default: 1)"
         ),
     )
     parser.add_argument(
@@ -423,17 +411,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--text-font-family",
         default=None,
-        help=(
-            "Optional font family for --video-backend text; defaults to "
-            "TkFixedFont"
-        ),
+        help=("Optional font family for --video-backend text; defaults to TkFixedFont"),
     )
     return parser.parse_args()
 
 
-def build_config(
-    args: argparse.Namespace, hw: HardwareLimits
-) -> EmulatorConfig:
+def build_config(args: argparse.Namespace, hw: HardwareLimits) -> EmulatorConfig:
     """Merge CLI arguments and hardware limits into a single config object."""
     clock_hz = args.clock_hz if args.clock_hz else float(hw.clock_speed)
     refresh_interval_ms = max(1, round(1000.0 / args.refresh_hz))
@@ -607,9 +590,7 @@ class Cpu6502Module:
         char_write_cb: Callable[[int, int], None] | None = None,
         color_write_cb: Callable[[int, int], None] | None = None,
     ) -> None:
-        self._fallback_cycles_per_instruction = (
-            config.fallback_cycles_per_instruction
-        )
+        self._fallback_cycles_per_instruction = config.fallback_cycles_per_instruction
 
         self.bus = SystemBus(
             config,
@@ -790,9 +771,7 @@ class FConsole:
             self.vout.refresh_screen()
             self.isDirty = False
 
-        self.vout._root.after(
-            self.config.refresh_interval_ms, self._update_video_frame
-        )
+        self.vout._root.after(self.config.refresh_interval_ms, self._update_video_frame)
 
     def _update_cpu_step(self) -> None:
         """Execute one batch, then schedule the next batch at CPU-clock
@@ -813,15 +792,11 @@ class FConsole:
             return
 
         now = time.perf_counter()
-        target_time = self._clock_origin + (
-            self._emulated_cycles / cfg.clock_hz
-        )
+        target_time = self._clock_origin + (self._emulated_cycles / cfg.clock_hz)
         lag_seconds = now - target_time
 
         if lag_seconds > cfg.max_catch_up_seconds:
-            self._clock_origin = now - (
-                self._emulated_cycles / cfg.clock_hz
-            )
+            self._clock_origin = now - (self._emulated_cycles / cfg.clock_hz)
             target_time = now
 
         ahead_seconds = max(0.0, target_time - now)
@@ -853,8 +828,7 @@ class FConsole:
             "py65 processorCycles"
             if self.cpu_module.has_native_cycle_counter
             else (
-                f"fallback ({cfg.fallback_cycles_per_instruction:g} "
-                "cycles/instruction)"
+                f"fallback ({cfg.fallback_cycles_per_instruction:g} cycles/instruction)"
             )
         )
         print(f"Clock: {cfg.clock_hz:g} Hz; timing source: {cycle_mode}")

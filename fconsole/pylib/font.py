@@ -374,7 +374,6 @@ def _assign_orders() -> None:
         char.screen_order = screen_indices[i]
         char.print_order = -1
 
-
     # Assign print_order for ASCII printable characters (0x20-0x7F).
     # Their print_order matches their screen_order.
     used_print_orders: set[int] = set()
@@ -402,7 +401,7 @@ def _reorder_font():
     not called during normal emulator operation.  It should not be needed again.
     """
     _assign_orders()
-    #print("FONT_DATA = [")
+    # print("FONT_DATA = [")
     for char in FONT_DATA:
         layout_str = ", ".join(f"0x{b:02X}" for b in char.layout)
         desc = char.description.replace('"', '\\"')
@@ -411,7 +410,7 @@ def _reorder_font():
         print(
             f'    FontChar([{layout_str}], 0x{char.codepoint:04X}, "{desc}",print_order={char.print_order}, screen_order={char.screen_order}),'
         )
-    #print("]")
+    # print("]")
 
 
 def print_char_list() -> None:
@@ -435,13 +434,15 @@ def print_char_list() -> None:
 
         print(",".join(values) + ",")
 
+
 def lookup_by_codepoint(codepoint: int):
     for ch in FONT_DATA:
         if ch.codepoint == codepoint:
             print(ch)
 
+
 if __name__ == "__main__":
-    #_reorder_font()
+    # _reorder_font()
     # print_char_list()
     # write_p2s_xlate()
     lookup_by_codepoint(32)

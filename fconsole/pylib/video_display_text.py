@@ -52,8 +52,7 @@ class Video(BaseVideo):
         self._canvas.pack()
 
         self._palette_hex = [
-            f"#{red:02x}{green:02x}{blue:02x}"
-            for red, green, blue in self.C64_COLORS
+            f"#{red:02x}{green:02x}{blue:02x}" for red, green, blue in self.C64_COLORS
         ]
 
         self._font: tkfont.Font
@@ -160,7 +159,12 @@ class Video(BaseVideo):
             y2 = y1 + self._cell_height
 
             bg_item = self._canvas.create_rectangle(
-                x1, y1, x2, y2, fill=default_bg, outline="",
+                x1,
+                y1,
+                x2,
+                y2,
+                fill=default_bg,
+                outline="",
             )
             text_item = self._canvas.create_text(
                 x1 + self._cell_width / 2,
@@ -218,9 +222,7 @@ class Video(BaseVideo):
         if self._dirty:
             for offset in tuple(self._dirty_cells):
                 bg_hex, fg_hex = self._get_color_hex(self._color_memory[offset])
-                self._canvas.itemconfigure(
-                    self._background_items[offset], fill=bg_hex
-                )
+                self._canvas.itemconfigure(self._background_items[offset], fill=bg_hex)
                 self._canvas.itemconfigure(
                     self._text_items[offset],
                     text=self._display_character(self._screen_memory[offset]),

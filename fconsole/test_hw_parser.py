@@ -30,15 +30,26 @@ print(f"  CLOCK_SPEED: {hw.clock_speed}")
 print(f"  SCREEN_COLS: {hw.screen_cols}")
 print(f"  SCREEN_ROWS: {hw.screen_rows}")
 print(f"  SCREEN_SIZE: {hw.screen_size} (expected: {_EXPECTED_SCREEN_SIZE})")
-print(f"  START_REGION_CHAR_RAM: ${hw.start_region_char_ram:04X} (expected: ${_EXPECTED_START_CHAR_RAM:04X})")
-print(f"  END_REGION_CHAR_RAM: ${hw.end_region_char_ram:04X} (expected: ${_EXPECTED_END_CHAR_RAM:04X})")
-print(f"  START_REGION_COLOR_RAM: ${hw.start_region_color_ram:04X} (expected: ${_EXPECTED_START_COLOR_RAM:04X})")
-print(f"  END_REGION_COLOR_RAM: ${hw.end_region_color_ram:04X} (expected: ${_EXPECTED_END_COLOR_RAM:04X})")
-print(f"  DEFAULT_COLOR: ${hw.default_color:02X} (expected: ${_EXPECTED_DEFAULT_COLOR:02X})")
+print(
+    f"  START_REGION_CHAR_RAM: ${hw.start_region_char_ram:04X} (expected: ${_EXPECTED_START_CHAR_RAM:04X})"
+)
+print(
+    f"  END_REGION_CHAR_RAM: ${hw.end_region_char_ram:04X} (expected: ${_EXPECTED_END_CHAR_RAM:04X})"
+)
+print(
+    f"  START_REGION_COLOR_RAM: ${hw.start_region_color_ram:04X} (expected: ${_EXPECTED_START_COLOR_RAM:04X})"
+)
+print(
+    f"  END_REGION_COLOR_RAM: ${hw.end_region_color_ram:04X} (expected: ${_EXPECTED_END_COLOR_RAM:04X})"
+)
+print(
+    f"  DEFAULT_COLOR: ${hw.default_color:02X} (expected: ${_EXPECTED_DEFAULT_COLOR:02X})"
+)
 
 # Verify values
 passed = 0
 failed = 0
+
 
 def _check(name: str, actual: int, expected: int) -> None:
     global passed, failed
@@ -47,6 +58,7 @@ def _check(name: str, actual: int, expected: int) -> None:
     else:
         failed += 1
         print(f"  MISMATCH: {name}: got {actual}, expected {expected}")
+
 
 _check("CLOCK_SPEED", hw.clock_speed, _EXPECTED_CLOCK_SPEED)
 _check("SCREEN_COLS", hw.screen_cols, _EXPECTED_SCREEN_COLS)
@@ -64,8 +76,12 @@ try:
     print("\n✓ Parser re-executed successfully!")
     print("\nHardware Configuration:")
     print(f"  Clock Speed: {hw2.clock_speed:,} Hz")
-    print(f"  Screen Size: {hw2.screen_cols}x{hw2.screen_rows} ({hw2.screen_size} cells)")
-    print(f"  Char RAM: ${hw2.start_region_char_ram:04X}-${hw2.end_region_char_ram:04X}")
+    print(
+        f"  Screen Size: {hw2.screen_cols}x{hw2.screen_rows} ({hw2.screen_size} cells)"
+    )
+    print(
+        f"  Char RAM: ${hw2.start_region_char_ram:04X}-${hw2.end_region_char_ram:04X}"
+    )
     print(
         f"  Color RAM: ${hw2.start_region_color_ram:04X}-${hw2.end_region_color_ram:04X}"
     )

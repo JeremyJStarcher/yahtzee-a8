@@ -45,9 +45,7 @@ class BaseVideo:
     # -- Validation ----------------------------------------------------------
 
     @staticmethod
-    def _validate_dimensions(
-        rows: int, columns: int, scale: int, border: int
-    ) -> None:
+    def _validate_dimensions(rows: int, columns: int, scale: int, border: int) -> None:
         """Validate constructor parameters."""
         if not isinstance(rows, int) or not isinstance(columns, int):
             raise TypeError("Rows and columns must be integers")
@@ -64,9 +62,7 @@ class BaseVideo:
             raise TypeError("Offset must be an integer")
         total_cells = self._rows * self._columns
         if offset < 0 or offset >= total_cells:
-            raise IndexError(
-                f"Offset {offset} out of range [0, {total_cells - 1}]"
-            )
+            raise IndexError(f"Offset {offset} out of range [0, {total_cells - 1}]")
 
     # -- Dirty tracking hook (subclasses may override) -----------------------
 
