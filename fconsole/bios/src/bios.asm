@@ -48,6 +48,16 @@ data_end:
 .endmacro
 
 .macro pushall
+; Important note for reviewers:
+;
+; The pushall/popall pair preserves A, X, Y, and processor status.
+;
+; Unlike a conventional register-save sequence, pushall restores the
+; original value of A before completing. This allows A to remain a live
+; argument for a function called between pushall and popall.
+;
+; This implementation uses SAVEA and is intentionally not interrupt-reentrant.
+
     PHP                                 ; Push status register
     STA SAVEA                           ; Save the 'A' register while storing the others
     PHA                                 ; Push A
