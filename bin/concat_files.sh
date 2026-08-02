@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Disable filename expansion (globbing) so that patterns from
+# .concatfiles (e.g. "*.bin") are not expanded before being used
+# in case-statement pattern matching.
+set -f
+
 # Usage check
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <directory>"

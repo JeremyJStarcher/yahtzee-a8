@@ -13,7 +13,6 @@
     .exportzp CURS_COL
     .exportzp CURS_ROW
 
-
     .segment "CODE"
 
 .macro pstring str
@@ -105,16 +104,16 @@ COLOR_PTR: .res 2
 ; ============================================================================
 .proc DISPLAY_PSTRING
     LDY #$00
-    LDA (DISPLAY_PTR), Y                  ; Read 1-byte string length
+    LDA (DISPLAY_PTR), Y                ; Read 1-byte string length
     TAX                                 ; Store length in X
     BEQ @done                           ; Early exit if length is 0
 
 @loop:
     INY                                 ; Advance offset to the next character (starts at index 1)
-    LDA (DISPLAY_PTR), Y                  ; Fetch character
+    LDA (DISPLAY_PTR), Y                ; Fetch character
 
     pushall
-    ldx #$00                            ; Display mode processed special chars.
+    LDX #$00                            ; Display mode processed special chars.
     JSR DISPLAY_CHAR                    ; Draw character & advance cursor
     popall
 
@@ -135,12 +134,11 @@ CHAR_FF  = $0C
 CHAR_CR  = $0D
 CHAR_DEL = $7F
 
-
 ; ============================================================================
 ; Routine: DISPLAY_CHAR
 ; Description:
 ;   Plots a single character to the screen at position (CURS_COL, CURS_ROW), updates
-;   the corresponding tile in Color RAM with CURRENT_COLOR, and advances
+;   the corresponding tile in color RAM with CURRENT_COLOR, and advances
 ;   the cursor (wrapping to the next row if X reaches column 40).
 ;
 ; Inputs:
@@ -153,11 +151,9 @@ CHAR_DEL = $7F
 ; ============================================================================
 .proc DISPLAY_CHAR
 
-    ; Raw mode bypasses all control-character interpretation.
+; Raw mode bypasses all control-character interpretation.
     CPX #$00
     BNE @draw_character
-
-
 
     CMP #CHAR_BEL
     BEQ @bell
@@ -179,7 +175,7 @@ CHAR_DEL = $7F
 
     ; Ignore unsupported C0 control characters in processed mode.
     CMP #$20
-    bcc @done 
+    BCC @done
 
     ; Optionally treat DEL as non-printing.
     CMP #CHAR_DEL
@@ -205,12 +201,12 @@ CHAR_DEL = $7F
 
     LDY #$00
     PLA
-    
+
     ; We not have the *print* character we want, look up the
     ; *screen code*
 
-    TAX                             ; Transfer to X 
-    LDA p2slookup, X                ; Lookup the new screen code
+    TAX                                 ; Transfer to X
+    LDA p2slookup, X                    ; Lookup the new screen code
 
     STA (CHAR_PTR), Y
     LDA CURRENT_COLOR
@@ -221,18 +217,16 @@ CHAR_DEL = $7F
 @done:
     RTS
 
-
-
     ; --------------------------------------------------------------------
     ; Control-character handlers
     ; --------------------------------------------------------------------
 
 @bell:
-    ;JSR RING_BELL               ; Hardware-specific routine
-    RTS                         ; Cursor and pending wrap unchanged
+;JSR RING_BELL               ; Hardware-specific routine
+    RTS                                 ; Cursor and pending wrap unchanged
 
 @newline:
-    JSR DISPLAY_NEXT_LINE       ; CR+LF semantics in this implementation
+    JSR DISPLAY_NEXT_LINE               ; CR+LF semantics in this implementation
     RTS
 
 @carriage_return:
@@ -247,8 +241,8 @@ CHAR_DEL = $7F
     RTS
 
 @tab:
-    ; Advance to the next 8-column tab stop.
-    ; This may leave CURS_COL == SCREEN_COLS, creating pending wrap.
+; Advance to the next 8-column tab stop.
+; This may leave CURS_COL == SCREEN_COLS, creating pending wrap.
     LDA CURS_COL
     CLC
     ADC #8
@@ -527,7 +521,7 @@ row_offsets_high:
 
 
 .proc CLEAR_SCREEN
-  pushall
+    pushall
     push_ptr TMP_PTR
     push_ptr DISPLAY_PTR
 
@@ -547,7 +541,7 @@ row_offsets_high:
     STX CURS_COL
     STX CURS_ROW
 
-  pop_ptr DISPLAY_PTR
+    pop_ptr DISPLAY_PTR
     pop_ptr TMP_PTR
     popall
 
@@ -616,7 +610,7 @@ row_offsets_high:
 ; Y is currently $00. We fill from $00 up to DISPLAY_PTR low byte.
     TXA
 @TAIL_LOOP:
-    CPY DISPLAY_PTR                       ; Reached remaining byte count?
+    CPY DISPLAY_PTR                     ; Reached remaining byte count?
     BEQ @DONE
     STA (TMP_PTR), Y                    ; Write remaining bytes
     INY
@@ -652,6 +646,7 @@ _reset_handler:
     JSR reset_screen
     JSR video_test
 
+
     LDA #DEFAULT_COLOR                  ; Fill value
     STA CURRENT_COLOR
     load16 DISPLAY_PTR, boot_msg
@@ -665,7 +660,7 @@ boot_msg:
 
 msg_welcome:
     pstring2 {$C8, "SCROLLING TEST"}
-    
+
 .proc video_test
 
 ; Set pointer in Zero Page
@@ -683,7 +678,7 @@ msg_welcome:
     STX CURS_COL
     STX CURS_ROW
 
-    LDA #73
+    LDA #$0C
     STA CURRENT_COLOR
 
     LDX #$00
@@ -713,11 +708,28 @@ msg_welcome:
 .endscope
 .endrep
 
-    JSR medium_pause
+; lets do a run over all possible characters, just for fun.
+    LDA #$C1
+    STA CURRENT_COLOR
 
+    LDX #$00
+    STX CURS_COL
+    LDX #$00
+    STX CURS_ROW
+
+    LDY #$00
+@dl:
+    pushall
+    LDX #$01
+    TYA
+    JSR DISPLAY_CHAR
+    popall
+    INY                                 ; increment y
+    BNE @dl                             ; didn't wrap around?
+
+    JSR medium_pause
 RTS
 .endproc
-
 
 ; Translation table: print_code -> screen_code
 ; Generated from 256 font characters

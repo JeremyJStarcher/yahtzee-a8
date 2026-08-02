@@ -8,4 +8,7 @@
 *.zip
 *.atr
 *.wasi
+*.map
+*.o
+*.lst
 venv/hosts/
