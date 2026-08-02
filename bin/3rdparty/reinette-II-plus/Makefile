@@ -9,6 +9,9 @@ LIBS = -lSDL2
 reinetteII+: reinetteII+.c puce6502.c
 	$(CC) $^ $(FLAGS) $(LIBS) -o $@
 
+wasi: reinette-wasi.c puce6502.c
+	$(CC) $^ $(FLAGS) $(LIBS) -o $@
+
 reinetteII+.res: reinetteII+.rc
 	windres $^ -O coff -o $(WIN32-RES)
 
@@ -16,7 +19,5 @@ all: reinetteII+
 
 clean:
 	rm -f reinetteII+
-
-
-
+	rm -f wasi
 
