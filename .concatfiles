@@ -11,4 +11,8 @@
 *.map
 *.o
 *.lst
+
+*.disasm.asm
+*.lbl
+*.dbg
 venv/hosts/

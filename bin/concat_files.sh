@@ -11,16 +11,12 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-target_dir="$1"
-
-# Validate directory
-if [ ! -d "$target_dir" ]; then
-    echo "Error: '$target_dir' is not a directory" >&2
+# Resolve to an absolute path so the walk-up loop works with
+# relative targets like "." or "../bios".
+target_dir="$(cd "$1" 2>/dev/null && pwd)" || {
+    echo "Error: '$1' is not an accessible directory" >&2
     exit 1
-fi
-
-# Remove trailing slash if present (for clean relative paths)
-target_dir="${target_dir%/}"
+}
 
 output_file="/tmp/all.txt"
 
@@ -28,7 +24,18 @@ output_file="/tmp/all.txt"
 > "$output_file" || { echo "Error: cannot write to $output_file" >&2; exit 1; }
 
 # Find all regular files, process them one by one
-ignore_file="$target_dir/.concatfiles"
+# Walk up the directory tree to find .concatfiles
+ignore_file=""
+_search_dir="$target_dir"
+while true; do
+    if [ -f "$_search_dir/.concatfiles" ]; then
+        ignore_file="$_search_dir/.concatfiles"
+        break
+    fi
+    _parent="$(dirname "$_search_dir")"
+    [ "$_parent" = "$_search_dir" ] && break   # reached root
+    _search_dir="$_parent"
+done
 
 find "$target_dir" -type f -print0 | while IFS= read -r -d '' file; do
     # Compute relative path from target_dir
