@@ -1,8 +1,5 @@
 __pycache__
 *.pyc
-*.o
-*.bin
-*.bin.map
 fconsole/bios/bios.lst
 venv/hosts
 

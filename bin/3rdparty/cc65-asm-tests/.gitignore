@@ -1,0 +1,8 @@
+*.bin
+*.bin.map
+*.dbg
+*.disasm.asm
+*.lbl
+*.map
+*.lst
+*.o

@@ -160,29 +160,84 @@ def _run(*args: str, cwd: Path | None = None) -> None:
 # ---------------------------------------------------------------------------
 # Subcommands
 # ---------------------------------------------------------------------------
-
 def cmd_bios(args: argparse.Namespace) -> None:
-    """Assemble and link the 6502 BIOS."""
+    """Assemble, link, and generate listings for the 6502 BIOS."""
     vpy = ensure_venv()
     d = _repo_root() / "fconsole" / "bios"
 
-    print("Assembling src/bios.asm ...")
-    _wasi(vpy, "ca65", "--cpu", "6502", "--debug-info",
-          "-o", "src/bios.o", "src/bios.asm", cwd=d)
+    print("Assembling src/bios.asm -> src/bios.o ...")
+    _wasi(
+        vpy,
+        "ca65",
+        "--cpu", "6502",
+        "--debug-info",
 
-    print("Assembling src/vectors.asm ...")
-    _wasi(vpy, "ca65", "--cpu", "6502", "--debug-info",
-          "-o", "src/vectors.o", "src/vectors.asm", cwd=d)
+        # Source-correlated assembler listing
+        "--listing", "src/bios.lst",
+        "--segment-list",
+        "--list-bytes", "16",
+        "--expand-macros",
+
+        "-o", "src/bios.o",
+        "src/bios.asm",
+        cwd=d,
+    )
+
+    print("Assembling src/vectors.asm -> src/vectors.o ...")
+    _wasi(
+        vpy,
+        "ca65",
+        "--cpu", "6502",
+        "--debug-info",
+
+        # Source-correlated assembler listing
+        "--listing", "src/vectors.lst",
+        "--segment-list",
+        "--list-bytes", "16",
+        "--expand-macros",
+
+        "-o", "src/vectors.o",
+        "src/vectors.asm",
+        cwd=d,
+    )
 
     print("Linking bios.bin ...")
-    _wasi(vpy, "ld65", "-C", "bios.cfg", "-m", "bios.bin.map",
-          "-o", "bios.bin", "src/bios.o", "src/vectors.o", cwd=d)
+    _wasi(
+        vpy,
+        "ld65",
+        "-C", "bios.cfg",
 
-    print("Disassembling bios.bin -> bios.lst ...")
-    _wasi(vpy, "da65", "--cpu", "6502", "--start-addr", "$F000",
-          "--multi-pass", "-o", "bios.lst", "bios.bin", cwd=d)
+        # Detailed linker outputs
+        "--mapfile", "bios.map",
+        "--dbgfile", "bios.dbg",
+        "-Ln", "bios.lbl",
+        "-vm",
+
+        "-o", "bios.bin",
+        "src/bios.o",
+        "src/vectors.o",
+        cwd=d,
+    )
+
+    print("Disassembling linked bios.bin -> bios.disasm.asm ...")
+    _wasi(
+        vpy,
+        "da65",
+        "--cpu", "6502",
+        "--start-addr", "$F000",
+        "--multi-pass",
+        "-o", "bios.disasm.asm",
+        "bios.bin",
+        cwd=d,
+    )
 
     print("BIOS build complete.")
+    print("  Source listing:       src/bios.lst")
+    print("  Vector listing:       src/vectors.lst")
+    print("  Linked disassembly:   bios.disasm.asm")
+    print("  Linker map:           bios.map")
+    print("  Debug information:    bios.dbg")
+    print("  Emulator labels:      bios.lbl")
 
 
 def cmd_run(args: argparse.Namespace) -> None:

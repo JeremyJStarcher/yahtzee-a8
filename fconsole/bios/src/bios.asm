@@ -20,6 +20,20 @@
     .byte .strlen(str), str
 .endmacro
 
+
+.macro pstring2 payload
+    .local data_start, data_end
+
+    ; Pascal-string length byte
+    .byte data_end - data_start
+
+data_start:
+    .byte payload
+data_end:
+
+    .assert (data_end - data_start) <= $FF, error, "pstring2 payload exceeds 255 bytes"
+.endmacro
+
 .macro push_ptr P
     LDA P
     PHA
@@ -54,11 +68,9 @@
     PLP                                 ; Pull status register
 .endmacro
 
-
-
 .segment "ZEROPAGE"
 TMP_PTR: .res 2
-PRINT_PTR: .res 2
+DISPLAY_PTR: .res 2
 FILCHAR: .res 1
 SAVEA: .res 1
 
@@ -80,28 +92,29 @@ COLOR_PTR: .res 2
 .endproc
 
 ; ============================================================================
-; Routine: PRINT_PSTRING
+; Routine: DISPLAY_PSTRING
 ; Description:
-;   Prints a Pascal-style string (length byte followed by character payload).
+;   Displays a Pascal-style string (length byte followed by character payload).
 ;   Advances CURS_COL and CURS_ROW automatically per character.
 ;
 ; Inputs:
-;   PRINT_PTR (2 bytes, Zero Page) - Pointer to the start of the PSTRING (length byte)
+;   DISPLAY_PTR (2 bytes, Zero Page) - Pointer to the start of the PSTRING (length byte)
 ;
 ; Registers Modified:
 ;   A, X, Y
 ; ============================================================================
-.proc PRINT_PSTRING
+.proc DISPLAY_PSTRING
     LDY #$00
-    LDA (PRINT_PTR), Y                  ; Read 1-byte string length
+    LDA (DISPLAY_PTR), Y                  ; Read 1-byte string length
     TAX                                 ; Store length in X
     BEQ @done                           ; Early exit if length is 0
 
 @loop:
     INY                                 ; Advance offset to the next character (starts at index 1)
-    LDA (PRINT_PTR), Y                  ; Fetch character
+    LDA (DISPLAY_PTR), Y                  ; Fetch character
 
     pushall
+    ldx #$00                            ; Display mode processed special chars.
     JSR DISPLAY_CHAR                    ; Draw character & advance cursor
     popall
 
@@ -112,6 +125,17 @@ COLOR_PTR: .res 2
     RTS
 .endproc
 
+
+; ASCII/control character values
+CHAR_BEL = $07
+CHAR_BS  = $08
+CHAR_TAB = $09
+CHAR_LF  = $0A
+CHAR_FF  = $0C
+CHAR_CR  = $0D
+CHAR_DEL = $7F
+
+
 ; ============================================================================
 ; Routine: DISPLAY_CHAR
 ; Description:
@@ -121,11 +145,50 @@ COLOR_PTR: .res 2
 ;
 ; Inputs:
 ;   A                - Character code to write to screen
+;   X                - 0 = Handle special characters (NL, etc).
+;                    - 1 = raw
 ;   CURS_COL         - Screen X coordinate
 ;   CURS_ROW         - Screen Y coordinate
 ;   CURRENT_COLOR - Color code to write to Color RAM
 ; ============================================================================
 .proc DISPLAY_CHAR
+
+    ; Raw mode bypasses all control-character interpretation.
+    CPX #$00
+    BNE @draw_character
+
+
+
+    CMP #CHAR_BEL
+    BEQ @bell
+
+    CMP #CHAR_LF
+    BEQ @newline
+
+    CMP #CHAR_CR
+    BEQ @carriage_return
+
+    CMP #CHAR_BS
+    BEQ @backspace
+
+    CMP #CHAR_TAB
+    BEQ @tab
+
+    CMP #CHAR_FF
+    BEQ @form_feed
+
+    ; Ignore unsupported C0 control characters in processed mode.
+    CMP #$20
+    bcc @done 
+
+    ; Optionally treat DEL as non-printing.
+    CMP #CHAR_DEL
+    BEQ @done
+
+    ; --------------------------------------------------------------------
+    ; Printable character path
+    ; --------------------------------------------------------------------
+@draw_character:
     PHA                                 ; Save character
 
     ; 1. Check if we need to scroll/wrap BEFORE drawing the character
@@ -155,9 +218,54 @@ COLOR_PTR: .res 2
 
     ; 3. Advance cursor X position
     INC CURS_COL
+@done:
+    RTS
+
+
+
+    ; --------------------------------------------------------------------
+    ; Control-character handlers
+    ; --------------------------------------------------------------------
+
+@bell:
+    ;JSR RING_BELL               ; Hardware-specific routine
+    RTS                         ; Cursor and pending wrap unchanged
+
+@newline:
+    JSR DISPLAY_NEXT_LINE       ; CR+LF semantics in this implementation
+    RTS
+
+@carriage_return:
+    LDA #$00
+    STA CURS_COL
+    RTS
+
+@backspace:
+    LDA CURS_COL
+    BEQ @done
+    DEC CURS_COL
+    RTS
+
+@tab:
+    ; Advance to the next 8-column tab stop.
+    ; This may leave CURS_COL == SCREEN_COLS, creating pending wrap.
+    LDA CURS_COL
+    CLC
+    ADC #8
+    AND #$F8
+    STA CURS_COL
+
+    ; Clamp malformed values beyond the right edge.
+    CMP #SCREEN_COLS
+    BCC @done
+    LDA #SCREEN_COLS
+    STA CURS_COL
+    RTS
+
+@form_feed:
+    JSR CLEAR_SCREEN
     RTS
 .endproc
-
 
 ; ============================================================================
 ; Routine: DISPLAY_NEXT_LINE
@@ -197,13 +305,13 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 ; ============================================================================
 .proc SCROLL_UP
     pushall
-    push_ptr PRINT_PTR
+    push_ptr DISPLAY_PTR
     push_ptr TMP_PTR
 
     ; --------------------------------------------------------------------
     ; Step 1: Scroll Character RAM
     ; --------------------------------------------------------------------
-    load16 PRINT_PTR, (START_REGION_CHAR_RAM + SCREEN_COLS)
+    load16 DISPLAY_PTR, (START_REGION_CHAR_RAM + SCREEN_COLS)
     load16 TMP_PTR, START_REGION_CHAR_RAM
 
     JSR copy_vram_block
@@ -211,7 +319,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     ; --------------------------------------------------------------------
     ; Step 2: Scroll Color RAM
     ; --------------------------------------------------------------------
-    load16 PRINT_PTR, (START_REGION_COLOR_RAM + SCREEN_COLS)
+    load16 DISPLAY_PTR, (START_REGION_COLOR_RAM + SCREEN_COLS)
     load16 TMP_PTR, START_REGION_COLOR_RAM
 
     JSR copy_vram_block
@@ -235,13 +343,13 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     STA CURS_ROW
 
     pop_ptr TMP_PTR
-    pop_ptr PRINT_PTR
+    pop_ptr DISPLAY_PTR
     popall
     RTS
 .endproc
 
 ; ----------------------------------------------------------------------------
-; Internal Helper: Copies TOTAL_SCROLL_BYTES from PRINT_PTR to TMP_PTR
+; Internal Helper: Copies TOTAL_SCROLL_BYTES from DISPLAY_PTR to TMP_PTR
 ; ----------------------------------------------------------------------------
 .proc copy_vram_block
 ; --- Copy Full 256-byte Pages ---
@@ -250,12 +358,12 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
 
     LDY #$00
 @page_loop:
-    LDA (PRINT_PTR), Y
+    LDA (DISPLAY_PTR), Y
     STA (TMP_PTR), Y
     INY
     BNE @page_loop
 
-    INC PRINT_PTR + 1
+    INC DISPLAY_PTR + 1
     INC TMP_PTR + 1
     DEX
     BNE @page_loop
@@ -267,7 +375,7 @@ BOTTOM_ROW_OFFSET = (SCREEN_ROWS - 1) * SCREEN_COLS
     BEQ @done
 
 @rem_loop:
-    LDA (PRINT_PTR), Y
+    LDA (DISPLAY_PTR), Y
     STA (TMP_PTR), Y
     INY
     CPY #REM_BYTES_TO_COPY
@@ -419,14 +527,18 @@ row_offsets_high:
 
 
 .proc CLEAR_SCREEN
+  pushall
+    push_ptr TMP_PTR
+    push_ptr DISPLAY_PTR
+
     load16 TMP_PTR, START_REGION_CHAR_RAM
-    load16 PRINT_PTR, END_REGION_CHAR_RAM
+    load16 DISPLAY_PTR, END_REGION_CHAR_RAM
 
     LDA #DEFAULT_SCREEN_CHAR            ; Fill value
     JSR MEMFILL_FAST
 
     load16 TMP_PTR, START_REGION_COLOR_RAM
-    load16 PRINT_PTR, END_REGION_COLOR_RAM
+    load16 DISPLAY_PTR, END_REGION_COLOR_RAM
 
     LDA CURRENT_COLOR
     JSR MEMFILL_FAST
@@ -435,6 +547,10 @@ row_offsets_high:
     STX CURS_COL
     STX CURS_ROW
 
+  pop_ptr DISPLAY_PTR
+    pop_ptr TMP_PTR
+    popall
+
     RTS
 .endproc
 
@@ -442,11 +558,11 @@ row_offsets_high:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Input:
 ;   TMP_PTR   = first address to fill
-;   PRINT_PTR = exclusive end address
+;   DISPLAY_PTR = exclusive end address
 ;   A         = fill byte
 ;
 ; Requires:
-;   TMP_PTR <= PRINT_PTR
+;   TMP_PTR <= DISPLAY_PTR
 ;
 ; Clobbers:
 ;   A, X, Y, TMP_PTR
@@ -462,12 +578,12 @@ row_offsets_high:
     LDA TMP_PTR                         ; Check if low byte is $00 (page aligned)
     BEQ @FILL_PAGES                     ; If TMP_PTR points to $xx00, head alignment is done!
 
-    ; Check if TMP_PTR has already hit PRINT_PTR before we finish aligning
-    CMP PRINT_PTR
+    ; Check if TMP_PTR has already hit DISPLAY_PTR before we finish aligning
+    CMP DISPLAY_PTR
     BNE @ALIGN_WRITE
     LDA TMP_PTR+1
-    CMP PRINT_PTR+1
-    BEQ @DONE                           ; Reached PRINT_PTR during alignment phase!
+    CMP DISPLAY_PTR+1
+    BEQ @DONE                           ; Reached DISPLAY_PTR during alignment phase!
 
 @ALIGN_WRITE:
     TXA
@@ -481,7 +597,7 @@ row_offsets_high:
     ; --------------------------------------------------------------------
 @FILL_PAGES:
     LDA TMP_PTR+1
-    CMP PRINT_PTR+1
+    CMP DISPLAY_PTR+1
     BEQ @FILL_REMAINDER                 ; High bytes match -> only partial tail page left!
 
     TXA
@@ -497,10 +613,10 @@ row_offsets_high:
     ; Phase 3: Clear the remaining partial page
     ; --------------------------------------------------------------------
 @FILL_REMAINDER:
-; Y is currently $00. We fill from $00 up to PRINT_PTR low byte.
+; Y is currently $00. We fill from $00 up to DISPLAY_PTR low byte.
     TXA
 @TAIL_LOOP:
-    CPY PRINT_PTR                       ; Reached remaining byte count?
+    CPY DISPLAY_PTR                       ; Reached remaining byte count?
     BEQ @DONE
     STA (TMP_PTR), Y                    ; Write remaining bytes
     INY
@@ -535,29 +651,30 @@ _reset_handler:
 
     JSR reset_screen
     JSR video_test
-    JSR reset_screen
 
-    load16 PRINT_PTR, msg_welcome
-    JSR PRINT_PSTRING
+    LDA #DEFAULT_COLOR                  ; Fill value
+    STA CURRENT_COLOR
+    load16 DISPLAY_PTR, boot_msg
+    JSR DISPLAY_PSTRING
 halt:
     JMP halt                            ; Safely trap CPU here when done
 
-msg_welcome:
-    ;pstring "\XC8Welcome to the Fantasy 6502 Console!\xc8"
-    .byte 5
-    .byte $C8
-    .byte "WELCOME TO"
+boot_msg:
+    pstring2 {CHAR_FF, "Welcome to the Fantasy 6502 Console!", CHAR_BEL, CHAR_LF, "IN BUSY LOOP"}
+    ;pstring2 {"Welcome to the Fantasy 6502 Console!"}
 
+msg_welcome:
+    pstring2 {$C8, "SCROLLING TEST"}
     
 .proc video_test
 
 ; Set pointer in Zero Page
-    load16 PRINT_PTR, msg_welcome
+    load16 DISPLAY_PTR, msg_welcome
 
     LDX #100
 @ploop2:
     pushall
-    JSR PRINT_PSTRING
+    JSR DISPLAY_PSTRING
     popall
     DEX
     BNE @ploop2
@@ -584,8 +701,8 @@ msg_welcome:
 
 @print:
     pushall
-    load16  PRINT_PTR, @lstr
-    JSR     PRINT_PSTRING
+    load16  DISPLAY_PTR, @lstr
+    JSR     DISPLAY_PSTRING
 
     .if I <> ::SCREEN_ROWS-1
     JSR     DISPLAY_NEXT_LINE
