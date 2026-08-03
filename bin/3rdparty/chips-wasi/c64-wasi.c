@@ -41,11 +41,14 @@
 
 static c64_t g_sys;
 
-/* ── RGBA32 framebuffer: visible 392×272 region from the raw 504×312 fb ── */
+/* ── RGBA32 framebuffer: visible 392×272 region from the raw 504×312 fb.
+ * The chips m6569 writes the visible screen content at the TOP-LEFT of the
+ * raw framebuffer (origin 0,0), so VISIBLE_X/Y are 0 — the _C64_SCREEN_X/Y
+ * constants are the m6569 internal vis_x0 in ticks, NOT framebuffer offsets. */
 #define VISIBLE_W 392
 #define VISIBLE_H 272
-#define VISIBLE_X 64
-#define VISIBLE_Y 24
+#define VISIBLE_X 0
+#define VISIBLE_Y 0
 
 static uint32_t g_fb[VISIBLE_W * VISIBLE_H];
 
@@ -106,6 +109,12 @@ int wasi_keyup(int code) {
 int wasi_fb_ptr(void)    { return (int)(size_t)g_fb; }
 int wasi_fb_width(void)  { return VISIBLE_W; }
 int wasi_fb_height(void) { return VISIBLE_H; }
+
+/* ── Exported: debug — access to the raw indexed C64 framebuffer ───── */
+
+int  wasi_fb_raw_width(void)  { return M6569_FRAMEBUFFER_WIDTH; }   /* 504 */
+int  wasi_fb_raw_height(void) { return M6569_FRAMEBUFFER_HEIGHT; }  /* 312 */
+int  wasi_fb_raw_ptr(void)    { return (int)(size_t)g_sys.fb; }
 
 /* ── Exported: debug — read C64 text screen RAM ($0400, 40x25) ─────── */
 

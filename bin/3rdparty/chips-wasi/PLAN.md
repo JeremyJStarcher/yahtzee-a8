@@ -327,6 +327,13 @@ $PYTHON c64_host.py  --wasm c64.wasm         # should show BASIC READY
 - `-D_DEFAULT_SOURCE` added to `CFLAGS`: strict `-std=c11` hides `M_PI` in the musl math.h,
   which `m6581.h` (SID filter) needs.
 - `vic20-wasi.c` compiles cleanly as-is.
+- **Visible-region crop fix**: the original code extracted the visible region at
+  `x=32,y=8` (VIC-20) and `x=64,y=24` (C64), which shifted the image left and pulled
+  black overscan onto the right.  The chips m6561/m6569 write the visible screen at the
+  **top-left of the raw framebuffer (origin 0,0)** — the `_VIC20_SCREEN_X/Y` /
+  `_C64_SCREEN_X/Y` constants are the internal `vis_x0` in ticks, *not* framebuffer
+  offsets.  Both modules now use `VISIBLE_X=0, VISIBLE_Y=0` (232×272 / 392×272), giving a
+  correctly centered image with borders on all four sides.
 
 **Host structure** (per decision): a single shared `commodore_host.py` + two thin wrappers.
 `commodore_host.py` provides:

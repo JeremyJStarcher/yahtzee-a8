@@ -38,11 +38,14 @@
 
 static vic20_t g_sys;
 
-/* ── RGBA32 framebuffer: visible 232×272 region from the raw 512×320 fb ── */
+/* ── RGBA32 framebuffer: visible 232×272 region from the raw 512×320 fb.
+ * The chips m6561 writes the visible screen content at the TOP-LEFT of the
+ * raw framebuffer (origin 0,0), so VISIBLE_X/Y are 0 — the _VIC20_SCREEN_X/Y
+ * constants are the m6561 internal vis_x0 in ticks, NOT framebuffer offsets. */
 #define VISIBLE_W 232
 #define VISIBLE_H 272
-#define VISIBLE_X 32
-#define VISIBLE_Y 8
+#define VISIBLE_X 0
+#define VISIBLE_Y 0
 
 static uint32_t g_fb[VISIBLE_W * VISIBLE_H];
 
@@ -102,6 +105,12 @@ int wasi_keyup(int code) {
 int wasi_fb_ptr(void)    { return (int)(size_t)g_fb; }
 int wasi_fb_width(void)  { return VISIBLE_W; }
 int wasi_fb_height(void) { return VISIBLE_H; }
+
+/* ── Exported: debug — access to the raw indexed VIC framebuffer ───── */
+
+int  wasi_fb_raw_width(void)  { return M6561_FRAMEBUFFER_WIDTH; }   /* 512 */
+int  wasi_fb_raw_height(void) { return M6561_FRAMEBUFFER_HEIGHT; }  /* 320 */
+int  wasi_fb_raw_ptr(void)    { return (int)(size_t)g_sys.fb; }
 
 /* ── Exported: debug — read VIC-20 text screen RAM ($1E00, 22x23) ──── */
 

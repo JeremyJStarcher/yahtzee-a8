@@ -25,7 +25,7 @@ WASI_FLAGS = \
 # Exported functions the Python host calls.
 # Each name is quoted so EXPORTS expands to a valid JSON array for
 # -sEXPORTED_FUNCTIONS (see the recipe: '["$(EXPORTS)"]').
-EXPORTS = "_wasi_init","_wasi_tick","_wasi_keydown","_wasi_keyup","_wasi_fb_ptr","_wasi_fb_width","_wasi_fb_height","_wasi_screen_cols","_wasi_screen_rows","_wasi_screen_text","_wasi_insert_disk","_malloc","_free"
+EXPORTS = "_wasi_init","_wasi_tick","_wasi_keydown","_wasi_keyup","_wasi_fb_ptr","_wasi_fb_width","_wasi_fb_height","_wasi_fb_raw_ptr","_wasi_fb_raw_width","_wasi_fb_raw_height","_wasi_screen_cols","_wasi_screen_rows","_wasi_screen_text","_wasi_insert_disk","_malloc","_free"
 
 .PHONY: all clean
 
