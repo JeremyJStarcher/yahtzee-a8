@@ -1,14 +1,16 @@
 """
 Shared base class for video display implementations.
 
-Provides character/color memory management, offset validation, and the
-common public API.  Rendering backends (bitmap PhotoImage or native Tk text)
-inherit from this class and only implement display-specific logic.
+Provides character/color memory management, offset validation, the common
+public API, and a uniform window/event-loop interface.  Rendering backends
+(Tk bitmap PhotoImage, native Tk text, or pygame) inherit from this class
+and only implement display-specific logic.
 """
 
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import Canvas
 
 from .font import C64_COLORS, DEFAULT_COLOR, SCREEN_ORDER_CHARS
@@ -137,6 +139,38 @@ class BaseVideo:
             raise ValueError(
                 f"Character is not in the screen-code table: {ch!r}"
             ) from error
+
+    # -- Window / event-loop interface ---------------------------------------
+    #
+    # The emulator drives the display through this small uniform interface
+    # rather than reaching into backend-specific widgets.  The default
+    # implementations delegate to a Tk root; the pygame backend overrides
+    # them with its own window and event loop.
+
+    def set_title(self, title: str) -> None:
+        """Set the window title."""
+        self._root.title(title)
+
+    def set_close_handler(self, callback: Callable[[], None]) -> None:
+        """Register *callback* to run when the user closes the window."""
+        self._root.protocol("WM_DELETE_WINDOW", callback)
+
+    def schedule(self, delay_ms: int, callback: Callable[[], None]) -> None:
+        """Run *callback* after *delay_ms* milliseconds on the UI thread."""
+        self._root.after(delay_ms, callback)
+
+    def mainloop(self) -> None:
+        """Run the window's main event loop until the window is closed."""
+        self._root.mainloop()
+
+    def pump(self) -> None:
+        """Process pending window events without blocking.
+
+        The default implementation pumps the Tk event queue (which also
+        fires any due ``after`` callbacks).  The pygame backend overrides
+        this with its own event-loop driver.
+        """
+        self._root.update()
 
     # -- Abstract refresh ----------------------------------------------------
 

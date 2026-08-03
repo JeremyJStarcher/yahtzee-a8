@@ -15,8 +15,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from pylib import video_display as bitmap_vd
+from pylib import video_display_pygame as pygame_vd
 from pylib import video_display_text as text_vd
+from pylib import video_display_tk as tk_vd
 
 # ---------------------------------------------------------------------------
 # Configuration data classes
@@ -401,11 +402,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--video-backend",
-        choices=("bitmap", "text"),
-        default="bitmap",
+        choices=("tk", "text", "pygame"),
+        default="tk",
         help=(
-            "Video renderer: authentic embedded-font bitmap output or native "
-            "Tk text cells (default: bitmap)"
+            "Video renderer: Tk bitmap cells, native Tk text cells, or a "
+            "pygame window (default: tk)"
         ),
     )
     parser.add_argument(
@@ -662,7 +663,7 @@ class FConsole:
 
         cfg = self.config
         if cfg.video_backend == "text":
-            self.vout = text_vd.Video(
+            self.vout = text_vd.Video(  # pyrefly: ignore[bad-assignment]
                 rows=cfg.screen_rows,
                 columns=cfg.screen_cols,
                 scale=cfg.screen_scale,
@@ -673,20 +674,33 @@ class FConsole:
                 f"font={self.vout.font_family!r}, "
                 f"cell={self.vout.cell_width}x{self.vout.cell_height}px"
             )
-        else:
-            self.vout = bitmap_vd.Video(  # pyrefly: ignore[bad-assignment]
+        elif cfg.video_backend == "pygame":
+            self.vout = pygame_vd.Video(  # pyrefly: ignore[bad-assignment]
                 rows=cfg.screen_rows,
                 columns=cfg.screen_cols,
                 scale=cfg.screen_scale,
             )
-        self.vout._root.title("fcon - vout")
-        self.vout._root.protocol("WM_DELETE_WINDOW", self._on_close)
+        else:
+            self.vout = tk_vd.Video(  # pyrefly: ignore[bad-assignment]
+                rows=cfg.screen_rows,
+                columns=cfg.screen_cols,
+                scale=cfg.screen_scale,
+            )
+        self.vout.set_title("fcon - vout")
+        self.vout.set_close_handler(self._on_close)
 
     def _create_debug_window(self) -> None:
         """Create the debug output text window."""
         print("Opening debug output window (dout)...")
 
-        self.dout_root = tk.Toplevel(self.vout._root)
+        if self.config.video_backend == "pygame":
+            # Pygame backend has no Tk root to attach to; use a standalone
+            # window and pump it from the pygame main loop.
+            self.dout_root = tk.Tk()
+        else:
+            self.dout_root = tk.Toplevel(  # pyrefly: ignore[bad-assignment]
+                self.vout._root
+            )
         self.dout_root.title("fcon - dout")
         self.dout_root.geometry("600x400")
         self.dout_root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -771,7 +785,7 @@ class FConsole:
             self.vout.refresh_screen()
             self.isDirty = False
 
-        self.vout._root.after(self.config.refresh_interval_ms, self._update_video_frame)
+        self.vout.schedule(self.config.refresh_interval_ms, self._update_video_frame)
 
     def _update_cpu_step(self) -> None:
         """Execute one batch, then schedule the next batch at CPU-clock
@@ -802,7 +816,7 @@ class FConsole:
         ahead_seconds = max(0.0, target_time - now)
         clock_delay_ms = math.ceil((ahead_seconds * 1000.0) - 1e-9)
         delay_ms = max(cfg.host_yield_ms, clock_delay_ms)
-        self.vout._root.after(delay_ms, self._update_cpu_step)
+        self.vout.schedule(delay_ms, self._update_cpu_step)
 
     def _on_close(self) -> None:
         """Handle vout window close."""
@@ -838,12 +852,30 @@ class FConsole:
         self._update_video_frame()
 
         try:
-            self.vout._root.mainloop()
+            if cfg.video_backend == "pygame":
+                self._run_pygame_mainloop()
+            else:
+                self.vout.mainloop()
         except tk.TclError:
             pass
         finally:
             if self.running:
                 self._on_close()
+
+    def _run_pygame_mainloop(self) -> None:
+        """Drive the pygame window and the standalone debug Tk window.
+
+        Pygame has no ``after``/``mainloop`` of its own.  This loop pumps
+        the video output's events and due scheduled callbacks while keeping
+        the debug window responsive by pumping its Tk event queue as well.
+        """
+        while self.running:
+            self.vout.pump()
+            try:
+                self.dout_root.update()
+            except tk.TclError:
+                break
+            time.sleep(0.001)
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """
 Native Text Display Component for the 8-bit Computer Emulator
 
-Drop-in alternative to ``pylib.video_display.Video``.  It renders each
+Drop-in alternative to ``pylib.video_display_tk.Video``.  It renders each
 character cell with persistent Tk Canvas text and rectangle objects rather
 than constructing bitmap PhotoImages.
 

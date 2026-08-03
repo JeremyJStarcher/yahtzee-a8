@@ -6,8 +6,8 @@ this test was written.  If the include file changes, update the
 assertions below.
 """
 
-import traceback
 import sys
+import traceback
 
 from fcon import parse_hw_limits
 

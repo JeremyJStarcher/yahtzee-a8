@@ -1,10 +1,10 @@
 """
-Video Display Component for 8-bit Computer Emulator
+Tk Video Display Component for the 8-bit Computer Emulator
 
-Implements a Tkinter-based video display subsystem supporting multiple
-simultaneous Video instances, each with its own window, screen memory,
-and color memory.  This module uses bitmap PhotoImage cells for authentic
-pixel-art rendering.
+The ``tk`` display output.  Implements a Tkinter-based video display
+subsystem supporting multiple simultaneous Video instances, each with its
+own window, screen memory, and color memory.  This module uses bitmap
+PhotoImage cells for authentic pixel-art rendering.
 """
 
 from __future__ import annotations

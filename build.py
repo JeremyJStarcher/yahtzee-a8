@@ -9,7 +9,8 @@ Usage:
     ./build.py bios              Build the 6502 BIOS
     ./build.py run               Build BIOS and run the emulator
     ./build.py run-text          Run with native Tk text renderer (preset)
-    ./build.py run-bitmap        Run with bitmap renderer (preset)
+    ./build.py run-tk            Run with Tk bitmap renderer (preset)
+    ./build.py run-pygame        Run with pygame renderer (preset)
     ./build.py clean             Remove all build artifacts
     ./build.py lint              Run ruff + pyrefly
     ./build.py format            Format Python sources (ruff)
@@ -365,7 +366,7 @@ def _add_run_args(parser: argparse.ArgumentParser,
                   clock_hz: float = 1_000_000,
                   instructions_per_batch: int = 2_000,
                   screen_scale: int = 4,
-                  video_backend: str = "bitmap",
+                  video_backend: str = "tk",
                   refresh_hz: float = 60) -> None:
     """Add the standard run-option flags to a subparser."""
     parser.add_argument("--clock-hz", type=float, default=clock_hz,
@@ -393,8 +394,8 @@ def main() -> None:
     p_run = sp.add_parser("run", help="Build BIOS and run the emulator")
     _add_run_args(p_run, clock_hz=1_000_000, instructions_per_batch=2_000,
                   screen_scale=4, refresh_hz=60)
-    p_run.add_argument("--video-backend", choices=("bitmap", "text"),
-                       default="bitmap",
+    p_run.add_argument("--video-backend", choices=("tk", "text", "pygame"),
+                       default="tk",
                        help="Video renderer (default: %(default)s)")
     p_run.add_argument("extra", nargs="*", default=[],
                        help="Extra arguments forwarded to fcon.py")
@@ -408,13 +409,21 @@ def main() -> None:
     p_rt.add_argument("extra", nargs="*", default=[])
     p_rt.set_defaults(func=cmd_run, video_backend="text")
 
-    # ---- run-bitmap (preset) ----
-    p_rb = sp.add_parser("run-bitmap",
-                          help="Run with bitmap renderer (preset)")
-    _add_run_args(p_rb, clock_hz=1_000_000, instructions_per_batch=2_000,
+    # ---- run-tk (preset) ----
+    p_rtk = sp.add_parser("run-tk",
+                          help="Run with Tk bitmap renderer (preset)")
+    _add_run_args(p_rtk, clock_hz=1_000_000, instructions_per_batch=2_000,
                   screen_scale=4, refresh_hz=30)
-    p_rb.add_argument("extra", nargs="*", default=[])
-    p_rb.set_defaults(func=cmd_run, video_backend="bitmap")
+    p_rtk.add_argument("extra", nargs="*", default=[])
+    p_rtk.set_defaults(func=cmd_run, video_backend="tk")
+
+    # ---- run-pygame (preset) ----
+    p_rp = sp.add_parser("run-pygame",
+                          help="Run with pygame renderer (preset)")
+    _add_run_args(p_rp, clock_hz=1_000_000, instructions_per_batch=2_000,
+                  screen_scale=4, refresh_hz=60)
+    p_rp.add_argument("extra", nargs="*", default=[])
+    p_rp.set_defaults(func=cmd_run, video_backend="pygame")
 
     # ---- clean ----
     sp.add_parser("clean",

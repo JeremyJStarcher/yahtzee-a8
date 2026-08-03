@@ -9,7 +9,7 @@ and includes demonstration functions showing various display capabilities.
 import sys
 import tkinter as tk
 
-from . import video_display as vd
+from . import video_display_tk as vd
 
 
 def hello_world() -> None:

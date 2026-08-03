@@ -7,10 +7,10 @@ Shows the difference between Unicode fallback and true 8-bit bitmap fonts.
 
 import argparse
 
-# Import tkinter first (needed by video_display)
+# Import tkinter first (needed by video_display_tk)
 import tkinter as tk
 
-from . import video_display as vd
+from . import video_display_tk as vd
 
 
 def demo_all_chars() -> None:
