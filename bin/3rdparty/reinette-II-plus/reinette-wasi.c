@@ -658,6 +658,8 @@ int wasi_keydown(int sdl_sym) {
     /* Apple II keyboard mapping (matches the native SDL build) */
 #define MAP_KEY(sym, code_up, code_down) \
     if (sdl_sym == (sym)) { KBD = (!ctrl) ? (code_down) : (code_up); return 1; }
+#define MAP_KEY_S(sym, code_shifted, code_unshifted) \
+    if (sdl_sym == (sym)) { KBD = (shift) ? (code_shifted) : (code_unshifted); return 1; }
 
     MAP_KEY(SDLK_a, 0x81, 0xC1);
     MAP_KEY(SDLK_b, 0x82, 0xC2);
@@ -672,16 +674,18 @@ int wasi_keydown(int sdl_sym) {
     MAP_KEY(SDLK_k, 0x8B, 0xCB);
     MAP_KEY(SDLK_l, 0x8C, 0xCC);
     if (sdl_sym == SDLK_m) {
-        if (shift) KBD = 0x9D; else KBD = ctrl ? 0x8D : 0xCD; return 1;
+        if (ctrl && shift) KBD = 0x9D; else if (ctrl) KBD = 0x8D; else KBD = 0xCD;
+        return 1;
     }
     if (sdl_sym == SDLK_n) {
-        if (shift) KBD = 0x9E; else KBD = ctrl ? 0x8E : 0xCE; return 1;
+        if (ctrl && shift) KBD = 0x9E; else if (ctrl) KBD = 0x8E; else KBD = 0xCE;
+        return 1;
     }
     MAP_KEY(SDLK_o, 0x8F, 0xCF);
     if (sdl_sym == SDLK_p) {
-        if (shift)      KBD = 0x80;
-        else if (!ctrl) KBD = 0x90;
-        else            KBD = 0xD0;
+        if (ctrl && shift) KBD = 0x80;
+        else if (ctrl)     KBD = 0x90;
+        else               KBD = 0xD0;
         return 1;
     }
     MAP_KEY(SDLK_q, 0x91, 0xD1);
@@ -708,20 +712,21 @@ int wasi_keydown(int sdl_sym) {
     if (sdl_sym == SDLK_7) KBD = shift ? 0xA6 : 0xB7;
     if (sdl_sym == SDLK_8) KBD = shift ? 0xAA : 0xB8;
     if (sdl_sym == SDLK_9) KBD = shift ? 0xA8 : 0xB9;
-    MAP_KEY(SDLK_QUOTE,     0xA2, 0xA7);
-    MAP_KEY(SDLK_EQUALS,    0xAB, 0xBD);
-    MAP_KEY(SDLK_SEMICOLON, 0xBA, 0xBB);
-    MAP_KEY(SDLK_COMMA,     0xBC, 0xAC);
-    MAP_KEY(SDLK_PERIOD,    0xBE, 0xAE);
-    MAP_KEY(SDLK_SLASH,     0xBF, 0xAF);
-    MAP_KEY(SDLK_MINUS,     0xDF, 0xAD);
-    MAP_KEY(SDLK_BACKQUOTE, 0xFE, 0xE0);
+    MAP_KEY_S(SDLK_QUOTE,     0xA2, 0xA7);
+    MAP_KEY_S(SDLK_EQUALS,    0xAB, 0xBD);
+    MAP_KEY_S(SDLK_SEMICOLON, 0xBA, 0xBB);
+    MAP_KEY_S(SDLK_COMMA,     0xBC, 0xAC);
+    MAP_KEY_S(SDLK_PERIOD,    0xBE, 0xAE);
+    MAP_KEY_S(SDLK_SLASH,     0xBF, 0xAF);
+    MAP_KEY_S(SDLK_MINUS,     0xDF, 0xAD);
+    MAP_KEY_S(SDLK_BACKQUOTE, 0xFE, 0xE0);
     if (sdl_sym == SDLK_LEFT)   { KBD = 0x88; return 1; }
     if (sdl_sym == SDLK_RIGHT)  { KBD = 0x95; return 1; }
     if (sdl_sym == SDLK_SPACE)  { KBD = 0xA0; return 1; }
     if (sdl_sym == SDLK_ESCAPE) { KBD = 0x9B; return 1; }
     if (sdl_sym == SDLK_RETURN) { KBD = 0x8D; return 1; }
 #undef MAP_KEY
+#undef MAP_KEY_S
 
     return 1;
 }
