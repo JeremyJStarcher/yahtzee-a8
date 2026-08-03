@@ -7,7 +7,7 @@
 #   source ~/emsdk/emsdk_env.sh && make -f Makefile.wasi wasi
 #
 # Output files:
-#   wasi.wasm    - standalone WASI module
+#   apple2.wasm  - standalone WASI module
 #
 # The Python host must NOT call the exported "_start"; it calls wasi_init(),
 # then wasi_tick() at ~60 Hz, and reads the framebuffer via wasi_fb_ptr().
@@ -32,7 +32,7 @@ all: wasi
 wasi: $(SRCS)
 	$(EMCC) $^ $(CFLAGS) $(WASI_FLAGS) \
 		-sEXPORTED_FUNCTIONS='["_wasi_init","_wasi_tick","_wasi_keydown","_wasi_keyup","_wasi_fb_ptr","_wasi_fb_width","_wasi_fb_height","_wasi_beep_pending","_wasi_ack_beep","_wasi_dump_fb","_wasi_insertFloppy","_malloc","_free"]' \
-		-o wasi.wasm
+		-o apple2.wasm
 
 clean:
-	rm -f wasi.wasm wasi.js wasi.data
+	rm -f apple2.wasm wasi.js wasi.data

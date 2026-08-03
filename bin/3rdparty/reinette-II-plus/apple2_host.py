@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """reinette_host.py — Python host for the headless Reinette II+ WASI module.
 
-Loads wasi.wasm with wasmtime, drives the Apple II emulator at ~60 Hz, reads the
+Loads apple2.wasm with wasmtime, drives the Apple II emulator at ~60 Hz, reads the
 280x192 RGBA framebuffer from WASM linear memory, and displays it with either:
 
     pygame    -- interactive scaled window (default)
@@ -84,12 +84,12 @@ _HALF_BLOCK = "\u2580"
 # ---------------------------------------------------------------------------
 
 class Emulator:
-    """Thin wrapper around the exported wasi_* functions of wasi.wasm."""
+    """Thin wrapper around the exported wasi_* functions of apple2.wasm."""
 
     FB_W = 280
     FB_H = 192
 
-    def __init__(self, module_path: str = "wasi.wasm") -> None:
+    def __init__(self, module_path: str = "apple2.wasm") -> None:
         self._engine = wasmtime.Engine()
         self._store = wasmtime.Store(self._engine)
         wasi = wasmtime.WasiConfig()
@@ -418,7 +418,7 @@ def main(argv: list[str] | None = None) -> int:
         description="Python host for the headless Reinette II+ WASI emulator."
     )
     parser.add_argument(
-        "--module", default="wasi.wasm", help="path to the WASI module (default: wasi.wasm)"
+        "--module", default="apple2.wasm", help="path to the WASI module (default: apple2.wasm)"
     )
     parser.add_argument(
         "--renderer",

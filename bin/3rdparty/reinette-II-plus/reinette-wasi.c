@@ -11,7 +11,7 @@
  * Run (from Python via wasmtime):
  *   import wasmtime
  *   engine = wasmtime.Engine()
- *   module = wasmtime.Module.from_file(engine, "wasi.wasm")
+ *   module = wasmtime.Module.from_file(engine, "apple2.wasm")
  *   linker = wasmtime.Linker(engine)
  *   linker.define_wasi()
  *   store  = wasmtime.Store(engine)

@@ -21,4 +21,4 @@ all: reinetteII+
 
 clean:
 	rm -f reinetteII+
-	rm -f wasi.js wasi.wasm wasi.data
+	rm -f wasi.js apple2.wasm wasi.data
