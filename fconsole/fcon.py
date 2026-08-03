@@ -403,10 +403,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--video-backend",
         choices=("tk", "text", "pygame"),
-        default="tk",
+        default="pygame",
         help=(
-            "Video renderer: Tk bitmap cells, native Tk text cells, or a "
-            "pygame window (default: tk)"
+            "Video renderer: pygame window (default), Tk bitmap cells, or "
+            "native Tk text cells"
         ),
     )
     parser.add_argument(
@@ -675,11 +675,17 @@ class FConsole:
                 f"cell={self.vout.cell_width}x{self.vout.cell_height}px"
             )
         elif cfg.video_backend == "pygame":
-            self.vout = pygame_vd.Video(  # pyrefly: ignore[bad-assignment]
-                rows=cfg.screen_rows,
-                columns=cfg.screen_cols,
-                scale=cfg.screen_scale,
-            )
+            try:
+                self.vout = pygame_vd.Video(  # pyrefly: ignore[bad-assignment]
+                    rows=cfg.screen_rows,
+                    columns=cfg.screen_cols,
+                    scale=cfg.screen_scale,
+                )
+            except ImportError as e:
+                print("ERROR: The 'pygame' backend requires the pygame package.")
+                print("Install it with: pip install pygame")
+                print(f"  (underlying error: {e})")
+                sys.exit(1)
         else:
             self.vout = tk_vd.Video(  # pyrefly: ignore[bad-assignment]
                 rows=cfg.screen_rows,

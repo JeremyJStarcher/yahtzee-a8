@@ -366,7 +366,7 @@ def _add_run_args(parser: argparse.ArgumentParser,
                   clock_hz: float = 1_000_000,
                   instructions_per_batch: int = 2_000,
                   screen_scale: int = 4,
-                  video_backend: str = "tk",
+                  video_backend: str = "pygame",
                   refresh_hz: float = 60) -> None:
     """Add the standard run-option flags to a subparser."""
     parser.add_argument("--clock-hz", type=float, default=clock_hz,
@@ -395,7 +395,7 @@ def main() -> None:
     _add_run_args(p_run, clock_hz=1_000_000, instructions_per_batch=2_000,
                   screen_scale=4, refresh_hz=60)
     p_run.add_argument("--video-backend", choices=("tk", "text", "pygame"),
-                       default="tk",
+                       default="pygame",
                        help="Video renderer (default: %(default)s)")
     p_run.add_argument("extra", nargs="*", default=[],
                        help="Extra arguments forwarded to fcon.py")
