@@ -43,8 +43,9 @@ chips-wasi/
 ├── vic20-wasi.c           # WASI glue for VIC-20
 ├── c64-wasi.c             # WASI glue for C64
 ├── Makefile               # emcc build rules for vic20.wasm, c64.wasm
-├── vic20_host.py          # Python host: VIC-20
-└── c64_host.py            # Python host: C64
+├── commodore_host.py      # shared Python host (wasmtime binding + pygame)
+├── vic20_host.py          # thin wrapper → commodore_host (232x272)
+└── c64_host.py            # thin wrapper → commodore_host (392x272)
 ```
 
 Generated (by `gen_roms.py`):
@@ -302,18 +303,80 @@ $PYTHON c64_host.py  --wasm c64.wasm         # should show BASIC READY
 
 ## Checklist
 
-- [ ] Create `bin/3rdparty/chips-wasi/` directory
-- [ ] Write `gen_roms.py` and run it — verify `vic20_roms.h` and `c64_roms.h` exist
-- [ ] Write `keymaps.h` — pygame → Commodore key code tables
-- [ ] Write `vic20-wasi.c` — VIC-20 WASI glue
-- [ ] Write `c64-wasi.c` — C64 WASI glue
-- [ ] Write `Makefile` — emcc build rules
-- [ ] Build `vic20.wasm`
-- [ ] Build `c64.wasm`
-- [ ] Write `vic20_host.py` — pygame host
-- [ ] Write `c64_host.py` — pygame host
-- [ ] Test VIC-20: verify BASIC READY prompt, keyboard input works
-- [ ] Test C64: verify BASIC READY prompt, keyboard input works
+- [x] Create `bin/3rdparty/chips-wasi/` directory
+- [x] Write `gen_roms.py` and run it — verify `vic20_roms.h` and `c64_roms.h` exist
+- [x] Write `keymaps.h` — pygame → Commodore key code tables
+- [x] Write `vic20-wasi.c` — VIC-20 WASI glue
+- [x] Write `c64-wasi.c` — C64 WASI glue
+- [x] Write `Makefile` — emcc build rules
+- [x] Build `vic20.wasm`
+- [x] Build `c64.wasm`
+- [x] Write `commodore_host.py` + thin `vic20_host.py` / `c64_host.py` wrappers
+- [x] Test VIC-20: verify BASIC READY prompt, keyboard input works
+- [x] Test C64: verify BASIC READY prompt, keyboard input works
+
+## Implementation Notes (Milestone 1 — complete)
+
+**Build fixes required** (all in the current `Makefile` / C sources):
+
+- `-sEXPORTED_FUNCTIONS` needs a proper JSON array: `EXPORTS = "_wasi_init","_wasi_tick",...`
+  expands via `'[$(EXPORTS)]'` — the original `'["$(EXPORTS)"]'` produced `[""_wasi_init"...]`
+  (doubled quotes) which failed to link.
+- `c64-wasi.c` include order: `m6522.h` must come **before** `c1541.h` (the floppy system uses
+  `m6522_t`). The PLAN's original include order did not compile.
+- `-D_DEFAULT_SOURCE` added to `CFLAGS`: strict `-std=c11` hides `M_PI` in the musl math.h,
+  which `m6581.h` (SID filter) needs.
+- `vic20-wasi.c` compiles cleanly as-is.
+
+**Host structure** (per decision): a single shared `commodore_host.py` + two thin wrappers.
+`commodore_host.py` provides:
+- wasmtime binding (`wasi_init/tick/keydown/keyup/fb_ptr/fb_width/fb_height`), pygame renderer.
+- Headless validation mode: `--headless --pre-frames N --post-frames N --type "TEXT\n"`,
+  `--dump FILE.rgba`, `--preview` (luminance ASCII art), `--dump-text` (decoded text screen).
+- `--key-frames` (default 8) controls per-key hold time; needed to avoid overflowing the
+  machine's 10-char keyboard buffer when typing long strings headlessly.
+
+**New debug exports** added to both C modules (also useful for Phase 2 / automation):
+`wasi_screen_cols()`, `wasi_screen_rows()`, `wasi_screen_text(buf, n)` — read the text screen
+RAM (C64 `$0400` 40x25; VIC-20 `$1E00` 22x23).
+
+**Keyboard semantics (validated empirically on both machines):**
+- Send printable pygame ASCII directly (pygame delivers lowercase for letters, e.g. `K_a == 97`).
+- chips' kbd identifiers are the *unshifted* key labels (uppercase for letters); sending the
+  lowercase identifier auto-presses shift, so the KERNAL displays UPPERCASE on both machines.
+- Net effect: typing "print" on the host produces `PRINT` on the VIC-20 and C64 — exactly what
+  BASIC needs. The `keymaps.h` comment ("pygame.K_a=97 → 'A'") is correct as written.
+
+**Validated results** (`--dump-text`):
+
+VIC-20 (`10 PRINT"HELLO VIC"` + `RUN`):
+```
+**** CBM BASIC V2 ****
+3583 BYTES FREE
+READY.
+10 PRINT"HELLO VIC"
+RUN
+HELLO VIC
+READY.
+```
+C64 (`PRINT 3+4`):
+```
+**** COMMODORE 64 BASIC V2 ****
+64K RAM SYSTEM  38911 BASIC BYTES FREE
+READY.
+PRINT 3+4
+ 7
+READY.
+```
+
+**Build & run:**
+```bash
+cd bin/3rdparty/chips-wasi
+python3 gen_roms.py
+make vic20.wasm c64.wasm                 # uses ~/emsdk/upstream/emscripten/emcc directly
+python3 vic20_host.py                    # interactive pygame (scale 3)
+python3 c64_host.py                      # interactive pygame (scale 2)
+```
 
 ## Future (Phase 2)
 

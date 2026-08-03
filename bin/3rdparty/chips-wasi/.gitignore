@@ -1,0 +1,9 @@
+# Generated/built artifacts (regenerate with gen_roms.py + make)
+*.wasm
+vic20_roms.h
+c64_roms.h
+
+# Python
+__pycache__/
+*.pyc
+.runtime/
