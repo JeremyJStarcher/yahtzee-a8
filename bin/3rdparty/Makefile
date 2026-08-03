@@ -12,8 +12,6 @@ cc65:
 	WASI_SDK_PATH=$(WASI_SDK_PATH) bash build-cc65/build_cc65_wasi.sh
 
 reinette: reinette-native reinette-wasi
-	echo "#########################################################"
-	pwd
 	cp reinette-II-plus/apple2.wasm ../wasi
 	cp reinette-II-plus/apple2_host.py ../wasi
 
