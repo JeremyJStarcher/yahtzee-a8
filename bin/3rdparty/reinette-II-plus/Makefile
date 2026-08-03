@@ -9,8 +9,10 @@ LIBS = -lSDL2
 reinetteII+: reinetteII+.c puce6502.c
 	$(CC) $^ $(FLAGS) $(LIBS) -o $@
 
-wasi: reinette-wasi.c puce6502.c
-	$(CC) $^ $(FLAGS) $(LIBS) -o $@
+.PHONY: wasi
+wasi:
+	bash -l -c 'source $$HOME/emsdk/emsdk_env.sh >/dev/null 2>&1; \
+		make -f Makefile.wasi wasi'
 
 reinetteII+.res: reinetteII+.rc
 	windres $^ -O coff -o $(WIN32-RES)
@@ -19,5 +21,4 @@ all: reinetteII+
 
 clean:
 	rm -f reinetteII+
-	rm -f wasi
-
+	rm -f wasi.js wasi.wasm wasi.data

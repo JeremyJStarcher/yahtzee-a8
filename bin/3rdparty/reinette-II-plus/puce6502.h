@@ -32,9 +32,14 @@
 #ifndef _PUCE6502_H
 #define _PUCE6502_H
 
+#ifndef __bool_true_false_are_defined   /* allow <stdbool.h> to win if already included */
+typedef enum { false = 0, true = 1 } bool;
+#endif
+
+#include <stdbool.h>                   /* ensure stdbool types are always available */
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
-typedef enum { false, true } bool;
 
 extern unsigned long long int ticks;
 

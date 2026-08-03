@@ -1,0 +1,38 @@
+# Makefile.wasi — Build Reinette II+ as a pure-WASI headless module (no SDL2)
+#
+# Renders into a raw 280x192 RGBA framebuffer in linear WASM memory that the
+# Python host reads via wasmtime and displays with pygame.
+#
+# Usage:
+#   source ~/emsdk/emsdk_env.sh && make -f Makefile.wasi wasi
+#
+# Output files:
+#   wasi.wasm    - standalone WASI module
+#
+# The Python host must NOT call the exported "_start"; it calls wasi_init(),
+# then wasi_tick() at ~60 Hz, and reads the framebuffer via wasi_fb_ptr().
+
+EMSDK_DIR = $(HOME)/emsdk
+EMCC = $(EMSDK_DIR)/upstream/emscripten/emcc
+
+CFLAGS = -Wall -Wextra -std=c11
+
+WASI_FLAGS = \
+	-sSTANDALONE_WASM=1 \
+	-sINITIAL_MEMORY=134217728 \
+	-sALLOW_MEMORY_GROWTH=0 \
+	-O3
+
+SRCS = reinette-wasi.c puce6502.c
+
+.PHONY: all clean wasi
+
+all: wasi
+
+wasi: $(SRCS)
+	$(EMCC) $^ $(CFLAGS) $(WASI_FLAGS) \
+		-sEXPORTED_FUNCTIONS='["_wasi_init","_wasi_tick","_wasi_keydown","_wasi_keyup","_wasi_fb_ptr","_wasi_fb_width","_wasi_fb_height","_wasi_beep_pending","_wasi_ack_beep","_wasi_dump_fb","_wasi_insertFloppy","_malloc","_free"]' \
+		-o wasi.wasm
+
+clean:
+	rm -f wasi.wasm wasi.js wasi.data
