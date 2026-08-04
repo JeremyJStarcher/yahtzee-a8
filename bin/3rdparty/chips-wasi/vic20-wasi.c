@@ -63,6 +63,12 @@ void wasi_init(void) {
         },
         .audio = { .callback = { 0 } },
     });
+    /* chips' vic20 keymap registers the Ctrl MODIFIER (layer 1, col 2, line 0)
+     * but no key code for the Ctrl key itself, so vic20_key_down(0x0E) would
+     * be a no-op.  Register the Ctrl key at the modifier's matrix position so
+     * the host can send CBM_KEY_CTRL (0x0E) to activate Ctrl, which makes
+     * Ctrl+letter produce graphics characters. */
+    kbd_register_key(&g_sys.kbd, 0x0E, 2, 0, 0);
     memset(g_fb, 0, sizeof(g_fb));
 }
 

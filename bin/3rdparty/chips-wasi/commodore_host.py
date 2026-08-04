@@ -196,7 +196,9 @@ def _build_key_map():
     return {
         pygame.K_LCTRL: CBM_KEY_CTRL,
         pygame.K_RCTRL: CBM_KEY_CTRL,
-        pygame.K_LMETA: CBM_KEY_CBM,     # C= key
+        pygame.K_LALT: CBM_KEY_CBM,      # C= key (C64)
+        pygame.K_RALT: CBM_KEY_CBM,
+        pygame.K_LMETA: CBM_KEY_CBM,     # Super/Windows key also acts as C=
         pygame.K_RMETA: CBM_KEY_CBM,
         pygame.K_RETURN: CBM_KEY_RETURN,
         pygame.K_KP_ENTER: CBM_KEY_RETURN,
@@ -223,19 +225,37 @@ def _build_key_map():
     }
 
 
-def pygame_key_to_commodore(key: int, key_map: dict) -> int:
-    """Map a pygame keycode to a Commodore key code, or -1 if unmapped.
+def pygame_key_to_commodore(key: int, key_map: dict, unicode_char: str | None = None) -> int:
+    """Map a pygame key event to a Commodore key code, or -1 if unmapped.
 
-    Printable characters pass through as ASCII.  pygame delivers lowercase
-    ASCII for letter keys (pygame.K_a == 97 == 'a'); the chips key map
-    registers those characters directly (see keymaps.h), so sending 97
-    presses the shifted 'a' position, which the machine's KERNAL decodes.
+    chips' keyboard identifiers are the matrix labels; for letters the unshifted
+    identifier is UPPERCASE (65-90) and the shifted one is lowercase (97-122).
+    The KERNAL displays the unshifted identifier as an uppercase letter, and the
+    shifted identifier as a graphics symbol on the VIC-20 (uppercase/graphics
+    charset) or a lowercase letter on the C64.
+
+    pygame reports the actual typed character via event.unicode, so we send the
+    INVERTED case: typing 'a' (no shift) sends 65 -> 'A' on screen; typing 'A'
+    (shift held) sends 97 -> graphics (VIC-20) / 'a' (C64).  This keeps normal
+    typing producing readable letters while still allowing graphics via Shift
+    (VIC-20) or C=+letter via ALT (C64).
     """
     code = key_map.get(key)
     if code is not None:
         return code
-    if 32 <= key < 127:
-        return key  # printable ASCII pass-through
+    if unicode_char is not None and len(unicode_char) == 1:
+        o = ord(unicode_char)
+        if 0x61 <= o <= 0x7A:   # typed lowercase (no shift) -> unshifted identifier
+            return o - 0x20
+        if 0x41 <= o <= 0x5A:   # typed uppercase (shift held) -> shifted identifier
+            return o + 0x20
+        if 0x20 <= o < 0x7F:
+            return o
+    if 0x20 <= key < 0x7F:
+        # fallback (unicode unavailable): default letters to the unshifted id
+        if 0x61 <= key <= 0x7A:
+            key -= 0x20
+        return key
     return -1
 
 
@@ -277,7 +297,10 @@ def text_to_key_sequence(text: str, key_map: dict | None = None) -> list[int]:
         elif ch == "\x02":
             out.append(CBM_KEY_CLR)
         else:
-            out.append(ord(ch))
+            o = ord(ch)
+            if 0x61 <= o <= 0x7A:   # a-z -> A-Z (unshifted identifier, see keymaps.h)
+                o -= 0x20
+            out.append(o)
         i += 1
     return out
 
@@ -347,6 +370,7 @@ def run_pygame(emu: Emulator, args: argparse.Namespace) -> None:
     pygame.display.set_caption(f"{args.title} (chips WASI)")
     clock = pygame.time.Clock()
     key_map = _build_key_map()
+    pressed: dict[int, int] = {}   # pygame keycode -> commodore code (for KEYUP)
 
     running = True
     while running:
@@ -354,15 +378,21 @@ def run_pygame(emu: Emulator, args: argparse.Namespace) -> None:
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q and (event.mod & pygame.KMOD_CTRL):
+                # Quit is Ctrl+Shift+Q (deliberate) so that plain Ctrl+Q is
+                # passed to the emulator like any other Ctrl+letter.
+                if (event.key == pygame.K_q
+                        and (event.mod & pygame.KMOD_CTRL)
+                        and (event.mod & pygame.KMOD_SHIFT)):
                     running = False
                 else:
-                    code = pygame_key_to_commodore(event.key, key_map)
+                    code = pygame_key_to_commodore(
+                        event.key, key_map, getattr(event, "unicode", None))
                     if code >= 0:
+                        pressed[event.key] = code
                         emu.keydown(code)
             elif event.type == pygame.KEYUP:
-                code = pygame_key_to_commodore(event.key, key_map)
-                if code >= 0:
+                code = pressed.pop(event.key, None)
+                if code is not None:
                     emu.keyup(code)
 
         emu.tick()

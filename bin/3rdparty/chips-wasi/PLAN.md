@@ -45,7 +45,8 @@ chips-wasi/
 ├── Makefile               # emcc build rules for vic20.wasm, c64.wasm
 ├── commodore_host.py      # shared Python host (wasmtime binding + pygame)
 ├── vic20_host.py          # thin wrapper → commodore_host (232x272)
-└── c64_host.py            # thin wrapper → commodore_host (392x272)
+├── c64_host.py            # thin wrapper → commodore_host (392x272)
+└── keybindings.md         # PC key → Commodore key reference
 ```
 
 Generated (by `gen_roms.py`):
@@ -348,11 +349,22 @@ $PYTHON c64_host.py  --wasm c64.wasm         # should show BASIC READY
 RAM (C64 `$0400` 40x25; VIC-20 `$1E00` 22x23).
 
 **Keyboard semantics (validated empirically on both machines):**
-- Send printable pygame ASCII directly (pygame delivers lowercase for letters, e.g. `K_a == 97`).
-- chips' kbd identifiers are the *unshifted* key labels (uppercase for letters); sending the
-  lowercase identifier auto-presses shift, so the KERNAL displays UPPERCASE on both machines.
-- Net effect: typing "print" on the host produces `PRINT` on the VIC-20 and C64 — exactly what
-  BASIC needs. The `keymaps.h` comment ("pygame.K_a=97 → 'A'") is correct as written.
+- chips' kbd identifiers are the matrix labels: UPPERCASE (65-90) for the unshifted letter
+  keys, lowercase (97-122) for the shifted ones.  The KERNAL renders the unshifted identifier
+  as an uppercase letter, and the shifted identifier as a graphics symbol on the VIC-20
+  (uppercase/graphics charset) or a lowercase letter on the C64.
+- The host therefore sends the **inverted case** of what the user types (via `event.unicode`):
+  typing `a` (no shift) sends `65` → `A` on screen; typing `A` (shift held) sends `97` →
+  graphics (VIC-20) / `a` (C64).  Normal typing always produces readable uppercase letters
+  (great for BASIC) while Shift+letter still reaches the graphics charset on the VIC-20.
+- `ALT` (and Super) map to the C= key (`0x0F`), so **ALT+letter** gives graphics characters
+  on the C64 (C= + letter).  The VIC-20 has no C= key.
+- `Ctrl` sends the Ctrl key (`0x0E`): Ctrl+number changes colour on the C64; Ctrl+letter
+  yields control codes (functions), which the KERNAL does not echo as glyphs at the prompt.
+  A Ctrl key was registered for the VIC-20 (chips only defines the modifier there) so the
+  machine detects it; VIC-20 graphics come from Shift+letter instead.
+- Shifted symbols (`Shift+1` → `!` = 0x21) map via `event.unicode`; KEYUP replays the code
+  recorded at KEYDOWN so the correct key is released.
 
 **Validated results** (`--dump-text`):
 

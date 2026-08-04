@@ -53,7 +53,9 @@
  *     pygame.K_RSHIFT:   -1,
  *     pygame.K_LCTRL:    CBM_KEY_CTRL,
  *     pygame.K_RCTRL:    CBM_KEY_CTRL,
- *     pygame.K_LMETA:    CBM_KEY_CBM,  # C= key
+ *     pygame.K_LALT:     CBM_KEY_CBM,  # C= key (C64)
+ *     pygame.K_RALT:     CBM_KEY_CBM,
+ *     pygame.K_LMETA:    CBM_KEY_CBM,  # Super/Windows key too
  *     pygame.K_RMETA:    CBM_KEY_CBM,
  *
  *     # special keys
@@ -82,11 +84,14 @@
  *     pygame.K_F8:  CBM_KEY_F8,
  * }
  *
- * # Printable keys (pygame.K_a..K_z, K_0..K_9, K_COMMA, etc.) pass
- * # their ASCII value directly:
- * #   pygame.K_a = 97 → 97 ('a'), which the Commodore maps to 'A'
- * #   pygame.K_0 = 48 → 48 ('0'), unshifted '0'
- * #   pygame.K_SLASH = 47 → 47 ('/'), unshifted '/'
+ * # Printable keys: the host sends the INVERTED case of what the user types
+ * # (via event.unicode), because chips registers UPPERCASE as the unshifted
+ * # letter identifier and lowercase as the shifted one:
+ * #   typing 'a' (no shift)  -> 65 ('A')  -> 'A' on screen
+ * #   typing 'A' (shift)     -> 97 ('a')  -> graphics on VIC-20, 'a' on C64
+ * #   pygame.K_0 = 48 -> 48 ('0')
+ * #   Shift+1 -> '!' = 0x21 (shifted identifier -> '!')
+ * # ALT / Super -> C= key (0x0F); on the C64, C= + letter gives graphics.
  */
 
 #endif /* KEYMAPS_H_ */
