@@ -21,8 +21,10 @@
 
 @ALIGN_WRITE:
         TXA
-        STA (TMP_PTR),Y      ; Write fill byte at offset 0
-        INC TMP_PTR          ; Advance low byte
+        STA (TMP_PTR),Y
+        INC TMP_PTR
+        BNE @ALIGN_LOOP
+        INC TMP_PTR+1
         JMP @ALIGN_LOOP
 
         ; --------------------------------------------------------------------
@@ -49,15 +51,16 @@
         ; Y is currently $00. We fill from $00 up to PRINT_PTR low byte.
         TXA
 @TAIL_LOOP:
-        CPY PRINT_PTR          ; Reached remaining byte count?
-        BEQ @DONE
-        STA (TMP_PTR),Y      ; Write remaining bytes
+        CPY PRINT_PTR
+        BEQ @TAIL_DONE
+        STA (TMP_PTR),Y
         INY
         JMP @TAIL_LOOP
 
+@TAIL_DONE:
+        STY TMP_PTR          ; High byte already matches PRINT_PTR+1
 @DONE:
-        RTS
-.endproc
+        RTS.endproc
 
 .proc MEMFILL_SLOW
         TAX             ; Save fill value in X
