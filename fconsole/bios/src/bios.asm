@@ -557,7 +557,8 @@ _reset_handler:
     CLI                                 ; Interrupts!
 
     JSR reset_screen
-    JSR video_test
+    ;JSR video_test
+    JSR test_branch_macro
 
 
     LDA #DEFAULT_COLOR                  ; Fill value
@@ -643,6 +644,9 @@ msg_welcome:
     JSR medium_pause
 RTS
 .endproc
+
+    .include "branch_tests.asm"
+
 
 ; Translation table: print_code -> screen_code
 ; Generated from 256 font characters

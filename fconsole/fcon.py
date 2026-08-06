@@ -480,7 +480,7 @@ class SystemBus:
         self.color_write_cb = color_write_cb
 
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
-        self.rom = bytearray(0x1000)  # 4KB BIOS ROM ($F000-$FFFF)
+        self.rom = bytearray(0x3000)  # 4KB BIOS ROM ($F000-$FFFF)
 
         # Local VRAM buffers; writes are forwarded to the display callbacks.
         self._fallback_char_ram = bytearray(config.screen_size)
@@ -522,7 +522,7 @@ class SystemBus:
                 write_cb=self._write_color_mem,
             ),
             MemoryRange(
-                start=0xF000,
+                start=0xD000,
                 end=0xFFFF,
                 read_cb=lambda offset: self.rom[offset],
             ),
