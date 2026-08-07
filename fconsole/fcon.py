@@ -470,14 +470,28 @@ class SystemBus:
     """Custom system bus dispatching memory reads and writes across
     configured ranges."""
 
+    # Keyboard status addresses (memory-mapped I/O)
+    KB_ASCII_ADDR = 0x0200
+    KB_FLAGS_ADDR = 0x0201
+
+    # Keyboard flag bits
+    KB_FLAG_SHIFT = 0x01
+    KB_FLAG_CTRL = 0x02
+
     def __init__(
         self,
         config: EmulatorConfig,
         char_write_cb: Callable[[int, int], None] | None = None,
         color_write_cb: Callable[[int, int], None] | None = None,
+        key_event_cb: Callable[[int, int], None] | None = None,
     ) -> None:
         self.char_write_cb = char_write_cb
         self.color_write_cb = color_write_cb
+        self.key_event_cb = key_event_cb
+
+        # Keyboard state (memory-mapped I/O at $0200-$0201)
+        self._kb_ascii: int = 0x00
+        self._kb_flags: int = 0x00
 
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
         self.rom = bytearray(0x3000)  # 4KB BIOS ROM ($F000-$FFFF)
@@ -559,6 +573,27 @@ class SystemBus:
         if self.color_write_cb:
             self.color_write_cb(offset, val)
 
+    # -- Keyboard I/O -------------------------------------------------------
+
+    def _read_kb_ascii(self, offset: int) -> int:
+        """Read the ASCII value of the last key pressed."""
+        return self._kb_ascii
+
+    def _write_kb_ascii(self, offset: int, value: int) -> None:
+        """Write to keyboard ASCII register (clears pending key)."""
+        self._kb_ascii = 0x00
+        if self.key_event_cb:
+            self.key_event_cb(0x00, 0x00)
+
+    def _read_kb_flags(self, offset: int) -> int:
+        """Read keyboard modifier flags."""
+        return self._kb_flags
+
+    def update_key_state(self, ascii_val: int, flags: int) -> None:
+        """Update keyboard state from external event source."""
+        self._kb_ascii = ascii_val & 0xFF
+        self._kb_flags = flags & 0xFF
+
     # -- Bus protocol -------------------------------------------------------
 
     def __getitem__(self, address: int) -> int:
@@ -568,6 +603,12 @@ class SystemBus:
                 if m_range.read_cb:
                     return m_range.read_cb(offset)
                 break
+
+        # Keyboard memory-mapped I/O
+        if address == self.KB_ASCII_ADDR:
+            return self._read_kb_ascii(0)
+        if address == self.KB_FLAGS_ADDR:
+            return self._read_kb_flags(0)
 
         # Unmapped space returns NOP instruction ($EA)
         return 0xEA
@@ -580,6 +621,10 @@ class SystemBus:
                     m_range.write_cb(offset, value)
                 return
 
+        # Keyboard memory-mapped I/O (write clears ASCII)
+        if address == self.KB_ASCII_ADDR:
+            self._write_kb_ascii(0, value)
+
 
 class Cpu6502Module:
     """Simple wrapper for the py65 6502 emulator."""
@@ -590,6 +635,7 @@ class Cpu6502Module:
         mpu_class: type,
         char_write_cb: Callable[[int, int], None] | None = None,
         color_write_cb: Callable[[int, int], None] | None = None,
+        key_event_cb: Callable[[int, int], None] | None = None,
     ) -> None:
         self._fallback_cycles_per_instruction = config.fallback_cycles_per_instruction
 
@@ -597,6 +643,7 @@ class Cpu6502Module:
             config,
             char_write_cb=char_write_cb,
             color_write_cb=color_write_cb,
+            key_event_cb=key_event_cb,
         )
 
         reset_vector_address = 0xFFFC
@@ -651,6 +698,7 @@ class FConsole:
             mpu_class,
             char_write_cb=self._on_char_memory_write,
             color_write_cb=self._on_color_memory_write,
+            key_event_cb=self._on_key_event,
         )
 
         # Pacing state
@@ -694,6 +742,7 @@ class FConsole:
             )
         self.vout.set_title("fcon - vout")
         self.vout.set_close_handler(self._on_close)
+        self.vout.set_key_callback(self._on_key_event)
 
     def _create_debug_window(self) -> None:
         """Create the debug output text window."""
@@ -737,6 +786,16 @@ class FConsole:
         """Queue a color-cell update for the next video frame."""
         self._pending_color_writes[offset] = value
         self.isDirty = True
+
+    # -- Keyboard input ------------------------------------------------------
+
+    def _on_key_event(self, ascii_val: int, flags: int) -> None:
+        """Handle keyboard event from video backend.
+
+        Updates the SystemBus keyboard registers so the 6502 program can
+        read the ASCII value at $0200 and modifier flags at $0201.
+        """
+        self.cpu_module.bus.update_key_state(ascii_val, flags)
 
     # -- CPU state formatting -----------------------------------------------
 

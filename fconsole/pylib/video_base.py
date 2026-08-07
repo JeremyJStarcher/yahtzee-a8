@@ -41,6 +41,8 @@ class BaseVideo:
         self._color_memory = bytearray([self.DEFAULT_COLOR] * total_cells)
         self._dirty = True
 
+        self._key_callback: Callable[[int, int], None] | None = None
+
         self._root: tk.Tk
         self._canvas: Canvas
 
@@ -147,6 +149,11 @@ class BaseVideo:
     # implementations delegate to a Tk root; the pygame backend overrides
     # them with its own window and event loop.
 
+    def _dispatch_key_event(self, ascii_val: int, flags: int) -> None:
+        """Dispatch a key event to the registered callback."""
+        if self._key_callback:
+            self._key_callback(ascii_val, flags)
+
     def set_title(self, title: str) -> None:
         """Set the window title."""
         self._root.title(title)
@@ -154,6 +161,14 @@ class BaseVideo:
     def set_close_handler(self, callback: Callable[[], None]) -> None:
         """Register *callback* to run when the user closes the window."""
         self._root.protocol("WM_DELETE_WINDOW", callback)
+
+    def set_key_callback(self, callback: Callable[[int, int], None] | None) -> None:
+        """Register *callback* for keyboard events.
+
+        The callback receives ``(ascii_value, flags)`` where *flags*
+        encodes modifier state (bit 0 = Shift, bit 1 = Control).
+        """
+        self._key_callback = callback
 
     def schedule(self, delay_ms: int, callback: Callable[[], None]) -> None:
         """Run *callback* after *delay_ms* milliseconds on the UI thread."""

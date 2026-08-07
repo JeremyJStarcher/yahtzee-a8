@@ -107,6 +107,16 @@ class Video(BaseVideo):
                     handler()
                 return
 
+            if event.type == self._pygame.KEYDOWN:
+                flags = 0
+                if event.mod & self._pygame.KMOD_SHIFT:
+                    flags |= BaseVideo.KB_FLAG_SHIFT
+                if event.mod & self._pygame.KMOD_CTRL:
+                    flags |= BaseVideo.KB_FLAG_CTRL
+                ascii_val = ord(event.unicode) if event.unicode else 0x00
+                if 0x20 <= ascii_val <= 0x7E or ascii_val in (0x0D, 0x0A):
+                    self._dispatch_key_event(ascii_val, flags)
+
         now = time.perf_counter()
         while self._scheduled and self._scheduled[0][0] <= now:
             _, _, callback = heapq.heappop(self._scheduled)
