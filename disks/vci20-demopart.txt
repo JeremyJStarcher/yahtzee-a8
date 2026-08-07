@@ -1,0 +1,27 @@
+Hi VIC20 addicts!
+
+This is my first release on the VIC20, 
+and I really hope you like it =)
+
+This demo part contains a smooth scroll 
+(not ROL scroll!) and a Tech-Tech
+(that's what I believe it was called on the C64...)
+
+This demo part runs on un-expanded (PAL) VIC20...
+
+Use joystick left and right to control the scroll-
+speed (there is no speed limit!)
+
+Use joystick up and down, with or without fire button, 
+to change sinus1 speed and distance.
+
+Use Z, C, B and M to change sinus2 speed and distance.
+
+You can contact me at afogh@adslhome.dk if you have
+any comments or questions...
+
+Sincerely,
+Anders Fogh
+(Walt of Bonzai)
+
+Bonzai - More Than Just A Tree

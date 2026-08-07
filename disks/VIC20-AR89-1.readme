@@ -1,0 +1,20 @@
+Short: Vic-20 revival demo by AR89. (for the Vic-20 unexp)
+Type: demo/euro
+Uploader: tlr@stacken.kth.se
+Author: tlr@stacken.kth.se & pawal@proxxi.uf.se
+
+One day, while disposing 3 refrigerators, we found an old Vic-20
+lying at the junkyard.   Fascinating!  Is it possible to make
+a demo on an unexpanded Vic-20?    We consulted some friends and
+got some documentation.   After coding one whole day, it actually
+works!   Everything was made using "DATA" statements. 
+
+We will probably make a more interesting demo later this summer,
+when I (T.L.R) has made a interface between the Amiga and the Vic.
+
+
+* Awaken the dead!  Resuscitate!  Resurrect!
+* Vic-20, 3.5KB and rising...
+
+tlr@stacken.kth.se (Daniel Kahlin)
+pawal@proxxi.uf.se (Patrik Wallstrom)

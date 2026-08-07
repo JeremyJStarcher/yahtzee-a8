@@ -138,6 +138,47 @@ int wasi_insert_disk(const uint8_t *data, int size, int drive) {
     return 0;
 }
 
+/* ── Exported: auto-load a PRG file directly into RAM ───────────────── */
+/* The PRG format is:
+ *   uint16_t load_addr (little-endian)
+ *   uint8_t  data[load_size]
+ *
+ * vic20_quickload() copies the payload into memory at load_addr but, unlike
+ * c64_quickload(), it does NOT update the BASIC variable-table pointers.
+ * We replicate the pointer updates c64_quickload() performs so that typing
+ * RUN finds a valid program: $2D/$2F/$31/$33/$AE are set to the end of the
+ * loaded program.  (VIC-20 uses the same Commodore BASIC V2 zero-page
+ * layout as the C64.)
+ */
+
+int wasi_load_prg(const uint8_t *prg_data, int prg_size) {
+    if (!prg_data || prg_size < 2) {
+        return -1;  /* invalid input */
+    }
+    uint16_t addr = (uint16_t)((unsigned)prg_data[0] | ((unsigned)prg_data[1] << 8));
+    int payload_len = prg_size - 2;
+
+    /* Safety: don't write past the end of the 64 KB address space. */
+    if ((addr + payload_len) > 0x10000) {
+        return -2;
+    }
+
+    chips_range_t range = { (void*)prg_data, (size_t)prg_size };
+    if (!vic20_quickload(&g_sys, range)) {
+        return -3;
+    }
+
+    /* Update the BASIC variable-table pointers (mirrors c64_quickload). */
+    uint16_t end_addr = addr + payload_len;
+    mem_wr16(&g_sys.mem_cpu, 0x2d, end_addr);
+    mem_wr16(&g_sys.mem_cpu, 0x2f, end_addr);
+    mem_wr16(&g_sys.mem_cpu, 0x31, end_addr);
+    mem_wr16(&g_sys.mem_cpu, 0x33, end_addr);
+    mem_wr16(&g_sys.mem_cpu, 0xae, end_addr);
+
+    return 0;
+}
+
 /* ── main() — never called directly; Python host calls wasi_init()+tick() ── */
 
 int main(void) {
