@@ -26,7 +26,8 @@ def main() -> int:
     emu = commodore_host.Emulator(args.wasm, args.fbw, args.fbh)
     emu.init()
 
-    if args.headless or args.frames or args.dump or args.preview or args.type:
+    # Only --headless forces headless mode; autoload/type work with video too.
+    if args.headless:
         commodore_host.run_headless(emu, args)
         return 0
 

@@ -136,6 +136,37 @@ int wasi_insert_disk(const uint8_t *data, int size, int drive) {
     return 0;
 }
 
+/* ── Exported: auto-load a PRG file directly into RAM ───────────────── */
+/* The PRG format is:
+ *   uint16_t load_addr (little-endian)
+ *   uint8_t  data[load_size]
+ *
+ * We delegate to chips' c64_quickload(), which copies the payload into
+ * C64 memory at load_addr AND updates the BASIC variable-table pointers
+ * ($2D/$2F/$31/$33/$AE) so that typing RUN finds a valid program.  A raw
+ * mem_write_range() copy alone would leave those pointers stale and RUN
+ * would fail to start the loaded program.
+ */
+
+int wasi_load_prg(const uint8_t *prg_data, int prg_size) {
+    if (!prg_data || prg_size < 2) {
+        return -1;  /* invalid input */
+    }
+    uint16_t addr = (uint16_t)((unsigned)prg_data[0] | ((unsigned)prg_data[1] << 8));
+    int payload_len = prg_size - 2;
+
+    /* Safety: don't write past the end of the 64 KB address space. */
+    if ((addr + payload_len) > 0x10000) {
+        return -2;
+    }
+
+    chips_range_t range = { (void*)prg_data, (size_t)prg_size };
+    if (!c64_quickload(&g_sys, range)) {
+        return -3;
+    }
+    return 0;
+}
+
 /* ── main() — never called directly; Python host calls wasi_init()+tick() ── */
 
 int main(void) {

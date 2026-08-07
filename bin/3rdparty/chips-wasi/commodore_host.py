@@ -113,8 +113,45 @@ class Emulator:
         self._screen_rows = exp.get("wasi_screen_rows")
         self._screen_text = exp.get("wasi_screen_text")
         self._insert_disk = exp["wasi_insert_disk"]  # stub (Phase 2)
+        self._load_prg = exp.get("wasi_load_prg")
         self._malloc = exp["malloc"]
         self._free = exp["free"]
+
+    @staticmethod
+    def _resolve_prg_path(path_str: str) -> Path:
+        p = Path(path_str)
+        if p.is_absolute():
+            return p
+        # Walk up from CWD looking for a 'disks' dir containing the file;
+        # this handles running from repo root or any subdirectory.
+        start = Path.cwd()
+        for base in [start] + list(start.parents):
+            candidate = base / p
+            if candidate.exists():
+                return candidate.resolve()
+        # Last resort: original relative path
+        return p
+
+    def load_prg(self, prg_path: str) -> None:
+        """Auto-load a C64 PRG file into emulator RAM.
+
+        Reads a .prg file (2-byte LE load address + payload), allocates
+        linear memory in the WASM module via malloc(), copies the entire
+        file there, then calls wasi_load_prg() which parses the header and
+        writes the payload directly into CPU-visible RAM with mem_write_range().
+        """
+        if self._load_prg is None:
+            raise RuntimeError("wasi_load_prg not exported by this module")
+        path = self._resolve_prg_path(prg_path)
+        data = path.read_bytes()
+        ptr = self._malloc(self._store, len(data))
+        try:
+            self._memory.write(self._store, data, ptr)
+            res = self._load_prg(self._store, ptr, len(data))
+            if res != 0:
+                raise RuntimeError(f"wasi_load_prg failed with code {res}")
+        finally:
+            self._free(self._store, ptr)
 
     # -- lifecycle ----------------------------------------------------------
     def init(self) -> None:
@@ -356,6 +393,40 @@ def render_preview(fb: bytearray, fb_w: int, fb_h: int, cell: int = 4) -> list[s
 # ---------------------------------------------------------------------------
 
 
+def _wait_for_basic_ready(emu: Emulator, max_frames: int = 300) -> bool:
+    """Poll until the BASIC READY prompt is visible on the text screen."""
+    for _ in range(max_frames):
+        lines = emu.screen_text()
+        if lines and any("READY" in line.upper() for line in lines):
+            return True
+        emu.run(1)
+    return False
+
+
+def _prepare_emu(emu: Emulator, args: argparse.Namespace) -> None:
+    """Wait for READY + auto-load a PRG + type text before the main loop.
+
+    Shared by both the interactive (pygame) and headless drivers so the two
+    paths behave identically.
+    """
+    if args.autoload_prg:
+        print(f"[host] waiting for BASIC READY...", file=sys.stderr)
+        if not _wait_for_basic_ready(emu):
+            print("[host] WARNING: READY not detected within timeout; "
+                  "loading anyway.", file=sys.stderr)
+        print(f"[host] auto-loading PRG: {args.autoload_prg}", file=sys.stderr)
+        emu.load_prg(args.autoload_prg)
+
+    if args.type:
+        seq = text_to_key_sequence(args.type)
+        print(f"[host] typing {len(seq)} keys: {args.type!r} "
+              f"(key-frames={args.key_frames})", file=sys.stderr)
+        frames_down = max(1, args.key_frames)
+        frames_up = max(1, frames_down // 2)
+        for code in seq:
+            emu.press(code, frames_down=frames_down, frames_up=frames_up)
+
+
 def run_pygame(emu: Emulator, args: argparse.Namespace) -> None:
     import pygame
 
@@ -371,6 +442,11 @@ def run_pygame(emu: Emulator, args: argparse.Namespace) -> None:
     clock = pygame.time.Clock()
     key_map = _build_key_map()
     pressed: dict[int, int] = {}   # pygame keycode -> commodore code (for KEYUP)
+
+    # Autoload + typed input happen inside the interactive session too, so
+    # e.g. --autoload-prg FILE --type 'RUN\r' boots, loads, and starts the
+    # program in the window instead of silently running headless.
+    _prepare_emu(emu, args)
 
     running = True
     while running:
@@ -419,14 +495,7 @@ def run_headless(emu: Emulator, args: argparse.Namespace) -> None:
 
     emu.run(n_pre)
 
-    if args.type:
-        seq = text_to_key_sequence(args.type)
-        print(f"[headless] typing {len(seq)} keys: {args.type!r} "
-              f"(key-frames={args.key_frames})", file=sys.stderr)
-        frames_down = max(1, args.key_frames)
-        frames_up = max(1, frames_down // 2)
-        for code in seq:
-            emu.press(code, frames_down=frames_down, frames_up=frames_up)
+    _prepare_emu(emu, args)
 
     emu.run(n_post)
 
@@ -480,6 +549,8 @@ def build_parser(defaults: dict) -> argparse.ArgumentParser:
     parser.add_argument("--preview", action="store_true", help="print ASCII preview")
     parser.add_argument("--preview-cell", type=int, default=4, help="preview cell size in px")
     parser.add_argument("--fps", type=int, default=60, help="pygame frame rate")
+    parser.add_argument("--autoload-prg", default="", metavar="FILE.prg",
+                        help="auto-load a C64 PRG file into RAM after boot")
     return parser
 
 
@@ -498,7 +569,7 @@ def main(argv: list[str] | None = None) -> int:
     emu = Emulator(args.wasm, args.fbw, args.fbh)
     emu.init()
 
-    if args.headless or args.frames or args.dump or args.preview or args.type:
+    if args.headless:
         run_headless(emu, args)
         return 0
 

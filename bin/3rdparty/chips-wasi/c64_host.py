@@ -2,9 +2,10 @@
 """c64_host.py — Thin host wrapper for the C64 chips WASI module.
 
 Usage:
-    python3 c64_host.py                  # interactive pygame, scale 2
+    python3 c64_host.py                          # interactive pygame, scale 2
     python3 c64_host.py --headless --frames 300 --preview
     python3 c64_host.py --type 'PRINT"HI"^M' --preview
+    python3 c64_host.py --autoload-prg disks/c64-demo.prg --headless --preview
 """
 
 import sys
@@ -26,7 +27,9 @@ def main() -> int:
     emu = commodore_host.Emulator(args.wasm, args.fbw, args.fbh)
     emu.init()
 
-    if args.headless or args.frames or args.dump or args.preview or args.type:
+    # Only --headless forces headless mode.  Autoload + typed input are handled
+    # inside run_headless()/run_pygame() so they work with video too.
+    if args.headless:
         commodore_host.run_headless(emu, args)
         return 0
 
