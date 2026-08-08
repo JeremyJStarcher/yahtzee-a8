@@ -105,9 +105,9 @@ CHAR_PTR: .res 2
 COLOR_PTR: .res 2
 
 ; Cursor state
-CURSOR_ACTIVE: .res 1       ; 0 = hidden, non-zero = visible
-CURSOR_SAVE_CHAR: .res 1    ; Saved character under cursor
-CURSOR_SAVE_COLOR: .res 1   ; Saved color under cursor
+CURSOR_ACTIVE: .res 1                   ; 0 = hidden, non-zero = visible
+CURSOR_SAVE_CHAR: .res 1                ; Saved character under cursor
+CURSOR_SAVE_COLOR: .res 1               ; Saved color under cursor
 
     .segment "CODE"
 
@@ -630,7 +630,7 @@ row_offsets_high:
     LSR A
     LSR A                               ; Shift high nibble down to low position
     ORA TMP_PTR                         ; Combine swapped nibbles
-    STA (COLOR_PTR), Y                   ; Write inverse color to screen
+    STA (COLOR_PTR), Y                  ; Write inverse color to screen
 
     LDA #$01                            ; Mark cursor as active
     STA CURSOR_ACTIVE
@@ -683,7 +683,7 @@ row_offsets_high:
     JSR SHOW_CURSOR
 
     TXA                                 ; Restore char (X still has the
-                                        ; character from the TAX above)
+    ; character from the TAX above)
 
     ; Clear KB_ASCII_ADDR to indicate we have consumed this key
     PHA                                 ; Save char on stack
@@ -714,7 +714,6 @@ _reset_handler:
     JSR reset_screen
     ;JSR video_test
     JSR test_branch_macro
-
 
     LDA #DEFAULT_COLOR                  ; Fill value
     STA CURRENT_COLOR
@@ -808,9 +807,9 @@ RTS
     .include "branch_tests.asm"
 
 
-; Translation table: print_code -> screen_code
-; Generated from 256 font characters
-;
+    ; Translation table: print_code -> screen_code
+    ; Generated from 256 font characters
+    ;
 p2slookup:
 .byte $A2, $5E, $EC, $0E, $91, $48, $EA, $AC, $0A, $28, $20, $56, $F5, $81, $B9, $8D
 .byte $33, $9A, $C2, $89, $A3, $A5, $F8, $AA, $6B, $05, $37, $AF, $7C, $9B, $27, $77

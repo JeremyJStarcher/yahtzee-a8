@@ -1,9 +1,9 @@
 ; quick and dirty macro so we dont haev to keep fixing 65c02 code on the fly
 .macro stz dest
-	pha
-	lda #$00
-	sta dest
-	pla
+    PHA
+    LDA #$00
+    STA dest
+    PLA
 .endmacro
 
 ; ============================================================================
@@ -309,7 +309,7 @@
     BPL @done
 
 @no_overflow:
-    ; V=0. N=0 means N == V, so the signed result is >=.
+; V=0. N=0 means N == V, so the signed result is >=.
     BPL target
 
 @done:
@@ -360,7 +360,7 @@
     BMI @done
 
 @no_overflow:
-    ; V=0. N=1 means N != V, so the signed result is <.
+; V=0. N=1 means N != V, so the signed result is <.
     BMI target
 
 @done:
@@ -618,11 +618,11 @@
 
 .macro check_branch_distance target_label, macro_name, short_name
     .ifblank target_label
-        .error "Missing target label for long branch macro"
+    .error "Missing target label for long branch macro"
     .else
-        .if (target_label - (* + 2)) >= -128 .and  (target_label - (* + 2)) <= 127
-            .out .sprintf("OPTIMIZATION WARNING: %s to '%s' is in range! Use %s instead to save 3 bytes and cycles.", macro_name, .string(target_label), short_name)
-        .endif
+    .if (target_label - (* + 2)) >= -128 .and  (target_label - (* + 2)) <= 127
+    .out .sprintf("OPTIMIZATION WARNING: %s to '%s' is in range! Use %s instead to save 3 bytes and cycles.", macro_name, .string(target_label), short_name)
+    .endif
     .endif
 .endmacro
 
