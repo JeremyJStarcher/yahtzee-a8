@@ -32,6 +32,15 @@ class BaseVideo:
     KB_FLAG_SHIFT = 0x01
     KB_FLAG_CTRL = 0x02
 
+    # Arrow-key constants.  When an arrow key is pressed, the backend
+    # sends one of these byte values (with modifier flags) through the
+    # normal keyboard pipeline instead of an ASCII code.  The BIOS can
+    # read $0200 and compare against these values to detect cursor keys.
+    KEY_ARROW_UP = 0x81
+    KEY_ARROW_DOWN = 0x82
+    KEY_ARROW_LEFT = 0x83
+    KEY_ARROW_RIGHT = 0x84
+
     def __init__(
         self, rows: int, columns: int, scale: int = 1, border: int = 1
     ) -> None:
@@ -178,6 +187,19 @@ class BaseVideo:
         ascii_val = ord(event.char) if event.char else 0x00
         if ascii_val != 0x00:
             self._dispatch_key_event(ascii_val, flags)
+            return
+
+        # Arrow keys produce no ASCII character but are still useful to
+        # the BIOS.  Map them to the dedicated arrow-key constants.
+        arrow_map: dict[str, int] = {
+            "Up": BaseVideo.KEY_ARROW_UP,
+            "Down": BaseVideo.KEY_ARROW_DOWN,
+            "Left": BaseVideo.KEY_ARROW_LEFT,
+            "Right": BaseVideo.KEY_ARROW_RIGHT,
+        }
+        arrow_val = arrow_map.get(event.keysym)
+        if arrow_val is not None:
+            self._dispatch_key_event(arrow_val, flags)
 
     def set_title(self, title: str) -> None:
         """Set the window title."""

@@ -119,6 +119,18 @@ class Video(BaseVideo):
                 # etc.) reach the BIOS keyboard handler.
                 if ascii_val != 0x00:
                     self._dispatch_key_event(ascii_val, flags)
+                else:
+                    # Arrow keys produce no Unicode but are useful to the
+                    # BIOS.  Map them to the dedicated arrow-key constants.
+                    arrow_map: dict[int, int] = {
+                        self._pygame.K_UP: BaseVideo.KEY_ARROW_UP,
+                        self._pygame.K_DOWN: BaseVideo.KEY_ARROW_DOWN,
+                        self._pygame.K_LEFT: BaseVideo.KEY_ARROW_LEFT,
+                        self._pygame.K_RIGHT: BaseVideo.KEY_ARROW_RIGHT,
+                    }
+                    arrow_val = arrow_map.get(event.key)
+                    if arrow_val is not None:
+                        self._dispatch_key_event(arrow_val, flags)
 
         now = time.perf_counter()
         while self._scheduled and self._scheduled[0][0] <= now:

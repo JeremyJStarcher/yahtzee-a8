@@ -159,6 +159,12 @@ CHAR_FF  = $0C
 CHAR_CR  = $0D
 CHAR_DEL = $7F
 
+CHAR_ARROW_UP = $81
+CHAR_ARROW_DOWN = $82
+CHAR_ARROW_LEFT = $83
+CHAR_ARROW_RIGHT = $84
+
+
 ; ============================================================================
 ; Routine: DISPLAY_CHAR
 ; Description:
@@ -670,6 +676,7 @@ row_offsets_high:
     ;   A = character, X = 0 (handle CR, LF, BS, TAB, etc.)
     TXA                                 ; Restore character to A
     LDX #$00                            ; Processed mode
+    LDX #$01                            ; raw mode
     JSR DISPLAY_CHAR                    ; Echo to screen
 
     ; Show cursor at the new position.
