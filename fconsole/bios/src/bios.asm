@@ -10,8 +10,18 @@
     .export _reset_handler
     .export _nmi_handler
     .export JTCLS
+    .export JTDUMMY
+    .export GETKEY
     .exportzp CURS_COL
     .exportzp CURS_ROW
+    .exportzp CURSOR_ACTIVE
+
+    KB_ASCII_ADDR = $0200
+    KB_FLAGS_ADDR = $0201
+
+    ; Keyboard flag bits
+    KB_FLAG_SHIFT = $01
+    KB_FLAG_CTRL = $02
 
     .segment "CODE"
 
@@ -93,6 +103,11 @@ CURRENT_COLOR: .res 1
 CHAR_PTR: .res 2
 ; COLOR ram ptr
 COLOR_PTR: .res 2
+
+; Cursor state
+CURSOR_ACTIVE: .res 1       ; 0 = hidden, non-zero = visible
+CURSOR_SAVE_CHAR: .res 1    ; Saved character under cursor
+CURSOR_SAVE_COLOR: .res 1   ; Saved color under cursor
 
     .segment "CODE"
 
@@ -537,6 +552,139 @@ row_offsets_high:
     LDA #DEFAULT_COLOR                  ; Fill value
     STA CURRENT_COLOR
     JSR CLEAR_SCREEN
+
+    ; Initialize cursor state
+    LDA #$00                            ; Cursor starts hidden; SHOW_CURSOR
+    STA CURSOR_ACTIVE                   ; will draw it properly on first use.
+    STA CURSOR_SAVE_CHAR
+    STA CURSOR_SAVE_COLOR
+
+    RTS
+.endproc
+
+; ============================================================================
+; Routine: HIDE_CURSOR
+; Description:
+;   Hides the text cursor by restoring the saved character and color
+;   at the current cursor position.
+; ============================================================================
+.proc HIDE_CURSOR
+    LDA CURSOR_ACTIVE
+    BEQ @already_hidden
+
+    ; Compute address of current cursor cell
+    JSR SET_CURSOR
+
+    ; Restore saved character and color
+    LDY #$00
+    LDA CURSOR_SAVE_CHAR
+    STA (CHAR_PTR), Y
+    LDA CURSOR_SAVE_COLOR
+    STA (COLOR_PTR), Y
+
+    LDA #$00
+    STA CURSOR_ACTIVE
+@already_hidden:
+    RTS
+.endproc
+
+; ============================================================================
+; Routine: SHOW_CURSOR
+; Description:
+;   Shows the text cursor by saving the character and color at the current
+;   cursor position, then writing an inverse-color version (nibble swap).
+; ============================================================================
+.proc SHOW_CURSOR
+    LDA CURSOR_ACTIVE
+    BNE @already_visible
+
+    ; Compute address of current cursor cell
+    JSR SET_CURSOR
+
+    ; Save current cell contents
+    LDY #$00
+    LDA (CHAR_PTR), Y
+    STA CURSOR_SAVE_CHAR
+    LDA (COLOR_PTR), Y
+    STA CURSOR_SAVE_COLOR
+
+    ; Compute inverse color by swapping nibbles
+    PHA                                 ; Save original color on stack
+    LDA CURSOR_SAVE_COLOR
+    AND #$0F                            ; Isolate low nibble
+    ASL A
+    ASL A
+    ASL A
+    ASL A                               ; Shift to high nibble position
+    STA TMP_PTR                         ; Store in zero-page temp
+
+    PLA                                 ; Restore original color
+    LSR A
+    LSR A
+    LSR A
+    LSR A                               ; Shift high nibble down to low position
+    ORA TMP_PTR                         ; Combine swapped nibbles
+    STA (COLOR_PTR), Y                   ; Write inverse color to screen
+
+    LDA #$01                            ; Mark cursor as active
+    STA CURSOR_ACTIVE
+
+@already_visible:
+    RTS
+.endproc
+
+; ============================================================================
+; Routine: UPDATE_CURSOR
+; Description:
+;   Updates cursor position safely. Call after changing CURS_COL/CURS_ROW.
+;   Hides cursor at old position, then shows at new position.
+; ============================================================================
+.proc UPDATE_CURSOR
+    JSR HIDE_CURSOR
+    JSR SHOW_CURSOR
+    RTS
+.endproc
+
+; ============================================================================
+; Routine: GETKEY
+; Description:
+;   Reads the last pressed key from memory location KB_ASCII_ADDR.
+;   If a key is available (non-zero), it is echoed to the screen,
+;   KB_ASCII_ADDR is cleared to $00, and the character is returned in register A.
+;   If no key is pressed ($00), returns with A = $00.
+;
+; Returns:
+;   A - Character code (0 if no key)
+; ============================================================================
+.proc GETKEY
+    LDA KB_ASCII_ADDR
+    BEQ @none                           ; Nothing pressed
+
+    TAX                                 ; Save char in X
+
+    ; Hide cursor at old position before echoing, so that cursor moves
+    ; (newline, wrap, backspace, tab) don't leave inverse-color trails.
+    JSR HIDE_CURSOR
+
+    ; Restore char to A and set processed mode for DISPLAY_CHAR:
+    ;   A = character, X = 0 (handle CR, LF, BS, TAB, etc.)
+    TXA                                 ; Restore character to A
+    LDX #$00                            ; Processed mode
+    JSR DISPLAY_CHAR                    ; Echo to screen
+
+    ; Show cursor at the new position.
+    JSR SHOW_CURSOR
+
+    TXA                                 ; Restore char (X still has the
+                                        ; character from the TAX above)
+
+    ; Clear KB_ASCII_ADDR to indicate we have consumed this key
+    PHA                                 ; Save char on stack
+    LDA #$00
+    STA KB_ASCII_ADDR
+    PLA                                 ; Restore char to A
+
+@none:
     RTS
 .endproc
 
@@ -565,8 +713,13 @@ _reset_handler:
     STA CURRENT_COLOR
     load16 DISPLAY_PTR, boot_msg
     JSR DISPLAY_PSTRING
-halt:
-    JMP halt                            ; Safely trap CPU here when done
+
+    ; Show initial cursor at home position
+    JSR SHOW_CURSOR
+
+main_loop:
+    JSR GETKEY
+    JMP main_loop                       ; Poll keyboard forever
 
 boot_msg:
     pstring2 {CHAR_FF, "Welcome to the Fantasy 6502 Console!", CHAR_BEL, CHAR_LF, "IN BUSY LOOP"}

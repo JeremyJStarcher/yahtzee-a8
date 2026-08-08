@@ -26,6 +26,12 @@ class BaseVideo:
     CHAR_WIDTH: int = 8
     CHAR_HEIGHT: int = 8
 
+    # Keyboard modifier flag bits.  These must stay in sync with the
+    # SystemBus definitions in fcon.py (KB_FLAG_SHIFT / KB_FLAG_CTRL) so
+    # backends can encode modifier state for the BIOS keyboard registers.
+    KB_FLAG_SHIFT = 0x01
+    KB_FLAG_CTRL = 0x02
+
     def __init__(
         self, rows: int, columns: int, scale: int = 1, border: int = 1
     ) -> None:
@@ -153,6 +159,25 @@ class BaseVideo:
         """Dispatch a key event to the registered callback."""
         if self._key_callback:
             self._key_callback(ascii_val, flags)
+
+    def _handle_key_event(self, event: tk.Event) -> None:
+        """Decode a Tk key press and forward it to the key callback.
+
+        Extracts Shift/Ctrl modifier flags from ``event.state`` and the
+        ASCII value from ``event.char``, then dispatches via
+        :meth:`_dispatch_key_event`.  Control characters (BS 0x08,
+        TAB 0x09, ESC 0x1B, DEL 0x7F, etc.) are forwarded so they reach
+        the BIOS keyboard handler.
+        """
+        flags = 0
+        if event.state & 0x0001:  # Shift mask
+            flags |= BaseVideo.KB_FLAG_SHIFT
+        if event.state & 0x0004:  # Control mask
+            flags |= BaseVideo.KB_FLAG_CTRL
+
+        ascii_val = ord(event.char) if event.char else 0x00
+        if ascii_val != 0x00:
+            self._dispatch_key_event(ascii_val, flags)
 
     def set_title(self, title: str) -> None:
         """Set the window title."""

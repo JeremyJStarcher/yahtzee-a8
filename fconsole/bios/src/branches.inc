@@ -1,3 +1,11 @@
+; quick and dirty macro so we dont haev to keep fixing 65c02 code on the fly
+.macro stz dest
+	pha
+	lda #$00
+	sta dest
+	pla
+.endmacro
+
 ; ============================================================================
 ; ca65 Synthetic Branching and Relational Macro Suite
 ; ============================================================================

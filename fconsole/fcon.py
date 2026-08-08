@@ -589,6 +589,15 @@ class SystemBus:
         """Read keyboard modifier flags."""
         return self._kb_flags
 
+    def _write_kb_flags(self, offset: int, value: int) -> None:
+        """Ignore CPU writes to the keyboard flags register.
+
+        The modifier flags are host-controlled (set via
+        ``update_key_state``); they are read-only from the CPU's
+        perspective.
+        """
+        return
+
     def update_key_state(self, ascii_val: int, flags: int) -> None:
         """Update keyboard state from external event source."""
         self._kb_ascii = ascii_val & 0xFF
@@ -597,6 +606,15 @@ class SystemBus:
     # -- Bus protocol -------------------------------------------------------
 
     def __getitem__(self, address: int) -> int:
+        # Keyboard memory-mapped I/O takes priority over the general bus
+        # map.  Otherwise the broad RAM range ($0000+) would shadow the
+        # keyboard registers at $0200-$0201 and the BIOS could never read
+        # an incoming keystroke.
+        if address == self.KB_ASCII_ADDR:
+            return self._read_kb_ascii(0)
+        if address == self.KB_FLAGS_ADDR:
+            return self._read_kb_flags(0)
+
         for m_range in self.bus_map:
             if m_range.contains(address):
                 offset = address - m_range.start
@@ -604,26 +622,26 @@ class SystemBus:
                     return m_range.read_cb(offset)
                 break
 
-        # Keyboard memory-mapped I/O
-        if address == self.KB_ASCII_ADDR:
-            return self._read_kb_ascii(0)
-        if address == self.KB_FLAGS_ADDR:
-            return self._read_kb_flags(0)
-
         # Unmapped space returns NOP instruction ($EA)
         return 0xEA
 
     def __setitem__(self, address: int, value: int) -> None:
+        # Keyboard memory-mapped I/O takes priority over the general bus
+        # map (see __getitem__), so the BIOS "STA $0200" handshake can
+        # clear the pending keystroke instead of being swallowed by RAM.
+        if address == self.KB_ASCII_ADDR:
+            self._write_kb_ascii(0, value)
+            return
+        if address == self.KB_FLAGS_ADDR:
+            self._write_kb_flags(0, value)
+            return
+
         for m_range in self.bus_map:
             if m_range.contains(address):
                 if m_range.write_cb:
                     offset = address - m_range.start
                     m_range.write_cb(offset, value)
                 return
-
-        # Keyboard memory-mapped I/O (write clears ASCII)
-        if address == self.KB_ASCII_ADDR:
-            self._write_kb_ascii(0, value)
 
 
 class Cpu6502Module:

@@ -55,7 +55,7 @@ class Video(BaseVideo):
         self._root = tk.Tk()
 
         # Bind keyboard events
-        self._root.bind("<KeyPress>", self._on_key_press)
+        self._root.bind("<KeyPress>", self._handle_key_event)
         self._root.title(
             f"Video Display ({rows}x{columns}) [scale={scale}x][border={border}]"
         )
@@ -101,18 +101,6 @@ class Video(BaseVideo):
 
             # Force redraw on next refresh
             self.refresh_screen()
-
-    def _on_key_press(self, event: tk.Event) -> None:
-        """Handle Tk key press events."""
-        flags = 0
-        if event.state & 0x0001:  # Shift mask
-            flags |= BaseVideo.KB_FLAG_SHIFT
-        if event.state & 0x0004:  # Control mask
-            flags |= BaseVideo.KB_FLAG_CTRL
-
-        ascii_val = ord(event.char) if event.char else 0x00
-        if 0x20 <= ascii_val <= 0x7E or ascii_val in (0x0D, 0x0A):
-            self._dispatch_key_event(ascii_val, flags)
 
     def _get_colors(
         self, color_byte: int

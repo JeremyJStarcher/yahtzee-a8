@@ -114,7 +114,10 @@ class Video(BaseVideo):
                 if event.mod & self._pygame.KMOD_CTRL:
                     flags |= BaseVideo.KB_FLAG_CTRL
                 ascii_val = ord(event.unicode) if event.unicode else 0x00
-                if 0x20 <= ascii_val <= 0x7E or ascii_val in (0x0D, 0x0A):
+                # Pass all non-null ASCII values so that control
+                # characters (BS 0x08, TAB 0x09, ESC 0x1B, DEL 0x7F,
+                # etc.) reach the BIOS keyboard handler.
+                if ascii_val != 0x00:
                     self._dispatch_key_event(ascii_val, flags)
 
         now = time.perf_counter()
