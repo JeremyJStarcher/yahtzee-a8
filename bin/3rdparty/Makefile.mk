@@ -8,7 +8,8 @@ HOSTNAME := unknown
 endif
 
 # Venv paths
-VENV_DIR := $(REPO_ROOT)/venv/hosts/venv-$(HOSTNAME)
+#VENV_DIR := $(REPO_ROOT)/venv/hosts/venv-$(HOSTNAME)
+VENV_DIR := $(REPO_ROOT)/venv/venv-ours
 VENV_BIN := $(VENV_DIR)/bin
 VENV_PYTHON := $(VENV_BIN)/python
 

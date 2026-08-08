@@ -48,8 +48,9 @@ def _repo_root() -> Path:
 
 def _venv_dir() -> Path:
     """Hostname-keyed venv directory, matching the venv.mk scheme."""
-    hostname = platform.node() or "unknown"
-    return _repo_root() / "venv" / "hosts" / f"venv-{hostname}"
+    #hostname = platform.node() or "unknown"
+    #return _repo_root() / "venv" / "hosts" / f"venv-{hostname}"
+    return _repo_root() / "venv" / f"venv-ours"
 
 
 def _venv_bin_dir() -> Path:

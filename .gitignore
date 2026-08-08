@@ -1,7 +1,7 @@
 __pycache__
 *.pyc
 fconsole/bios/bios.lst
-venv/hosts
+venv/venv-ours
 
 # WASI build artefacts
 bin/wasi/
