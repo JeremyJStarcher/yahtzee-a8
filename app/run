@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python3 ./../../build.py run
+exec python3.12 ./build.py run

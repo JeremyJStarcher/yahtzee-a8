@@ -12,6 +12,7 @@ from __future__ import annotations
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import Canvas
+from typing import cast
 
 from .font import C64_COLORS, DEFAULT_COLOR, SCREEN_ORDER_CHARS
 
@@ -178,10 +179,13 @@ class BaseVideo:
         TAB 0x09, ESC 0x1B, DEL 0x7F, etc.) are forwarded so they reach
         the BIOS keyboard handler.
         """
+        # The tkinter type stub types ``Event.state`` as ``str``, but at
+        # runtime it is an int bitmask of modifier keys.
+        state = cast(int, event.state)
         flags = 0
-        if event.state & 0x0001:  # Shift mask
+        if state & 0x0001:  # Shift mask
             flags |= BaseVideo.KB_FLAG_SHIFT
-        if event.state & 0x0004:  # Control mask
+        if state & 0x0004:  # Control mask
             flags |= BaseVideo.KB_FLAG_CTRL
 
         ascii_val = ord(event.char) if event.char else 0x00

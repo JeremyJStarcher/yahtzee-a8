@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.12
 """Cross-platform project build driver.  Python 3.12+, stdlib only."""
 
 from __future__ import annotations
@@ -11,9 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VENV = ROOT / "venv" / "venv-ours"
-REQS = ROOT / "venv" / "requirements.txt"
-RUN_WASI = ROOT / "bin" / "run_wasi.py"
+VENV = ROOT / ".." / "venv" / "venv-ours"
+REQS = ROOT / ".."/ "venv" / "requirements.txt"
+RUN_WASI = ROOT / ".." / "bin" / "run_wasi.py"
 
 
 # ---------------------------------------------------------------------------
@@ -127,14 +127,14 @@ class AsmTarget:
 
 
 TARGETS = {
-    "bios": AsmTarget(
-        directory="fconsole/bios",
-        sources=("src/bios.asm", "src/vectors.asm"),
-        config="bios.cfg",
-        output="bios.bin",
-        start="$F000",
-        description="Build the 6502 BIOS",
-        includes=("src/branches.inc", "src/math.inc", "src/hw_limits.inc"),
+    "fconsole": AsmTarget(
+        directory="hosts",
+        sources=("fconsole.asm",),
+        config="fcon.cfg",
+        output="fconsole.bin",
+        start="$0400",
+        description="Build for the fco",
+        #includes=("src/branches.inc", "src/math.inc", "src/hw_limits.inc"),
     ),
 
     # New targets are just data:
@@ -258,7 +258,7 @@ def cmd_clean(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    build_target("bios")
+    build_target("fconsole")
     py = ensure_venv()
     fcon_args = [
         "--clock-hz", str(args.clock_hz),
@@ -286,7 +286,7 @@ def cmd_format(_: argparse.Namespace) -> None:
 
 def cmd_format_asm(_: argparse.Namespace) -> None:
     py = ensure_venv()
-    fmt = ROOT / "dev-tools" / "fmt6502" / "fmt6502.py"
+    fmt = ROOT / ".." / "dev-tools" / "fmt6502" / "fmt6502.py"
 
     by_dir: dict[Path, list[str]] = {}
     for t in TARGETS.values():

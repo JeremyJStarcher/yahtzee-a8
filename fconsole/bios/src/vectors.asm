@@ -6,6 +6,8 @@
     .forceimport JTDUMMY
     .forceimport CURS_ROW:zp
     .forceimport CURS_COL:zp
+    .forceimport JTGETKEY
+    .forceimport JTSTROUT
 
     .segment "VECTORS"
     .word _nmi_handler                  ; $FFFA - NMI vector

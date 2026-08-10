@@ -1,0 +1,5 @@
+#!/bin/sh
+# Thin wrapper around build.py so `./build <command>` works from the
+# project root.  Mirrors the convention used by fconsole/build.
+
+exec python3.12 build.py "$@"

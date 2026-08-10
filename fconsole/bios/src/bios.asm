@@ -11,13 +11,18 @@
     .export _nmi_handler
     .export JTCLS
     .export JTDUMMY
-    .export GETKEY
+    .export JTGETKEY
+    .export JTSTROUT
     .exportzp CURS_COL
     .exportzp CURS_ROW
     .exportzp CURSOR_ACTIVE
 
     KB_ASCII_ADDR = $0200
     KB_FLAGS_ADDR = $0201
+
+    FLAG_ROM_LOADED = $0202 ; $4C if file loaded
+    ROM_LOADED_PTR_L = $0203
+    ROM_LOADED_PTR_H = $0204
 
     ; Keyboard flag bits
     KB_FLAG_SHIFT = $01
@@ -113,6 +118,22 @@ CURSOR_SAVE_COLOR: .res 1               ; Saved color under cursor
 
 .proc DUMMY_ROUTINE
     RTS
+.endproc
+
+; ============================================================================
+; Routine: STROUT
+; Description:
+;   Displays a Pascal-style string (length byte followed by character payload).
+;   Advances CURS_COL and CURS_ROW automatically per character.
+;   This code is meant to be called from user-space
+;
+; Inputs
+;   A = high byte of pointer
+;   X = low byte of pointer
+.proc STROUT
+    STA DISPLAY_PTR + 1
+    STX DISPLAY_PTR
+    JMP DISPLAY_PSTRING
 .endproc
 
 ; ============================================================================
@@ -705,6 +726,7 @@ row_offsets_high:
 ; Reset Handler
 ; ============================================================================
 _reset_handler:
+.proc handler
     SEI                                 ; Disable interrupts
     LDX #$FF
     TXS                                 ; Reset stack pointer to $01FF
@@ -713,13 +735,29 @@ _reset_handler:
 
     JSR reset_screen
     ;JSR video_test
-    JSR test_branch_macro
+    ;JSR test_branch_macro
 
     LDA #DEFAULT_COLOR                  ; Fill value
     STA CURRENT_COLOR
     load16 DISPLAY_PTR, boot_msg
     JSR DISPLAY_PSTRING
 
+    LDA FLAG_ROM_LOADED
+    CMP #$4C
+    BNE @NOROM
+
+    load16 DISPLAY_PTR, rom_loaded_msg
+    JSR DISPLAY_PSTRING
+    JMP FLAG_ROM_LOADED
+    ;;; JMP @nextphase
+
+@NOROM:
+
+    load16 DISPLAY_PTR, rom_not_loaded_msg
+    JSR DISPLAY_PSTRING
+
+
+ @nextphase:
     ; Show initial cursor at home position
     JSR SHOW_CURSOR
 
@@ -727,17 +765,22 @@ main_loop:
     JSR GETKEY
     JMP main_loop                       ; Poll keyboard forever
 
+rom_loaded_msg:
+    pstring2 {"PROGEAM LOADED", CHAR_LF}
+
+rom_not_loaded_msg:
+    pstring2 {"PROGRAM *not* LOADED", CHAR_LF}
+
 boot_msg:
-    pstring2 {CHAR_FF, "Welcome to the Fantasy 6502 Console!", CHAR_BEL, CHAR_LF, "IN BUSY LOOP"}
+    pstring2 {CHAR_FF, "Welcome to the Fantasy 6502 Console!", CHAR_BEL, CHAR_LF}
     ;pstring2 {"Welcome to the Fantasy 6502 Console!"}
 
-msg_welcome:
-    pstring2 {$C8, "SCROLLING TEST"}
+.endproc
 
 .proc video_test
 
 ; Set pointer in Zero Page
-    load16 DISPLAY_PTR, msg_welcome
+  ;  load16 DISPLAY_PTR, msg_welcome
 
     LDX #100
 @ploop2:
@@ -844,8 +887,7 @@ _irq_handler:
     .export JTCLS
     .export JTDUMMY
 
-JTDUMMY:
-    JMP DUMMY_ROUTINE
-
-    .segment "JUMPTABLE"
+JTDUMMY:  JMP DUMMY_ROUTINE
 JTCLS: JMP CLEAR_SCREEN
+JTGETKEY: JMP GETKEY
+JTSTROUT: JMP STROUT

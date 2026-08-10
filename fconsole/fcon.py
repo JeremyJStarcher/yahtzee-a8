@@ -414,6 +414,17 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=("Optional font family for --video-backend text; defaults to TkFixedFont"),
     )
+    parser.add_argument(
+        "--load",
+        dest="program_file",
+        default=None,
+        metavar="FILE",
+        help=(
+            "Binary program file to load into user space. Format: 2-byte little-endian "
+            "load address, 2-byte little-endian start-function pointer (stored at "
+            "$0203/$0204), followed by the program bytes copied into RAM."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -473,6 +484,10 @@ class SystemBus:
     # Keyboard status addresses (memory-mapped I/O)
     KB_ASCII_ADDR = 0x0200
     KB_FLAGS_ADDR = 0x0201
+    # $0202 holds $4C (JMP) if a program is loaded
+    FLAG_ROM_LOADED = 0x0202
+    ROM_LOADED_PTR_L = 0x0203
+    ROM_LOADED_PTR_H = 0x0204
 
     # Keyboard flag bits
     KB_FLAG_SHIFT = 0x01
@@ -688,6 +703,56 @@ class Cpu6502Module:
         """Return whether this py65 MPU exposes its accumulated cycle
         count."""
         return hasattr(self.cpu, "processorCycles")
+
+    def load_program(self, filepath: str) -> None:
+        """Load a binary program into RAM.
+
+        File format (little-endian):
+          bytes 0-1 : 16-bit address where the program is loaded
+          bytes 2-3 : 16-bit pointer to the start function, stored in
+                      SystemBus RAM at ROM_LOADED_PTR_L/$0203 and
+                      ROM_LOADED_PTR_H/$0204
+          bytes 4+  : program bytes copied into RAM starting at the
+                      load address
+
+        Raises SystemExit on a missing file or a file too short to hold
+        the 4-byte header.
+        """
+        bus = self.bus
+        try:
+            with open(filepath, "rb") as f:
+                data = f.read()
+        except FileNotFoundError:
+            print(f"ERROR: Program file not found: {filepath}")
+            sys.exit(1)
+        except OSError as e:
+            print(f"ERROR: Cannot read program file {filepath}: {e}")
+            sys.exit(1)
+
+        if len(data) < 4:
+            print(
+                f"ERROR: Program file too short ({len(data)} bytes); "
+                "need at least 4 bytes (2-byte load address + 2-byte start pointer)"
+            )
+            sys.exit(1)
+
+        load_addr = int.from_bytes(data[0:2], "little")
+        start_ptr = int.from_bytes(data[2:4], "little")
+        program_bytes = data[4:]
+
+        bus.ram[bus.FLAG_ROM_LOADED] = 0x4C  # JMP instruction
+        bus.ram[bus.ROM_LOADED_PTR_L] = start_ptr & 0xFF
+        bus.ram[bus.ROM_LOADED_PTR_H] = (start_ptr >> 8) & 0xFF
+        bus.ram[load_addr : load_addr + len(program_bytes)] = program_bytes
+
+        print(f"Loaded program: {filepath}")
+        print(f"  Load address   : ${load_addr:04X}")
+        print(f"  Start function : ${start_ptr:04X}")
+        print(f"  Program bytes  : {len(program_bytes)}")
+        print(
+            f"  Start pointer  : $0203=${bus.ram[bus.ROM_LOADED_PTR_L]:02X} "
+            f"$0204=${bus.ram[bus.ROM_LOADED_PTR_H]:02X}"
+        )
 
 
 class FConsole:
@@ -1002,6 +1067,11 @@ def main() -> None:
         sys.exit(1)
 
     console = FConsole(config, MPU)
+
+    # Load a user program into RAM, if one was provided.
+    if args.program_file:
+        console.cpu_module.load_program(args.program_file)
+
     console.run()
     sys.exit(0)
 
