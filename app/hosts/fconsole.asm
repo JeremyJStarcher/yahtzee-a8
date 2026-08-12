@@ -45,7 +45,8 @@ JTSTROUT = $FF09                        ;  Prints a pstring A = high byte of poi
 
 .include "shared/branches.inc"
 .include "shared/branch_tests.asm"
-
+.include "shared/math.inc"
+.include "shared/math_tests.asm"
 
 .segment "VECTORS"
     .addr __RAM_START__                 ; load_address
@@ -59,7 +60,7 @@ JTSTROUT = $FF09                        ;  Prints a pstring A = high byte of poi
     JSR JTSTROUT
 
     JSR test_branch_macro
-
+	JSR test_math_macro
     LDX #<end_msg
     LDA #>end_msg
     JSR JTSTROUT

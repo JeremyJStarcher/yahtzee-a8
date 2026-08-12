@@ -46,13 +46,13 @@
 ;; ---------------------------------------------------------------------------
 .macro add16 dest, op1, op2
     CLC
-    .if (.match ({op2}, {#}))
+    .if (.match (.left (1, {op2}), #))
     ; Immediate operand case (e.g., #$E000)
     LDA op1
-    ADC #<(.right (1, {op2}))
+    ADC #<(.right (.tcount ({op2}) - 1, {op2}))
     STA dest
     LDA op1 + 1
-    ADC #>(.right (1, {op2}))
+    ADC #>(.right (.tcount ({op2}) - 1, {op2}))
     STA dest + 1
     .else
     ; Memory operand case
@@ -102,12 +102,12 @@
 ;; ---------------------------------------------------------------------------
 .macro sub16 dest, op1, op2
     SEC
-    .if (.match ({op2}, {#}))
+    .if (.match (.left (1, {op2}), #))
     LDA op1
-    SBC #<(.right (1, {op2}))
+    SBC #<(.right (.tcount ({op2}) - 1, {op2}))
     STA dest
     LDA op1 + 1
-    SBC #>(.right (1, {op2}))
+    SBC #>(.right (.tcount ({op2}) - 1, {op2}))
     STA dest + 1
     .else
     LDA op1
@@ -143,10 +143,10 @@
 ; Usage: MOV16 dest, src
 ;; ---------------------------------------------------------------------------
 .macro mov16 dest, src
-    .if (.match ({src}, {#}))
-    LDA #<(.right (1, {src}))
+    .if (.match (.left (1, {src}), #))
+    LDA #<(.right (.tcount ({src}) - 1, {src}))
     STA dest
-    LDA #>(.right (1, {src}))
+    LDA #>(.right (.tcount ({src}) - 1, {src}))
     STA dest + 1
     .else
     LDA src
