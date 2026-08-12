@@ -3,12 +3,6 @@
 ; ============================================================================
 ;
 ; Requires:
-;   DISPLAY_PSTRING
-;   DISPLAY_NEXT_LINE
-;   DISPLAY_PTR
-;   CURRENT_COLOR
-;   DEFAULT_COLOR
-;   pstring
 ;
 ; expected_taken:
 ;   0 = branch should not be taken
@@ -20,10 +14,11 @@ TEST_FAIL_COLOR = $A3
 BRANCH_NOT_TAKEN = 0
 BRANCH_TAKEN     = 1
 
-
 ; ----------------------------------------------------------------------------
 ; Test result strings
 ; ----------------------------------------------------------------------------
+
+next_line: pstring2 {CHAR_NL}
 
 test_branch_taken:
     pstring "BRANCH TAKEN"
@@ -31,6 +26,8 @@ test_branch_taken:
 test_branch_not_taken:
     pstring "BRANCH NOT TAKEN"
 
+passed_msg: pstring2 {"  PASSED", CHAR_NL}
+failed_msg: pstring2 {"  FAILED", CHAR_NL}
 
 ; ----------------------------------------------------------------------------
 ; Test state
@@ -46,8 +43,13 @@ test_branch_not_taken:
 branch_test_actual:
     .res 1
 
-
 .segment "CODE"
+
+.macro hoststrout ptr
+    LDX #<ptr
+    LDA #>ptr
+    JSR JTSTROUT
+.endmacro
 
 
 ; ============================================================================
@@ -55,13 +57,9 @@ branch_test_actual:
 ; ============================================================================
 
 .macro mark_branch_test_failed
-    lda #TEST_FAIL_COLOR
-    sta CURRENT_COLOR
-
-    lda #$01
-    sta fail_flag
+    LDA #$01
+    STA fail_flag
 .endmacro
-
 
 ; ============================================================================
 ; Test a branch macro that expects flags to have been set by CMP
@@ -80,21 +78,17 @@ branch_test_actual:
     .local exit2
 
     ; Skip the inline Pascal string.
-    jmp test_start
+    JMP test_start
 
 test_string:
     pstring test_name
 
 test_start:
-    lda #DEFAULT_COLOR
-    sta CURRENT_COLOR
-
-    load16 DISPLAY_PTR, test_string
-    jsr DISPLAY_PSTRING
+    hoststrout test_string
 
     ; Establish flags through an unsigned compare.
-    lda #val1
-    cmp #val2
+    LDA #val1
+    CMP #val2
 
     macroopcode did_branch
 
@@ -102,37 +96,35 @@ test_start:
     ; Actual result: branch not taken
     ; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    beq not_taken_ok
+    LDA #expected_taken
+    BEQ not_taken_ok
 
     mark_branch_test_failed
 
 not_taken_ok:
-    load16 DISPLAY_PTR, test_branch_not_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
-    jmp test_done
+    hoststrout test_branch_not_taken
+    JMP test_done
 
 did_branch:
-    ; ------------------------------------------------------------------------
-    ; Actual result: branch taken
-    ; ------------------------------------------------------------------------
+; ------------------------------------------------------------------------
+; Actual result: branch taken
+; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    bne taken_ok
+    LDA #expected_taken
+    BNE taken_ok
 
     mark_branch_test_failed
 
 taken_ok:
-    load16 DISPLAY_PTR, test_branch_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
+    hoststrout test_branch_taken
 
 test_done:
-    lda fail_flag
-    beq exit2
-    jmp freeze_it
+    LDA fail_flag
+    BEQ exit2
+    hoststrout failed_msg
+    JMP freeze_it
 exit2:
+    hoststrout passed_msg
 .endmacro
 
 
@@ -154,56 +146,50 @@ exit2:
     .local test_done
     .local exit2
 
-    jmp test_start
+    JMP test_start
 
 test_string:
     pstring test_name
 
 test_start:
-    lda #DEFAULT_COLOR
-    sta CURRENT_COLOR
+    hoststrout test_string
 
-    load16 DISPLAY_PTR, test_string
-    jsr DISPLAY_PSTRING
-
-    lda #a_value
+    LDA #a_value
     macroopcode compare_value, did_branch
 
     ; ------------------------------------------------------------------------
     ; Actual result: branch not taken
     ; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    beq not_taken_ok
+    LDA #expected_taken
+    BEQ not_taken_ok
 
     mark_branch_test_failed
 
 not_taken_ok:
-    load16 DISPLAY_PTR, test_branch_not_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
-    jmp test_done
+    hoststrout test_branch_not_taken
+    JMP test_done
 
 did_branch:
-    ; ------------------------------------------------------------------------
-    ; Actual result: branch taken
-    ; ------------------------------------------------------------------------
+; ------------------------------------------------------------------------
+; Actual result: branch taken
+; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    bne taken_ok
+    LDA #expected_taken
+    BNE taken_ok
 
     mark_branch_test_failed
 
 taken_ok:
-    load16 DISPLAY_PTR, test_branch_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
+    hoststrout test_branch_taken
 
 test_done:
-    lda fail_flag
-    beq exit2
-    jmp freeze_it
+    LDA fail_flag
+    BEQ exit2
+    hoststrout failed_msg
+    JMP freeze_it
 exit2:
+    hoststrout passed_msg
 .endmacro
 
 
@@ -229,25 +215,21 @@ exit2:
     .local test_done
     .local exit2
 
-    jmp test_start
+    JMP test_start
 
 test_string:
     pstring test_name
 
 test_start:
-    lda #DEFAULT_COLOR
-    sta CURRENT_COLOR
-
-    load16 DISPLAY_PTR, test_string
-    jsr DISPLAY_PSTRING
+    hoststrout test_string
 
     ; Ensure binary arithmetic.
-    cld
+    CLD
 
     ; Establish N and V using a real subtraction.
-    sec
-    lda #signed_lhs
-    sbc #signed_rhs
+    SEC
+    LDA #signed_lhs
+    SBC #signed_rhs
 
     macroopcode did_branch
 
@@ -255,37 +237,35 @@ test_start:
     ; Actual result: branch not taken
     ; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    beq not_taken_ok
+    LDA #expected_taken
+    BEQ not_taken_ok
 
     mark_branch_test_failed
 
 not_taken_ok:
-    load16 DISPLAY_PTR, test_branch_not_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
-    jmp test_done
+    hoststrout test_branch_not_taken
+    JMP test_done
 
 did_branch:
-    ; ------------------------------------------------------------------------
-    ; Actual result: branch taken
-    ; ------------------------------------------------------------------------
+; ------------------------------------------------------------------------
+; Actual result: branch taken
+; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    bne taken_ok
+    LDA #expected_taken
+    BNE taken_ok
 
     mark_branch_test_failed
 
 taken_ok:
-    load16 DISPLAY_PTR, test_branch_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
+    hoststrout test_branch_taken
 
 test_done:
-    lda fail_flag
-    beq exit2
-    jmp freeze_it
+    LDA fail_flag
+    BEQ exit2
+    hoststrout failed_msg
+    JMP freeze_it
 exit2:
+    hoststrout passed_msg
 .endmacro
 
 
@@ -311,75 +291,69 @@ exit2:
     .local exit2
 
     ; Normal execution skips the backward branch target and padding.
-    jmp test_start
+    JMP test_start
 
 far_branch_target:
-    lda #$01
-    sta branch_test_actual
-    jmp evaluate_result
+    LDA #$01
+    STA branch_test_actual
+    JMP evaluate_result
 
     ; Force far_branch_target outside ordinary relative branch range.
     .repeat 132
-        nop
+    NOP
     .endrepeat
 
 test_string:
     pstring test_name
 
 test_start:
-    lda #DEFAULT_COLOR
-    sta CURRENT_COLOR
+    hoststrout test_string
 
-    load16 DISPLAY_PTR, test_string
-    jsr DISPLAY_PSTRING
+    LDA #$00
+    STA branch_test_actual
 
-    lda #$00
-    sta branch_test_actual
-
-    lda #val1
-    cmp #val2
+    LDA #val1
+    CMP #val2
 
     macroopcode far_branch_target
 
 evaluate_result:
-    lda branch_test_actual
-    bne actual_taken
+    LDA branch_test_actual
+    BNE actual_taken
 
     ; ------------------------------------------------------------------------
     ; Actual result: branch not taken
     ; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    beq not_taken_ok
+    LDA #expected_taken
+    BEQ not_taken_ok
 
     mark_branch_test_failed
 
 not_taken_ok:
-    load16 DISPLAY_PTR, test_branch_not_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
-    jmp test_done
+    hoststrout test_branch_not_taken
+    JMP test_done
 
 actual_taken:
-    ; ------------------------------------------------------------------------
-    ; Actual result: branch taken
-    ; ------------------------------------------------------------------------
+; ------------------------------------------------------------------------
+; Actual result: branch taken
+; ------------------------------------------------------------------------
 
-    lda #expected_taken
-    bne taken_ok
+    LDA #expected_taken
+    BNE taken_ok
 
     mark_branch_test_failed
 
 taken_ok:
-    load16 DISPLAY_PTR, test_branch_taken
-    jsr DISPLAY_PSTRING
-    jsr DISPLAY_NEXT_LINE
+    hoststrout test_branch_taken
 
 test_done:
-    lda fail_flag
-    beq exit2
-    jmp freeze_it
+    LDA fail_flag
+    BEQ exit2
+    hoststrout failed_msg
+    JMP freeze_it
 exit2:
+    hoststrout passed_msg
 .endmacro
 
 
@@ -388,10 +362,11 @@ exit2:
 ; ============================================================================
 
 .proc test_branch_macro
-    jsr reset_screen
+;;;  jsr reset_screen
 
-    lda #$00
-    sta fail_flag
+    LDA #$00
+    STA fail_flag
+
 
     ; ========================================================================
     ; 1. UNSIGNED CONDITIONAL BRANCHES
@@ -522,11 +497,11 @@ exit2:
     ; Return with:
     ;   fail_flag = 0 if every test passed
     ;   fail_flag = 1 if one or more tests failed
-    rts
+    RTS
 .endproc
 
 .proc freeze_it
-freeze: jmp freeze
+freeze: JMP freeze
 .endproc
 
 .segment "ZEROPAGE"

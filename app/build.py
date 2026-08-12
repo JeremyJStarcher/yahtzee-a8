@@ -134,8 +134,10 @@ TARGETS = {
         output="fconsole.bin",
         start="$0400",
         description="Build for the fco",
-        #includes=("src/branches.inc", "src/math.inc", "src/hw_limits.inc"),
-    ),
+        # includes=("hosts/shared/branch_test.asm",""),
+    )
+
+    # "hosts/shared/branches.inc", "shared/math.inc"
 
     # New targets are just data:
     #
@@ -288,24 +290,39 @@ def cmd_format_asm(_: argparse.Namespace) -> None:
     py = ensure_venv()
     fmt = ROOT / ".." / "dev-tools" / "fmt6502" / "fmt6502.py"
 
-    by_dir: dict[Path, list[str]] = {}
-    for t in TARGETS.values():
-        files = by_dir.setdefault(ROOT / t.directory, [])
-        for rel in (*t.sources, *t.includes):
-            if rel not in files:
-                files.append(rel)
+    # Format every .asm source under the app/ directory, including files
+    # nested in subdirectories (e.g. hosts/shared/).  Generated
+    # disassemblies (*.disasm.asm) are skipped.
+    root = ROOT
+    skip_dirs = {".git", "venv", "__pycache__"}
+    files = sorted(
+        p for p in root.rglob("*.asm")
+        if p.is_file()
+        and not p.name.endswith(".disasm.asm")
+        and not any(part in skip_dirs for part in p.relative_to(root).parts)
+    )
 
-    for cwd, files in by_dir.items():
-        run(
-            py, fmt,
-            "--strict",
-            "--indent-size", "4",
-            "--comment-indent", "40",
-            "--min-comment-gap", "2",
-            "--in-place",
-            *files,
-            cwd=cwd,
-        )
+    if not files:
+        print("No assembly files found.")
+        return
+
+    print(f"Formatting {len(files)} assembly file(s):")
+    for p in files:
+        print(f"  {p.relative_to(root)}")
+
+    # NOTE: --strict is intentionally omitted.  Some .asm sources use macro
+    # parameters as opcodes (e.g. branch_tests.asm) or macros defined in
+    # .inc files, which produce "unresolved macro" warnings; --strict would
+    # treat those as fatal and refuse to format anything.
+    run(
+        py, fmt,
+        "--indent-size", "4",
+        "--comment-indent", "40",
+        "--min-comment-gap", "2",
+        "--in-place",
+        *[str(p) for p in files],
+        cwd=root,
+    )
 
 
 def cmd_typecheck(_: argparse.Namespace) -> None:

@@ -1,1 +1,4 @@
+./build.py clean
+./build.py fconsole
+
 (cd ../fconsole/; ../venv/venv-ours/bin/python fcon.py --load ../app/hosts/fconsole.bin )

@@ -7,6 +7,7 @@ CHAR_TAB = $09
 CHAR_LF  = $0A
 CHAR_FF  = $0C
 CHAR_CR  = $0D
+CHAR_NL  = $0A
 CHAR_DEL = $7F
 
 CHAR_ARROW_UP = $81
@@ -40,20 +41,38 @@ JTDUMMY = $FF00
 JTGETKEY = $FF06
 JTSTROUT = $FF09                        ;  Prints a pstring A = high byte of pointer  X = low byte of pointer
 
+
+
+.include "shared/branches.inc"
+.include "shared/branch_tests.asm"
+
+
 .segment "VECTORS"
     .addr __RAM_START__                 ; load_address
     .addr start                         ; start_ptr
 
     .segment "CODE"
-start:
+
+.proc start
     LDX #<boot_msg
     LDA #>boot_msg
     JSR JTSTROUT
+
+    JSR test_branch_macro
+
+    LDX #<end_msg
+    LDA #>end_msg
+    JSR JTSTROUT
+
 
 ll:
     JMP ll
 
 boot_msg:
-    pstring2 {"RUNNING PROGRAM", CHAR_BEL}
+    pstring2 {CHAR_NL, "RUNNING PROGRAM", CHAR_BEL, CHAR_NL}
 
 
+end_msg:
+    pstring2 {CHAR_NL, "HALTED", CHAR_BEL, CHAR_NL}
+
+.endproc
