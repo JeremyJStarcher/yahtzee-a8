@@ -132,7 +132,11 @@ TARGETS = {
         sources=("fconsole.asm",),
         config="fcon.cfg",
         output="fconsole.bin",
-        start="$0400",
+        # Image layout per fcon.cfg: VECTORS at %S - 4 ($02FC) is written to
+        # file offset 0, then RAM/CODE from __RAM_START__ ($0300). da65 must
+        # be told the address of file byte 0 or the first page of code and
+        # the vectors are missing from the round-trip disassembly.
+        start="$02FC",
         description="Build for the fco",
         # includes=("hosts/shared/branch_test.asm",""),
     )
