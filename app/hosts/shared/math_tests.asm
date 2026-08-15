@@ -14,6 +14,9 @@
 ;   - low-byte carry / borrow propagation
 ;   - 16-bit wraparound
 ;   - immediate and memory operand forms
+;   - expression immediates (#(expr)) through the .left/.right token path
+;   - constant-expression values via ADD16I / SUB16I
+;   - second-operand overlap and MOV16 in-place copy (dest == src)
 ;   - representative in-place operations (dest == op1)
 ; ============================================================================
 
@@ -272,6 +275,40 @@ test_start:
 
 
 ; ============================================================================
+; Test ADD16 / SUB16 with an expression immediate (#(expr))
+;
+; This is the form that stresses the token extraction in math.inc:
+;
+;     #<(.right (.tcount ({op2}) - 1, {op2}))
+;
+; must resolve correctly when the text after '#' is a compound constant
+; expression rather than a plain hex value.
+; ============================================================================
+
+.macro create_binary16_expr_imm_test test_name, macroopcode, lhs, expr, expected
+    .local test_string
+    .local test_start
+
+    JMP test_start
+
+test_string:
+    pstring test_name
+
+test_start:
+    math_hoststrout test_string
+
+    math_set16 math_test_dest, $A55A
+    math_set16 math_test_op1, lhs
+
+    macroopcode math_test_dest, math_test_op1, #(expr)
+
+    math_assert16 math_test_dest, expected
+    math_assert16 math_test_op1, lhs
+    math_finish_test
+.endmacro
+
+
+; ============================================================================
 ; Test ADD16I / SUB16I
 ; ============================================================================
 
@@ -472,8 +509,79 @@ test_start:
 
 
 ; ============================================================================
+; Test ADD16 / SUB16 where the destination overlaps the second operand:
+;
+;       dest == op2
+;
+; The memory-operand form stores the low byte of dest before reading the
+; high byte of op2, so this aliasing order must still compute lhs + rhs (or
+; lhs - rhs) correctly even though both names point at the same buffer.
+; ============================================================================
+
+.macro create_binary16_dest_eq_op2_test test_name, macroopcode, lhs, rhs, expected
+    .local test_string
+    .local test_start
+
+    JMP test_start
+
+test_string:
+    pstring test_name
+
+test_start:
+    math_hoststrout test_string
+
+    math_set16 math_test_op1, lhs
+    math_set16 math_test_op2, rhs
+
+    ; The destination buffer is also the second operand.
+    macroopcode math_test_op2, math_test_op1, math_test_op2
+
+    math_assert16 math_test_op2, expected
+    math_assert16 math_test_op1, lhs
+    math_finish_test
+.endmacro
+
+
+; ============================================================================
+; Test MOV16 self-copy:
+;
+;       dest == src
+;
+; mov16 writes only the low byte before it reads the high byte of the source,
+; so a fully-overlapping copy must be safe for every 16-bit value.
+; ============================================================================
+
+.macro create_mov16_self_copy_test test_name, value
+    .local test_string
+    .local test_start
+
+    JMP test_start
+
+test_string:
+    pstring test_name
+
+test_start:
+    math_hoststrout test_string
+
+    math_set16 math_test_op1, value
+
+    mov16 math_test_op1, math_test_op1
+
+    math_assert16 math_test_op1, value
+    math_finish_test
+.endmacro
+
+
+; ============================================================================
 ; Complete math macro test procedure
 ; ============================================================================
+
+; Symbolic constants used by the expression-immediate tests below. They exist
+; to prove that compound constant expressions survive the .left/.right token
+; extraction in math.inc (not just plain hex literals).
+MATH_LOCAL_HI  = $02
+MATH_LOCAL_LO  = $34
+
 
 .proc test_math_macro
 
@@ -529,6 +637,9 @@ test_start:
     create_binary16_mem_test "ADD16 12FF + 0001 ", add16, $12FF, $0001, $1300
     create_binary16_mem_test "ADD16 FFFF + 0001 ", add16, $FFFF, $0001, $0000
 
+    ; dest == op2: the destination buffer is also the second operand.
+    create_binary16_dest_eq_op2_test "ADD16 dest==op2   ", add16, $7F80, $0040, $7FC0
+
     ; Representative in-place add (dest == op1).
     create_binary16_inplace_mem_test "ADD16 inplace 00FF ", add16, $00FF, $0001, $0100
 
@@ -541,6 +652,11 @@ test_start:
     create_binary16_imm_test "ADD16 # F000+2000 ", add16, $F000, #$2000, $1000
     create_binary16_inplace_imm_test "ADD16 # inplace    ", add16, $00FF, #$0028, $0127
 
+    ; Expression immediates: compound constant expressions after '#'.
+    create_binary16_expr_imm_test "ADD16 #($x*256+$y)", add16, $1234, (MATH_LOCAL_HI * 256 + MATH_LOCAL_LO), $1468
+    create_binary16_expr_imm_test "ADD16 #(1)       ", add16, $FFFF, (1), $0000
+    create_binary16_expr_imm_test "ADD16 #($8000+$12)", add16, $0010, ($8000 + $12), $8022
+
 
     ; ========================================================================
     ; 6. ADD16I
@@ -550,6 +666,10 @@ test_start:
     create_binary16_const_test "ADD16I 12FF+0001  ", add16i, $12FF, $0001, $1300
     create_binary16_const_test "ADD16I FFFF+0001  ", add16i, $FFFF, $0001, $0000
     create_binary16_inplace_const_test "ADD16I inplace     ", add16i, $00FF, $0028, $0127
+
+    ; The (4 * 6) expression folds to $18 at assembly time; the sum wraps
+    ; out of 16 bits ($FFF4 + $18 = $1000C -> $000C).
+    create_binary16_const_test "ADD16I (4*6)     ", add16i, $FFF4, (4 * 6), $000C
 
 
     ; ========================================================================
@@ -583,6 +703,10 @@ test_start:
     create_binary16_imm_test "SUB16 # 1000-1001 ", sub16, $1000, #$1001, $FFFF
     create_binary16_inplace_imm_test "SUB16 # inplace    ", sub16, $0100, #$0028, $00D8
 
+    ; Expression immediates: compound constant expressions after '#'.
+    create_binary16_expr_imm_test "SUB16 #($x*256+$y)", sub16, $1268, (MATH_LOCAL_HI * 256 + MATH_LOCAL_LO), $1034
+    create_binary16_expr_imm_test "SUB16 #($8000+$12)", sub16, $8030, ($8000 + $12), $001E
+
 
     ; ========================================================================
     ; 10. SUB16I
@@ -592,6 +716,9 @@ test_start:
     create_binary16_const_test "SUB16I 1300-0001  ", sub16i, $1300, $0001, $12FF
     create_binary16_const_test "SUB16I 0000-0001  ", sub16i, $0000, $0001, $FFFF
     create_binary16_inplace_const_test "SUB16I inplace     ", sub16i, $0100, $0028, $00D8
+
+    ; Constant expression folded at assembly time.  Borrows through the top bit.
+    create_binary16_const_test "SUB16I (4*7)      ", sub16i, $0000, (4 * 7), $FFE4
 
 
     ; ========================================================================
@@ -620,6 +747,19 @@ test_start:
     create_mov16_imm_test "MOV16 imm 0000     ", #$0000, $0000
     create_mov16_imm_test "MOV16 imm BEEF     ", #$BEEF, $BEEF
     create_mov16_imm_test "MOV16 imm FFFF     ", #$FFFF, $FFFF
+
+
+    ; ------------------------------------------------------------------------
+    ; 12a. MOV16 in-place copy (dest == src)
+    ;
+    ; The source high byte is read only after the destination low byte has
+    ; been written, so this exercises the overlapping-buffer ordering on the
+    ; middle and boundary values.
+    ; ------------------------------------------------------------------------
+
+    create_mov16_self_copy_test "MOV16 self BEEF   ", $BEEF
+    create_mov16_self_copy_test "MOV16 self 0000   ", $0000
+    create_mov16_self_copy_test "MOV16 self FFFF   ", $FFFF
 
 
     ; Return with:
