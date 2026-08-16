@@ -1,3 +1,18 @@
+; ============================================================================
+; MIRROR FILE -- KEEP BYTE-IDENTICAL ACROSS BUILD TREES
+; ----------------------------------------------------------------------------
+; This library is intentionally duplicated because WASI ca65 can only read
+; its own current directory, and kernel / user-land are separate builds:
+;
+;   kernel    : fconsole/bios/src/branches.inc          (source of truth)
+;   user-land : app/hosts/shared/branches.inc           (mirror)
+;
+; Edit the KERNEL copy first, then sync it to the other tree.  The test
+; suites run tools/inc_drift_check.py which fails if the two copies diverge.
+; The bin/3rdparty/cc65-asm-tests/... copy is an independent toolchain
+; fixture snapshot and is deliberately NOT kept in lockstep with these.
+; ============================================================================
+
 ; quick and dirty macro so we dont haev to keep fixing 65c02 code on the fly
 .macro stz dest
     PHA

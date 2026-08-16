@@ -241,18 +241,16 @@ def cmd_all(args: argparse.Namespace) -> None:
 
 
 def cmd_clean(args: argparse.Namespace) -> None:
-    for name in args.targets or TARGETS:
+    # Every target's outputs are declared in its AsmTarget, so no per-file
+    # leftovers are hardcoded here (kept parallel with the user-land driver).
+    targets = tuple(args.targets) if args.targets else tuple(TARGETS)
+    unknown = [t for t in targets if t not in TARGETS]
+    if unknown:
+        raise SystemExit(
+            f"build.py: unknown target(s) {unknown}; choose from {tuple(TARGETS)}"
+        )
+    for name in targets:
         clean_target(name)
-
-    for p in (ROOT / "fconsole").glob("*.pyc"):
-        p.unlink()
-        print(f"  rm {p.relative_to(ROOT)}")
-
-    for rel in ("src/hello.o", "src/hello.xex"):
-        p = ROOT / rel
-        if p.is_file():
-            p.unlink()
-            print(f"  rm {rel}")
 
     print("Clean complete.")
 
@@ -313,9 +311,12 @@ def cmd_typecheck(_: argparse.Namespace) -> None:
     run(venv_tool("pyrefly"), "check", ".", cwd=ROOT / "fconsole")
 
 
+# Kernel-side suites first; then the shared tools/ check verifying that the
+# user-land mirror of branches/math/hw_limits.inc matches these originals.
 TESTS = (
     ("dev-tools/fmt6502/test_fmt6502.py", None),
     ("fconsole/test_hw_parser.py", "fconsole"),
+    ("tools/inc_drift_check.py", None),
     ("bin/3rdparty/cc65-tests/test_runner.py", None),
     ("bin/3rdparty/cc65-tests/test_cc65_pipeline.py", None),
 )
@@ -395,7 +396,10 @@ def parser() -> argparse.ArgumentParser:
     sub.set_defaults(func=cmd_all)
 
     sub = sp.add_parser("clean", help="Remove build artifacts")
-    sub.add_argument("targets", nargs="*", choices=tuple(TARGETS),
+    # No choices= here: on Python < 3.11 an empty explicit list trips choice
+    # validation for a plain "clean". Unknown names are checked at run time in
+    # cmd_clean with an equivalent message.
+    sub.add_argument("targets", nargs="*",
                      help="targets to clean; default: all")
     sub.set_defaults(func=cmd_clean)
 

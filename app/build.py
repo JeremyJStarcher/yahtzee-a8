@@ -14,6 +14,9 @@ ROOT = Path(__file__).resolve().parent
 VENV = ROOT / ".." / "venv" / "venv-ours"
 REQS = ROOT / ".."/ "venv" / "requirements.txt"
 RUN_WASI = ROOT / ".." / "bin" / "run_wasi.py"
+# Kernel tree holds the emulator itself.  User-land images are passed to it
+# via --load; the BIOS is a raw image configured on the emulator side.
+FCON_DIR = ROOT.parent / "fconsole"
 
 
 # ---------------------------------------------------------------------------
@@ -137,11 +140,17 @@ TARGETS = {
         # be told the address of file byte 0 or the first page of code and
         # the vectors are missing from the round-trip disassembly.
         start="$02FC",
-        description="Build for the fco",
-        # includes=("hosts/shared/branch_test.asm",""),
+        description="Assemble, link, disassemble the user-land host image",
+        # Everything .include'd by fconsole.asm (transitively), listed so an
+        # edit to a shared library shows up as a stale input in build_target().
+        includes=(
+            "shared/branches.inc",
+            "shared/branch_tests.asm",
+            "shared/math.inc",
+            "shared/math_tests.asm",
+            "shared/hw_limits.inc",
+        ),
     )
-
-    # "hosts/shared/branches.inc", "shared/math.inc"
 
     # New targets are just data:
     #
@@ -247,47 +256,82 @@ def cmd_all(args: argparse.Namespace) -> None:
 
 
 def cmd_clean(args: argparse.Namespace) -> None:
-    for name in args.targets or TARGETS:
+    # Every target's outputs are declared in its AsmTarget, so no per-file
+    # leftovers are hardcoded here (kept parallel with the kernel-side driver).
+    targets = tuple(args.targets) if args.targets else tuple(TARGETS)
+    unknown = [t for t in targets if t not in TARGETS]
+    if unknown:
+        raise SystemExit(
+            f"build.py: unknown target(s) {unknown}; choose from {tuple(TARGETS)}"
+        )
+    for name in targets:
         clean_target(name)
-
-    for p in (ROOT / "fconsole").glob("*.pyc"):
-        p.unlink()
-        print(f"  rm {p.relative_to(ROOT)}")
-
-    for rel in ("src/hello.o", "src/hello.xex"):
-        p = ROOT / rel
-        if p.is_file():
-            p.unlink()
-            print(f"  rm {rel}")
 
     print("Clean complete.")
 
 
 def cmd_run(args: argparse.Namespace) -> None:
+    """Build the host image and launch it inside the emulator.
+
+    The host .bin is self-describing (4-byte {load_addr, start_ptr} header at
+    file offset 0, written by the VECTORS segment of fconsole.asm).  It is
+    loaded into user space via --load; the raw BIOS image stays on the
+    kernel side of that boundary and is configured by the emulator itself.
+    """
     build_target("fconsole")
     py = ensure_venv()
+    bin_path = ROOT / "hosts" / "fconsole.bin"
     fcon_args = [
         "--clock-hz", str(args.clock_hz),
         "--instructions-per-batch", str(args.instructions_per_batch),
         "--screen-scale", str(args.screen_scale),
         "--video-backend", args.video_backend,
         "--refresh-hz", str(args.refresh_hz),
+        "--load", str(bin_path),
         *args.extra,
     ]
-    print(f"Running fcon.py with: {' '.join(fcon_args)}")
-    r = run(py, "fcon.py", *fcon_args, cwd=ROOT / "fconsole", check=False)
+    print(f"Running fcon.py with: {' '.join(str(a) for a in fcon_args)}")
+    r = run(py, "fcon.py", *fcon_args, cwd=FCON_DIR, check=False)
+    raise SystemExit(r.returncode)
+
+
+def cmd_macro_tests(_: argparse.Namespace) -> None:
+    """Build the host test image and run it headless under the real BIOS.
+
+    Exit code contract (run_headless.py):
+      0 PASSED   - HALTED reached with no failures
+      1 FAILED   - a test reported failure before freezing
+      2 FROZEN   - frozen without FAIL flags set
+      3 TIMEOUT  - still running after STEP_LIMIT steps
+    """
+    build_target("fconsole")
+    py = ensure_venv()
+    runner = ROOT / "headless-run" / "run_headless.py"
+    r = run(
+        py, runner, str(ROOT / "hosts" / "fconsole.bin"),
+        cwd=ROOT, capture=True, check=False,
+    )
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    if r.returncode == 0:
+        print("\nmacro-tests: PASSED")
+    elif r.returncode in (1, 2):
+        print(f"\nmacro-tests: failed (exit {r.returncode})")
+    else:
+        print(f"\nmacro-tests: timed out or unexpected exit ({r.returncode})")
     raise SystemExit(r.returncode)
 
 
 def cmd_lint(_: argparse.Namespace) -> None:
+    # User-land tree only; the kernel/emulator tree has its own driver.
     ensure_venv()
-    run(venv_tool("ruff"), "check", ".", "--fix", cwd=ROOT / "fconsole")
-    run(venv_tool("pyrefly"), "check", ".", cwd=ROOT / "fconsole")
+    run(venv_tool("ruff"), "check", ".", "--fix", cwd=ROOT)
+    run(venv_tool("pyrefly"), "check", ".", cwd=ROOT)
 
 
 def cmd_format(_: argparse.Namespace) -> None:
     ensure_venv()
-    run(venv_tool("ruff"), "format", ".", cwd=ROOT / "fconsole")
+    run(venv_tool("ruff"), "format", ".", cwd=ROOT)
 
 
 def cmd_format_asm(_: argparse.Namespace) -> None:
@@ -331,15 +375,31 @@ def cmd_format_asm(_: argparse.Namespace) -> None:
 
 def cmd_typecheck(_: argparse.Namespace) -> None:
     ensure_venv()
-    run(venv_tool("pyrefly"), "check", ".", cwd=ROOT / "fconsole")
+    run(venv_tool("pyrefly"), "check", ".", cwd=ROOT)
 
 
-TESTS = (
-    ("dev-tools/fmt6502/test_fmt6502.py", None),
-    ("fconsole/test_hw_parser.py", "fconsole"),
-    ("bin/3rdparty/cc65-tests/test_runner.py", None),
-    ("bin/3rdparty/cc65-tests/test_cc65_pipeline.py", None),
+# Python test scripts owned by this user-land tree.  Kernel-side suites
+# (fmt6502, hw parser, cc65 pipeline) belong to the top-level driver and are
+# deliberately NOT re-listed here.  The inc-drift check lives in the shared
+# tools/ dir and verifies our mirror copies against the kernel originals.
+TESTS: tuple[tuple[str, str | None], ...] = (
+    ("../tools/inc_drift_check.py", None),
 )
+
+
+def _run_macro_tests(py: Path, failures: list[str]) -> None:
+    """Build the host image and run it headless under the real BIOS."""
+    print("\n--- macro tests (headless) ---", flush=True)
+    build_target("fconsole")
+    runner = ROOT / "headless-run" / "run_headless.py"
+    r = run(
+        py, runner, str(ROOT / "hosts" / "fconsole.bin"),
+        cwd=ROOT, capture=True, check=False,
+    )
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    if r.returncode:
+        failures.append(f"macro-tests/run_headless.py (exit {r.returncode})")
 
 
 def cmd_test(_: argparse.Namespace) -> None:
@@ -358,6 +418,8 @@ def cmd_test(_: argparse.Namespace) -> None:
         sys.stderr.write(r.stderr)
         if r.returncode:
             failures.append(f"{script} (exit {r.returncode})")
+
+    _run_macro_tests(py, failures)
 
     if failures:
         print(f"\n{len(failures)} test suite(s) failed:")
@@ -416,7 +478,10 @@ def parser() -> argparse.ArgumentParser:
     sub.set_defaults(func=cmd_all)
 
     sub = sp.add_parser("clean", help="Remove build artifacts")
-    sub.add_argument("targets", nargs="*", choices=tuple(TARGETS),
+    # No choices= here: on Python < 3.11 an empty explicit list trips choice
+    # validation for a plain "clean". Unknown names are checked at run time in
+    # cmd_clean with an equivalent message.
+    sub.add_argument("targets", nargs="*",
                      help="targets to clean; default: all")
     sub.set_defaults(func=cmd_clean)
 
@@ -428,6 +493,12 @@ def parser() -> argparse.ArgumentParser:
         sub = sp.add_parser(name, help=help_text)
         add_run_args(sub, backend, refresh, False)
         sub.set_defaults(func=cmd_run)
+
+    sub = sp.add_parser(
+        "macro-tests",
+        help="Build host test image and run it headless under the BIOS",
+    )
+    sub.set_defaults(func=cmd_macro_tests)
 
     for name, help_text, func in (
         ("lint", "Run ruff + pyrefly", cmd_lint),

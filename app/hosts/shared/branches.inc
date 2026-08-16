@@ -1,4 +1,27 @@
 ; ============================================================================
+; MIRROR FILE -- KEEP BYTE-IDENTICAL ACROSS BUILD TREES
+; ----------------------------------------------------------------------------
+; This library is intentionally duplicated because WASI ca65 can only read
+; its own current directory, and kernel / user-land are separate builds:
+;
+;   kernel    : fconsole/bios/src/branches.inc          (source of truth)
+;   user-land : app/hosts/shared/branches.inc           (mirror)
+;
+; Edit the KERNEL copy first, then sync it to the other tree.  The test
+; suites run tools/inc_drift_check.py which fails if the two copies diverge.
+; The bin/3rdparty/cc65-asm-tests/... copy is an independent toolchain
+; fixture snapshot and is deliberately NOT kept in lockstep with these.
+; ============================================================================
+
+; quick and dirty macro so we dont haev to keep fixing 65c02 code on the fly
+.macro stz dest
+    PHA
+    LDA #$00
+    STA dest
+    PLA
+.endmacro
+
+; ============================================================================
 ; ca65 Synthetic Branching and Relational Macro Suite
 ; ============================================================================
 ;
@@ -301,7 +324,7 @@
     BPL @done
 
 @no_overflow:
-    ; V=0. N=0 means N == V, so the signed result is >=.
+; V=0. N=0 means N == V, so the signed result is >=.
     BPL target
 
 @done:
@@ -352,7 +375,7 @@
     BMI @done
 
 @no_overflow:
-    ; V=0. N=1 means N != V, so the signed result is <.
+; V=0. N=1 means N != V, so the signed result is <.
     BMI target
 
 @done:
@@ -610,11 +633,11 @@
 
 .macro check_branch_distance target_label, macro_name, short_name
     .ifblank target_label
-        .error "Missing target label for long branch macro"
+    .error "Missing target label for long branch macro"
     .else
-        .if (target_label - (* + 2)) >= -128 .and  (target_label - (* + 2)) <= 127
-            .out .sprintf("OPTIMIZATION WARNING: %s to '%s' is in range! Use %s instead to save 3 bytes and cycles.", macro_name, .string(target_label), short_name)
-        .endif
+    .if (target_label - (* + 2)) >= -128 .and  (target_label - (* + 2)) <= 127
+    .out .sprintf("OPTIMIZATION WARNING: %s to '%s' is in range! Use %s instead to save 3 bytes and cycles.", macro_name, .string(target_label), short_name)
+    .endif
     .endif
 .endmacro
 

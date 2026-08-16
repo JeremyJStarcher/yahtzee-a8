@@ -1,3 +1,18 @@
+; ============================================================================
+; MIRROR FILE -- KEEP BYTE-IDENTICAL ACROSS BUILD TREES
+; ----------------------------------------------------------------------------
+; This library is intentionally duplicated because WASI ca65 can only read
+; its own current directory, and kernel / user-land are separate builds:
+;
+;   kernel    : fconsole/bios/src/hw_limits.inc          (source of truth)
+;   user-land : app/hosts/shared/hw_limits.inc           (mirror)
+;
+; Edit the KERNEL copy first, then sync it to the other tree.  The test
+; suites run tools/inc_drift_check.py which fails if the two copies diverge.
+; The bin/3rdparty/cc65-asm-tests/... copy is an independent toolchain
+; fixture snapshot and is deliberately NOT kept in lockstep with these.
+; ============================================================================
+
 
 ; CPU clock rate in cycles per second / Hz.
 ; Example: Atari NTSC-ish clock:

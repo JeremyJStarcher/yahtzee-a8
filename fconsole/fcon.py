@@ -575,6 +575,16 @@ class SystemBus:
         if self.char_write_cb:
             self.char_write_cb(offset, val)
 
+    # -- Public screen accessors --------------------------------------------
+
+    def read_char_ram(self) -> bytes:
+        """Return a snapshot of the video character RAM (screen_size bytes)."""
+        return self._fallback_char_ram[:]
+
+    def read_color_ram(self) -> bytes:
+        """Return a snapshot of the video color RAM (screen_size bytes)."""
+        return self._fallback_color_ram[:]
+
     # -- Color memory -------------------------------------------------------
 
     def _read_color_mem(self, offset: int) -> int:

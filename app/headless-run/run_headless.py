@@ -41,23 +41,40 @@ S2P = _load_screen_to_ascii()
 LBL = Path(__file__).resolve().parents[1] / "hosts/fconsole.lbl"
 
 
-def label_addr(name: str) -> int | None:
-    """Absolute RAM address of a ZEROPAGE label, via the ca65 .lbl file.
+def load_labels(names: tuple[str, ...]) -> dict[str, int]:
+    """Absolute RAM addresses of ZEROPAGE labels, via the ca65 .lbl file.
 
-    The linker maps ZEROPAGE at $0000, so the listed offset is directly an
+    The linker maps ZEROPAGE at $0000, so each listed offset is directly an
     absolute address.
     """
     import re
 
+    if not LBL.is_file():
+        raise SystemExit(
+            "ERROR: missing build artifact hosts/fconsole.lbl.\n"
+            "       Run './build.py fconsole' first to assemble and link the host image."
+        )
+
     with open(LBL) as f:
-        for m in re.finditer(r"^al ([0-9A-Fa-f]+) (?:\.)?([A-Za-z_][^\s]*)$", f.read(), re.M):
-            if m.group(2) == name:
-                return int(m.group(1), 16)
-    return None
+        table = {
+            m.group(2): int(m.group(1), 16)
+            for m in re.finditer(r"^al ([0-9A-Fa-f]+) (?:\.)?([A-Za-z_][^\s]*)$", f.read(), re.M)
+        }
+
+    found: dict[str, int] = {}
+    for name in names:
+        if name not in table:
+            raise SystemExit(
+                f"ERROR: label '{name}' not found in {LBL}.\n"
+                "       Was hosts/ rebuilt from current sources?"
+            )
+        found[name] = table[name]
+    return found
 
 
-fail_flag = label_addr("fail_flag")
-math_fail_flag = label_addr("math_fail_flag")
+labels = load_labels(("fail_flag", "math_fail_flag"))
+fail_flag = labels["fail_flag"]
+math_fail_flag = labels["math_fail_flag"]
 print(f"fail_flag=${fail_flag:X}  math_fail_flag=${math_fail_flag:X}")
 
 from py65.devices.mpu6502 import MPU  # noqa: E402
@@ -101,7 +118,7 @@ def flags_now() -> tuple[int | None, int | None]:
 
 
 def decode_screen() -> str:
-    ram = cpu_mod.bus._fallback_char_ram
+    ram = cpu_mod.bus.read_char_ram()
     out = []
     for row_start in range(0, len(ram), 40):
         cells = [S2P[b] or "?" for b in ram[row_start : row_start + 40]]

@@ -32,27 +32,8 @@ math_failed_msg:
     pstring2 {"  FAILED", CHAR_NL}
 
 
-; ----------------------------------------------------------------------------
-; Test state
-; ----------------------------------------------------------------------------
-
-.segment "ZEROPAGE"
-
-math_fail_flag:
-    .res 1
-
-math_test_dest:
-    .res 2
-
-math_test_op1:
-    .res 2
-
-math_test_op2:
-    .res 2
-
-math_test_val8:
-    .res 1
-
+; NOTE: zero-page scratch (math_fail_flag, math_test_*) is allocated in a
+; single consolidated ZEROPAGE section at the top level (fconsole.asm).
 
 .segment "CODE"
 

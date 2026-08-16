@@ -28,20 +28,8 @@ test_branch_not_taken:
 
 passed_msg: pstring2 {"  PASSED", CHAR_NL}
 failed_msg: pstring2 {"  FAILED", CHAR_NL}
-
-; ----------------------------------------------------------------------------
-; Test state
-; ----------------------------------------------------------------------------
-
-.segment "ZEROPAGE"
-
-; Keep your existing fail_flag allocation if it already exists.
-; fail_flag:
-;     .res 1
-
-; Used by the long-jump tests.
-branch_test_actual:
-    .res 1
+; NOTE: zero-page scratch (fail_flag, branch_test_actual) is allocated in a
+; single consolidated ZEROPAGE section at the top level (fconsole.asm).
 
 .segment "CODE"
 
@@ -503,7 +491,3 @@ exit2:
 .proc freeze_it
 freeze: JMP freeze
 .endproc
-
-.segment "ZEROPAGE"
-fail_flag: .res 1
-.segment "CODE"
