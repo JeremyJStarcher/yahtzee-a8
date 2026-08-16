@@ -133,7 +133,7 @@ TARGETS = {
     "fconsole": AsmTarget(
         directory="hosts",
         sources=("fconsole.asm",),
-        config="fcon.cfg",
+        config="fconsole.cfg",
         output="fconsole.bin",
         # Image layout per fcon.cfg: VECTORS at %S - 4 ($02FC) is written to
         # file offset 0, then RAM/CODE from __RAM_START__ ($0300). da65 must
