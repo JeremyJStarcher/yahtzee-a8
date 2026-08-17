@@ -12,6 +12,7 @@ app/
     fconsole.asm         Top level; single consolidated ZEROPAGE + budget assert
     shared/*.inc         MIRROR copies of the kernel headers (kept byte-identical on purpose*)
     shared/*_tests.asm   Branch-macro and math macro test suites (assembled into the image)
+    output/<image>/      Build products per target (<dir>/output/<image>: .o/.lst/.map/.dbg/.lbl/.bin/.disasm.asm, gitignored)
   headless-run/          Text-only runner used by `macro-tests`; no GUI deps
   tools/inc_drift_check.py   Fails if any mirror copy drifted from its kernel original
   plans/                 Improvement plan + golden baseline capture
@@ -25,7 +26,7 @@ app/
 
 | Command | What it does |
 |---|---|
-| `./build.py fconsole` | Assemble → link → da65 disassemble the host image (`hosts/fconsole.bin`) |
+| `./build.py fconsole` | Assemble → link → da65 disassemble the host image (`hosts/output/fconsole/fconsole.bin`) |
 | `./build.py all` / `clean` | Build every target / drop artifacts |
 | `./build.py macro-tests` | Build the test image and run it headless under BIOS; exits non-zero on any suite failure |
 | `./build.py test` | Everything testable: Python checks + drift check + headless macro run |
@@ -41,7 +42,7 @@ The emulator itself lives in [`../fconsole`](../fconsole); its own `build.py` th
 Two distinct binary shapes exist, and mixing them up is a classic foot-gun:
 
 1. **Raw BIOS image** — pure 4 KB ROM contents flashed to `$F000`. What the kernel driver's build emits and what `run` boots.
-2. **Loadable user image** — produced here as `hosts/fconsole.bin`: `[load_addr:u16][start_ptr:u16][code...]` little-endian header followed by program bytes, placed into RAM at runtime (currently $0300, start pointer published via the bus flags at $0203–$0204). The headless runner resolves label addresses from `hosts/fconsole.lbl` rather than hardcoding offsets, so ZEROPAGE may move without breaking it.
+2. **Loadable user image** — produced here as `hosts/output/fconsole/fconsole.bin`: `[load_addr:u16][start_ptr:u16][code...]` little-endian header followed by program bytes, placed into RAM at runtime (currently $0300, start pointer published via the bus flags at $0203–$0204). The headless runner resolves label addresses from `hosts/output/fconsole/fconsole.lbl` rather than hardcoding offsets, so ZEROPAGE may move without breaking it.
 
 ## Zero-page budget
 

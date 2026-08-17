@@ -11,10 +11,14 @@ from pathlib import Path
 FCON = Path(__file__).resolve().parents[1] / ".." / "fconsole"
 sys.path.insert(0, str(FCON))
 
-import fcon as F  # noqa: E402
+# fcon lives in the sibling ../fconsole tree and is only importable via the
+# sys.path.insert above; py65 ships with the project venv. Neither resolves
+# from static heuristics, so the checker misses them by design here.
+import fcon as F  # noqa: E402  # pyrefly: ignore[missing-import]
 
-BIN = Path(sys.argv[1]) if len(sys.argv) > 1 else (Path(__file__).resolve().parents[1] / "hosts/fconsole.bin")
-LST = Path(__file__).resolve().parents[1] / "hosts/fconsole.lst"
+ART_DIR = Path(__file__).resolve().parents[1] / "hosts" / "output" / "fconsole"
+BIN = Path(sys.argv[1]) if len(sys.argv) > 1 else ART_DIR / "fconsole.bin"
+LST = ART_DIR / "fconsole.lst"
 
 
 def _load_screen_to_ascii() -> list[str]:
@@ -38,7 +42,7 @@ def _load_screen_to_ascii() -> list[str]:
 S2P = _load_screen_to_ascii()
 
 
-LBL = Path(__file__).resolve().parents[1] / "hosts/fconsole.lbl"
+LBL = ART_DIR / "fconsole.lbl"
 
 
 def load_labels(names: tuple[str, ...]) -> dict[str, int]:
@@ -51,7 +55,7 @@ def load_labels(names: tuple[str, ...]) -> dict[str, int]:
 
     if not LBL.is_file():
         raise SystemExit(
-            "ERROR: missing build artifact hosts/fconsole.lbl.\n"
+            "ERROR: missing build artifact hosts/output/fconsole/fconsole.lbl.\n"
             "       Run './build.py fconsole' first to assemble and link the host image."
         )
 
@@ -77,7 +81,7 @@ fail_flag = labels["fail_flag"]
 math_fail_flag = labels["math_fail_flag"]
 print(f"fail_flag=${fail_flag:X}  math_fail_flag=${math_fail_flag:X}")
 
-from py65.devices.mpu6502 import MPU  # noqa: E402
+from py65.devices.mpu6502 import MPU  # noqa: E402  # pyrefly: ignore[missing-import]
 
 cfg = F.EmulatorConfig(
     screen_cols=40,
@@ -137,7 +141,7 @@ for step in range(STEP_LIMIT):
         if "HALTED" in text_now:
             halted = True
             break
-        visible = [l.rstrip() for l in text_now.split("\n") if l.strip()]
+        visible = [line.rstrip() for line in text_now.split("\n") if line.strip()]
         print(f"[{step}] last lines: {visible[-3:]}", flush=True)
 
     # Freeze-loop detection (the test suites freeze on the first failure).

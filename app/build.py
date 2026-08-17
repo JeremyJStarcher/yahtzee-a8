@@ -105,6 +105,15 @@ class AsmTarget:
         return Path(self.output).stem
 
     @property
+    def out(self) -> Path:
+        """Artifact directory: <directory>/output/<image-stem>.
+
+        Generated files (.o/.lst/.map/.dbg/.lbl/bin/disasm) live here rather
+        than beside the sources; one folder per image keeps multiple targets
+        in a shared source root from colliding."""
+        return ROOT / self.directory / "output" / self.stem
+
+    @property
     def objects(self) -> tuple[str, ...]:
         return tuple(str(Path(x).with_suffix(".o")) for x in self.sources)
 
@@ -152,7 +161,9 @@ TARGETS = {
         ),
     )
 
-    # New targets are just data:
+    # New targets are just data. Generated files always land in
+    # <directory>/output/<image-stem> (see AsmTarget.out), so a source root can
+    # host several images without their artifacts colliding.
     #
     # "game": AsmTarget(
     #     directory="fconsole/game",
@@ -169,57 +180,63 @@ TARGETS = {
 def build_target(name: str, force: bool = False) -> None:
     t = TARGETS[name]
     d = ROOT / t.directory
+    o = t.out
     py = ensure_venv()
+    o.mkdir(parents=True, exist_ok=True)
+
+    def cli(p: Path) -> str:
+        """Path for tool invocations that run with cwd=d."""
+        return p.relative_to(d).as_posix()
 
     common_inputs = [d / x for x in t.includes]
 
     for src, obj, listing in zip(t.sources, t.objects, t.listings):
         inputs = [d / src, *common_inputs]
-        outputs = [d / obj, d / listing]
+        outputs = [o / obj, o / listing]
         if stale(outputs, inputs, force):
             print(f"Assembling {src} -> {obj} ...")
             wasi(
                 py, "ca65",
                 "--cpu", t.cpu,
                 "--debug-info",
-                "--listing", listing,
+                "--listing", cli(o / listing),
                 "--segment-list",
                 "--list-bytes", "16",
                 "--expand-macros",
-                "-o", obj,
+                "-o", cli(o / obj),
                 src,
                 cwd=d,
             )
         else:
             print(f"  up to date: {obj}")
 
-    link_inputs = [d / x for x in (*t.objects, t.config)]
-    link_outputs = [d / x for x in (t.output, t.map, t.dbg, t.labels)]
+    link_inputs = [d / t.config, *(o / x for x in t.objects)]
+    link_outputs = [o / x for x in (t.output, t.map, t.dbg, t.labels)]
     if stale(link_outputs, link_inputs, force):
         print(f"Linking {t.output} ...")
         wasi(
             py, "ld65",
             "-C", t.config,
-            "--mapfile", t.map,
-            "--dbgfile", t.dbg,
-            "-Ln", t.labels,
+            "--mapfile", cli(o / t.map),
+            "--dbgfile", cli(o / t.dbg),
+            "-Ln", cli(o / t.labels),
             "-vm",
-            "-o", t.output,
-            *t.objects,
+            "-o", cli(o / t.output),
+            *[cli(o / x) for x in t.objects],
             cwd=d,
         )
     else:
         print(f"  up to date: {t.output}")
 
-    if stale([d / t.disasm], [d / t.output], force):
+    if stale([o / t.disasm], [o / t.output], force):
         print(f"Disassembling {t.output} -> {t.disasm} ...")
         wasi(
             py, "da65",
             "--cpu", t.cpu,
             "--start-addr", t.start,
             "--multi-pass",
-            "-o", t.disasm,
-            t.output,
+            "-o", cli(o / t.disasm),
+            cli(o / t.output),
             cwd=d,
         )
     else:
@@ -231,15 +248,22 @@ def build_target(name: str, force: bool = False) -> None:
 def clean_target(name: str) -> None:
     t = TARGETS[name]
     d = ROOT / t.directory
+    o = t.out
     artifacts = (
         *t.objects, *t.listings,
         t.output, t.map, t.dbg, t.labels, t.disasm,
     )
     for rel in artifacts:
-        p = d / rel
+        p = o / rel
         if p.is_file():
             p.unlink()
             print(f"  rm {p.relative_to(ROOT)}")
+    # Drop empty output dirs so a cleaned tree matches an unbuilt one.
+    for sub in (o, d / "output"):
+        try:
+            sub.rmdir()
+        except OSError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -280,7 +304,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     """
     build_target("fconsole")
     py = ensure_venv()
-    bin_path = ROOT / "hosts" / "fconsole.bin"
+    img = TARGETS["fconsole"]
+    bin_path = img.out / img.output
     fcon_args = [
         "--clock-hz", str(args.clock_hz),
         "--instructions-per-batch", str(args.instructions_per_batch),
@@ -308,7 +333,8 @@ def cmd_macro_tests(_: argparse.Namespace) -> None:
     py = ensure_venv()
     runner = ROOT / "headless-run" / "run_headless.py"
     r = run(
-        py, runner, str(ROOT / "hosts" / "fconsole.bin"),
+        py, runner,
+        str(TARGETS["fconsole"].out / TARGETS["fconsole"].output),
         cwd=ROOT, capture=True, check=False,
     )
     sys.stdout.write(r.stdout)
@@ -393,7 +419,8 @@ def _run_macro_tests(py: Path, failures: list[str]) -> None:
     build_target("fconsole")
     runner = ROOT / "headless-run" / "run_headless.py"
     r = run(
-        py, runner, str(ROOT / "hosts" / "fconsole.bin"),
+        py, runner,
+        str(TARGETS["fconsole"].out / TARGETS["fconsole"].output),
         cwd=ROOT, capture=True, check=False,
     )
     sys.stdout.write(r.stdout)
