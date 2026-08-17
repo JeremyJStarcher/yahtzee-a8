@@ -59,7 +59,6 @@ JTGETKEY = $FF06
 JTSTROUT = $FF09                        ;  Prints a pstring A = high byte of pointer  X = low byte of pointer
 
 
-
 ; Hardware constants (clock, screen geometry, fill values).  Included here so
 ; they are compile-checked on every host build even while no game code uses
 ; them yet.
@@ -80,6 +79,9 @@ JTSTROUT = $FF09                        ;  Prints a pstring A = high byte of poi
     LDX #<boot_msg
     LDA #>boot_msg
     JSR JTSTROUT
+
+    LDA #$00
+    STA fail_flag
 
     JSR test_branch_macro
     JSR test_math_macro

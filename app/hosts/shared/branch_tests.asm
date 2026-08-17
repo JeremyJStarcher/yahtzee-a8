@@ -33,14 +33,6 @@ failed_msg: pstring2 {"  FAILED", CHAR_NL}
 
 .segment "CODE"
 
-; ============================================================================
-; Mark the current test as failed
-; ============================================================================
-
-.macro mark_branch_test_failed
-    LDA #$01
-    STA fail_flag
-.endmacro
 
 ; ============================================================================
 ; Test a branch macro that expects flags to have been set by CMP
@@ -80,7 +72,7 @@ test_start:
     LDA #expected_taken
     BEQ not_taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 not_taken_ok:
     host_print_pstring test_branch_not_taken
@@ -94,7 +86,7 @@ did_branch:
     LDA #expected_taken
     BNE taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 taken_ok:
     host_print_pstring test_branch_taken
@@ -145,7 +137,7 @@ test_start:
     LDA #expected_taken
     BEQ not_taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 not_taken_ok:
     host_print_pstring test_branch_not_taken
@@ -159,7 +151,7 @@ did_branch:
     LDA #expected_taken
     BNE taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 taken_ok:
     host_print_pstring test_branch_taken
@@ -221,7 +213,7 @@ test_start:
     LDA #expected_taken
     BEQ not_taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 not_taken_ok:
     host_print_pstring test_branch_not_taken
@@ -235,7 +227,7 @@ did_branch:
     LDA #expected_taken
     BNE taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 taken_ok:
     host_print_pstring test_branch_taken
@@ -309,7 +301,7 @@ evaluate_result:
     LDA #expected_taken
     BEQ not_taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 not_taken_ok:
     host_print_pstring test_branch_not_taken
@@ -323,7 +315,7 @@ actual_taken:
     LDA #expected_taken
     BNE taken_ok
 
-    mark_branch_test_failed
+    mark_test_failed
 
 taken_ok:
     host_print_pstring test_branch_taken
@@ -345,15 +337,13 @@ exit2:
 .proc test_branch_macro
 ;;;  jsr reset_screen
 
-    LDA #$00
-    STA fail_flag
 
 
-    ; ========================================================================
-    ; 1. UNSIGNED CONDITIONAL BRANCHES
-    ; ========================================================================
+; ========================================================================
+; 1. UNSIGNED CONDITIONAL BRANCHES
+; ========================================================================
 
-    ; BEQ alias
+; BEQ alias
     create_branch_test "BEQ 0 == 0 ", beq_alias, $00, $00, BRANCH_TAKEN
     create_branch_test "BEQ 0 == 1 ", beq_alias, $00, $01, BRANCH_NOT_TAKEN
 
