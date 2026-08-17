@@ -32,7 +32,7 @@ math_failed_msg:
     pstring2 {"  FAILED", CHAR_NL}
 
 
-; NOTE: zero-page scratch (math_fail_flag, math_test_*) is allocated in a
+; NOTE: zero-page scratch (fail_flag, math_test_*) is allocated in a
 ; single consolidated ZEROPAGE section at the top level (fconsole.asm).
 
 .segment "CODE"
@@ -55,7 +55,7 @@ math_failed_msg:
 
 .macro mark_math_test_failed
     LDA #$01
-    STA math_fail_flag
+    STA fail_flag
 .endmacro
 
 
@@ -124,7 +124,7 @@ done:
 .macro math_finish_test
     .local passed
 
-    LDA math_fail_flag
+    LDA fail_flag
     BEQ passed
 
     math_hoststrout math_failed_msg
@@ -567,7 +567,7 @@ MATH_LOCAL_LO  = $34
 .proc test_math_macro
 
     LDA #$00
-    STA math_fail_flag
+    STA fail_flag
 
     ; All arithmetic tests assume normal binary arithmetic.
     CLD
@@ -744,8 +744,8 @@ MATH_LOCAL_LO  = $34
 
 
     ; Return with:
-    ;   math_fail_flag = 0 if every test passed
-    ;   math_fail_flag = 1 if a test failed
+    ;   fail_flag = 0 if every test passed
+    ;   fail_flag = 1 if a test failed
     ;
     ; A failed test freezes immediately, matching branch_tests.asm.
     RTS
