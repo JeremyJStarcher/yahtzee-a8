@@ -37,18 +37,6 @@ math_failed_msg:
 
 .segment "CODE"
 
-
-; ============================================================================
-; Output a Pascal string through the host
-; ============================================================================
-
-.macro math_hoststrout ptr
-    LDX #<ptr
-    LDA #>ptr
-    JSR JTSTROUT
-.endmacro
-
-
 ; ============================================================================
 ; Mark the current test as failed
 ; ============================================================================
@@ -127,11 +115,11 @@ done:
     LDA fail_flag
     BEQ passed
 
-    math_hoststrout math_failed_msg
+    host_print_pstring math_failed_msg
     JMP math_freeze_it
 
 passed:
-    math_hoststrout math_passed_msg
+    host_print_pstring math_passed_msg
 .endmacro
 
 
@@ -152,7 +140,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     ; Sentinel proves both bytes are overwritten.
     math_set16 math_test_dest, $A55A
@@ -184,7 +172,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, initial
 
@@ -211,7 +199,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
     math_set16 math_test_op1, lhs
@@ -240,7 +228,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
     math_set16 math_test_op1, lhs
@@ -276,7 +264,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
     math_set16 math_test_op1, lhs
@@ -303,7 +291,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
     math_set16 math_test_op1, lhs
@@ -332,7 +320,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, lhs
     math_set16 math_test_op2, rhs
@@ -355,7 +343,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, lhs
 
@@ -377,7 +365,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, lhs
 
@@ -402,7 +390,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
     math_set16 math_test_op1, lhs
@@ -427,7 +415,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, lhs
     math_set8 math_test_val8, rhs8
@@ -454,7 +442,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
     math_set16 math_test_op1, value
@@ -477,7 +465,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_dest, $A55A
 
@@ -509,7 +497,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_op1, lhs
     math_set16 math_test_op2, rhs
@@ -542,7 +530,7 @@ test_string:
     pstring test_name
 
 test_start:
-    math_hoststrout test_string
+    host_print_pstring test_string
 
     math_set16 math_test_op1, value
 

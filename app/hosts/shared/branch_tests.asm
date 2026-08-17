@@ -33,13 +33,6 @@ failed_msg: pstring2 {"  FAILED", CHAR_NL}
 
 .segment "CODE"
 
-.macro hoststrout ptr
-    LDX #<ptr
-    LDA #>ptr
-    JSR JTSTROUT
-.endmacro
-
-
 ; ============================================================================
 ; Mark the current test as failed
 ; ============================================================================
@@ -72,7 +65,7 @@ test_string:
     pstring test_name
 
 test_start:
-    hoststrout test_string
+    host_print_pstring test_string
 
     ; Establish flags through an unsigned compare.
     LDA #val1
@@ -90,7 +83,7 @@ test_start:
     mark_branch_test_failed
 
 not_taken_ok:
-    hoststrout test_branch_not_taken
+    host_print_pstring test_branch_not_taken
     JMP test_done
 
 did_branch:
@@ -104,15 +97,15 @@ did_branch:
     mark_branch_test_failed
 
 taken_ok:
-    hoststrout test_branch_taken
+    host_print_pstring test_branch_taken
 
 test_done:
     LDA fail_flag
     BEQ exit2
-    hoststrout failed_msg
+    host_print_pstring failed_msg
     JMP freeze_it
 exit2:
-    hoststrout passed_msg
+    host_print_pstring passed_msg
 .endmacro
 
 
@@ -140,7 +133,7 @@ test_string:
     pstring test_name
 
 test_start:
-    hoststrout test_string
+    host_print_pstring test_string
 
     LDA #a_value
     macroopcode compare_value, did_branch
@@ -155,7 +148,7 @@ test_start:
     mark_branch_test_failed
 
 not_taken_ok:
-    hoststrout test_branch_not_taken
+    host_print_pstring test_branch_not_taken
     JMP test_done
 
 did_branch:
@@ -169,15 +162,15 @@ did_branch:
     mark_branch_test_failed
 
 taken_ok:
-    hoststrout test_branch_taken
+    host_print_pstring test_branch_taken
 
 test_done:
     LDA fail_flag
     BEQ exit2
-    hoststrout failed_msg
+    host_print_pstring failed_msg
     JMP freeze_it
 exit2:
-    hoststrout passed_msg
+    host_print_pstring passed_msg
 .endmacro
 
 
@@ -209,7 +202,7 @@ test_string:
     pstring test_name
 
 test_start:
-    hoststrout test_string
+    host_print_pstring test_string
 
     ; Ensure binary arithmetic.
     CLD
@@ -231,7 +224,7 @@ test_start:
     mark_branch_test_failed
 
 not_taken_ok:
-    hoststrout test_branch_not_taken
+    host_print_pstring test_branch_not_taken
     JMP test_done
 
 did_branch:
@@ -245,15 +238,15 @@ did_branch:
     mark_branch_test_failed
 
 taken_ok:
-    hoststrout test_branch_taken
+    host_print_pstring test_branch_taken
 
 test_done:
     LDA fail_flag
     BEQ exit2
-    hoststrout failed_msg
+    host_print_pstring failed_msg
     JMP freeze_it
 exit2:
-    hoststrout passed_msg
+    host_print_pstring passed_msg
 .endmacro
 
 
@@ -295,7 +288,7 @@ test_string:
     pstring test_name
 
 test_start:
-    hoststrout test_string
+    host_print_pstring test_string
 
     LDA #$00
     STA branch_test_actual
@@ -319,7 +312,7 @@ evaluate_result:
     mark_branch_test_failed
 
 not_taken_ok:
-    hoststrout test_branch_not_taken
+    host_print_pstring test_branch_not_taken
     JMP test_done
 
 actual_taken:
@@ -333,15 +326,15 @@ actual_taken:
     mark_branch_test_failed
 
 taken_ok:
-    hoststrout test_branch_taken
+    host_print_pstring test_branch_taken
 
 test_done:
     LDA fail_flag
     BEQ exit2
-    hoststrout failed_msg
+    host_print_pstring failed_msg
     JMP freeze_it
 exit2:
-    hoststrout passed_msg
+    host_print_pstring passed_msg
 .endmacro
 
 

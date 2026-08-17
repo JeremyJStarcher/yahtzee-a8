@@ -46,6 +46,13 @@ data_end:
     .assert (data_end - data_start) <= $FF, error, "pstring2 payload exceeds 255 bytes"
 .endmacro
 
+.macro host_print_pstring ptr
+    LDX #<ptr
+    LDA #>ptr
+    JSR JTSTROUT
+.endmacro
+
+
 JTCLS = $FF03
 JTDUMMY = $FF00
 JTGETKEY = $FF06
