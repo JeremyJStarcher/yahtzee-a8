@@ -316,6 +316,10 @@ def cmd_typecheck(_: argparse.Namespace) -> None:
 TESTS = (
     ("dev-tools/fmt6502/test_fmt6502.py", None),
     ("fconsole/test_hw_parser.py", "fconsole"),
+    # Screen-dump suite: unit tests for the converters/$0205 register plus a
+    # headless end-to-end boot that arms the BIOS self-test and validates
+    # both dump file types on disk.
+    ("fconsole/test_screen_dump.py", "fconsole"),
     ("tools/inc_drift_check.py", None),
     ("bin/3rdparty/cc65-tests/test_runner.py", None),
     ("bin/3rdparty/cc65-tests/test_cc65_pipeline.py", None),

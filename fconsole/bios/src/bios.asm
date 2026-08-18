@@ -20,9 +20,17 @@
     KB_ASCII_ADDR = $0200
     KB_FLAGS_ADDR = $0201
 
-    FLAG_ROM_LOADED = $0202 ; $4C if file loaded
+    FLAG_ROM_LOADED = $0202             ; $4C if file loaded
     ROM_LOADED_PTR_L = $0203
     ROM_LOADED_PTR_H = $0204
+
+    ; FORCE_SCREEN_DUMP magic location ($0205): a write of 1 requests an
+    ; image (PNG) screen dump and a write of 2 requests a text screen
+    ; dump; the emulator clears the register after each request.
+    ; SCREEN_DUMP_TEST_FLAG arms the gated BIOS self-test below without
+    ; needing a user program.
+    FORCE_SCREEN_DUMP = $0205
+    SCREEN_DUMP_TEST_FLAG = $0206
 
     ; Keyboard flag bits
     KB_FLAG_SHIFT = $01
@@ -179,6 +187,7 @@ CHAR_LF  = $0A
 CHAR_FF  = $0C
 CHAR_CR  = $0D
 CHAR_DEL = $7F
+CHAR_SPACE = $20
 
 CHAR_ARROW_UP = $81
 CHAR_ARROW_DOWN = $82
@@ -742,6 +751,17 @@ _reset_handler:
     load16 DISPLAY_PTR, boot_msg
     JSR DISPLAY_PSTRING
 
+    ; Gated FORCE_SCREEN_DUMP self-test.  Host tooling arms it by writing
+    ; SCREEN_DUMP_TEST_FLAG ($0206) before reset (fcon.py --screen-dump-
+    ; selftest); a normal boot leaves the flag clear and skips this block.
+    ; The routine fills the screen with known text, triggers both dump
+    ; modes, then freezes; host-side run limits (--cycles) bound execution.
+    LDA SCREEN_DUMP_TEST_FLAG
+    BEQ @nodumptest
+    JMP screen_dump_self_test
+
+@nodumptest:
+
     LDA FLAG_ROM_LOADED
     CMP #$4C
     BNE @NOROM
@@ -757,7 +777,7 @@ _reset_handler:
     JSR DISPLAY_PSTRING
 
 
- @nextphase:
+    @nextphase:
     ; Show initial cursor at home position
     JSR SHOW_CURSOR
 
@@ -780,7 +800,7 @@ boot_msg:
 .proc video_test
 
 ; Set pointer in Zero Page
-  ;  load16 DISPLAY_PTR, msg_welcome
+;  load16 DISPLAY_PTR, msg_welcome
 
     LDX #100
 @ploop2:
@@ -870,6 +890,57 @@ p2slookup:
 .byte $D3, $02, $29, $3E, $BB, $13, $21, $E5, $0D, $1F, $55, $E0, $D0, $F2, $F0, $FC
 .byte $04, $47, $36, $3C, $72, $64, $E9, $15, $FA, $2D, $68, $92, $B1, $C4, $10, $BC
 .byte $AE, $6C, $53, $A4, $AB, $FD, $B8, $14, $30, $96, $87, $98, $8C, $4E, $EB, $3B
+
+; ============================================================================
+; FORCE_SCREEN_DUMP self-test
+; ----------------------------------------------------------------------------
+; Fills row 3 of the character RAM with a known ASCII message using the
+; p2slookup translation table (print -> screen codes), then triggers a text
+; dump ($0205 = 2) followed by an image dump ($0205 = 1).  The emulator
+; renders both to files under its configured --screen-dump-dir.  Ends in a
+; freeze loop so headless runs observe a stable screen; host-side run limits
+; (--cycles / STEP_LIMIT) bound total execution time.
+;
+; Two ca65 gotchas baked in here (verified against this WASI build):
+;   - "STA PTR, X" encodes ZP-indexed ($PTR+X), NOT indirect through a
+;     zero-page pointer, so the store targets the literal row-3 base.
+;   - a forward BRA corrupts label parsing on later lines, so the join is
+;     a forward JMP (branch-free where possible otherwise).
+;
+; Register discipline during the fill loop: X holds the column index and
+; the char-RAM store offset, Y is repurposed as the p2slookup index, A
+; carries the print code into the screen code.
+; ============================================================================
+screen_dump_self_test:
+    LDX #0                              ; column / offset within the row
+sds_fill_row:
+    CPX #(sds_string_end - sds_string)  ; still inside the message?
+    BCS sds_pad                         ; at/over length -> pad with space
+    LDA sds_string, X                   ; fetch the print code for this col
+    JMP sds_havepc                      ; join after the padding path; a
+    ; forward BRA poisons label parsing
+    ; in the WASI ca65 build (see dev note)
+sds_pad:
+    LDA #CHAR_SPACE                     ; pad the remainder of the row
+sds_havepc:
+    TAY                                 ; Y = print code (lookup index)
+    LDA p2slookup, Y                    ; translate to the screen code
+    STA START_REGION_CHAR_RAM + (3 * SCREEN_COLS), X
+    INX
+    CPX #SCREEN_COLS                    ; whole row written?
+    BNE sds_fill_row
+
+    LDA #2                              ; request a text dump first
+    STA FORCE_SCREEN_DUMP
+    LDA #1                              ; then an image dump
+    STA FORCE_SCREEN_DUMP
+sds_freeze:
+    JMP sds_freeze                      ; freeze; host ends the run via --cycles
+
+sds_string:
+    .byte "FCON DUMP TEST OK"
+sds_string_end:
+
 
 
 ; ============================================================================

@@ -9,12 +9,14 @@ runs a simple 6502 emulator demo via py65 on the video display.
 import argparse
 import math
 import sys
+import threading
 import time
 import tkinter as tk
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from pylib import screen_dump
 from pylib import video_display_pygame as pygame_vd
 from pylib import video_display_text as text_vd
 from pylib import video_display_tk as tk_vd
@@ -65,6 +67,11 @@ class EmulatorConfig:
 
     # BIOS
     bios_file: str = "bios/bios.bin"
+
+    # Headless operation
+    headless: bool = False
+    headless_cycles: int = 1_000_000_000
+    screen_dump_dir: str = "screen_dumps"
 
 
 # ---------------------------------------------------------------------------
@@ -425,6 +432,46 @@ def parse_args() -> argparse.Namespace:
             "$0203/$0204), followed by the program bytes copied into RAM."
         ),
     )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help=(
+            "Run without opening any display windows.  The CPU runs "
+            "unthrottled and stops after --cycles emulated cycles; screen "
+            "dumps triggered via the $0205 FORCE_SCREEN_DUMP location are "
+            "still written to --screen-dump-dir."
+        ),
+    )
+    parser.add_argument(
+        "--cycles",
+        type=positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "With --headless: stop the run after this many emulated CPU "
+            "cycles (default: 1000000000)."
+        ),
+    )
+    parser.add_argument(
+        "--screen-dump-dir",
+        default="screen_dumps",
+        metavar="DIR",
+        help=(
+            "Directory for FORCE_SCREEN_DUMP ($0205) output files: "
+            "dump_NNNN.png for image dumps, dump_NNNN.txt for text dumps "
+            "(default: screen_dumps)"
+        ),
+    )
+    parser.add_argument(
+        "--screen-dump-selftest",
+        action="store_true",
+        help=(
+            "Arm the BIOS-gated FORCE_SCREEN_DUMP self-test (writes $0206). "
+            "The BIOS fills row 3 with a known message and triggers both "
+            "dump modes.  Intended for headless testing; requires a BIOS "
+            "built from sources containing the routine."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -448,6 +495,9 @@ def build_config(args: argparse.Namespace, hw: HardwareLimits) -> EmulatorConfig
         screen_size=hw.screen_size,
         start_region_char_ram=hw.start_region_char_ram,
         start_region_color_ram=hw.start_region_color_ram,
+        headless=args.headless,
+        headless_cycles=args.cycles if args.cycles is not None else 1_000_000_000,
+        screen_dump_dir=args.screen_dump_dir,
     )
 
 
@@ -488,6 +538,16 @@ class SystemBus:
     FLAG_ROM_LOADED = 0x0202
     ROM_LOADED_PTR_L = 0x0203
     ROM_LOADED_PTR_H = 0x0204
+    # FORCE_SCREEN_DUMP magic location: a CPU write of 1 requests an
+    # image (PNG) screen dump, a write of 2 requests a text screen dump
+    # (colors ignored).  The register self-clears to 0 after a request
+    # is handled so a later write triggers a new dump.
+    FORCE_SCREEN_DUMP = 0x0205
+
+    # SCREEN_DUMP_TEST_FLAG arms the BIOS-gated FORCE_SCREEN_DUMP
+    # self-test routine (see bios/src/bios.asm); host tooling writes it
+    # before reset via --screen-dump-selftest.
+    SCREEN_DUMP_TEST_FLAG = 0x0206
 
     # Keyboard flag bits
     KB_FLAG_SHIFT = 0x01
@@ -499,14 +559,19 @@ class SystemBus:
         char_write_cb: Callable[[int, int], None] | None = None,
         color_write_cb: Callable[[int, int], None] | None = None,
         key_event_cb: Callable[[int, int], None] | None = None,
+        screen_dump_cb: Callable[[int], None] | None = None,
     ) -> None:
         self.char_write_cb = char_write_cb
         self.color_write_cb = color_write_cb
         self.key_event_cb = key_event_cb
+        self.screen_dump_cb = screen_dump_cb
 
         # Keyboard state (memory-mapped I/O at $0200-$0201)
         self._kb_ascii: int = 0x00
         self._kb_flags: int = 0x00
+
+        # FORCE_SCREEN_DUMP register ($0205) state
+        self._force_screen_dump: int = 0x00
 
         self.ram = bytearray(0x8000)  # 32KB RAM ($0000-$7FFF)
         self.rom = bytearray(0x3000)  # 4KB BIOS ROM ($F000-$FFFF)
@@ -579,11 +644,11 @@ class SystemBus:
 
     def read_char_ram(self) -> bytes:
         """Return a snapshot of the video character RAM (screen_size bytes)."""
-        return self._fallback_char_ram[:]
+        return bytes(self._fallback_char_ram)
 
     def read_color_ram(self) -> bytes:
         """Return a snapshot of the video color RAM (screen_size bytes)."""
-        return self._fallback_color_ram[:]
+        return bytes(self._fallback_color_ram)
 
     # -- Color memory -------------------------------------------------------
 
@@ -628,6 +693,23 @@ class SystemBus:
         self._kb_ascii = ascii_val & 0xFF
         self._kb_flags = flags & 0xFF
 
+    # -- FORCE_SCREEN_DUMP ---------------------------------------------------
+
+    def _write_force_screen_dump(self, value: int) -> None:
+        """Handle a CPU write to the FORCE_SCREEN_DUMP register ($0205).
+
+        A write of 1 requests an image (PNG) screen dump and a write of
+        2 requests a text screen dump; the request is delivered to
+        ``screen_dump_cb`` and the register then self-clears to 0 so a
+        subsequent write triggers a new dump.  Writes of any other value
+        latch into the register without triggering a dump.
+        """
+        self._force_screen_dump = value & 0xFF
+        if self._force_screen_dump in (1, 2):
+            if self.screen_dump_cb is not None:
+                self.screen_dump_cb(self._force_screen_dump)
+            self._force_screen_dump = 0
+
     # -- Bus protocol -------------------------------------------------------
 
     def __getitem__(self, address: int) -> int:
@@ -639,6 +721,8 @@ class SystemBus:
             return self._read_kb_ascii(0)
         if address == self.KB_FLAGS_ADDR:
             return self._read_kb_flags(0)
+        if address == self.FORCE_SCREEN_DUMP:
+            return self._force_screen_dump
 
         for m_range in self.bus_map:
             if m_range.contains(address):
@@ -660,6 +744,9 @@ class SystemBus:
         if address == self.KB_FLAGS_ADDR:
             self._write_kb_flags(0, value)
             return
+        if address == self.FORCE_SCREEN_DUMP:
+            self._write_force_screen_dump(value)
+            return
 
         for m_range in self.bus_map:
             if m_range.contains(address):
@@ -679,6 +766,7 @@ class Cpu6502Module:
         char_write_cb: Callable[[int, int], None] | None = None,
         color_write_cb: Callable[[int, int], None] | None = None,
         key_event_cb: Callable[[int, int], None] | None = None,
+        screen_dump_cb: Callable[[int], None] | None = None,
     ) -> None:
         self._fallback_cycles_per_instruction = config.fallback_cycles_per_instruction
 
@@ -687,6 +775,7 @@ class Cpu6502Module:
             char_write_cb=char_write_cb,
             color_write_cb=color_write_cb,
             key_event_cb=key_event_cb,
+            screen_dump_cb=screen_dump_cb,
         )
 
         reset_vector_address = 0xFFFC
@@ -777,21 +866,30 @@ class FConsole:
         self._pending_char_writes: dict[int, int] = {}
         self._pending_color_writes: dict[int, int] = {}
 
-        # Create windows
-        self._create_video_window()
-        self._create_debug_window()
+        # Screen dump state for the FORCE_SCREEN_DUMP magic location.
+        self._dump_counter = 0
+        self._dump_lock = threading.Lock()
 
-        # Send test message directly to the dout text window
-        self.console_print("Hello World!")
+        if not config.headless:
+            # Create windows
+            self._create_video_window()
+            self._create_debug_window()
+
+            # Send test message directly to the dout text window
+            self.console_print("Hello World!")
 
         # Initialize 6502 module with write-only display callbacks.
         # Reads are handled entirely within the bus's local VRAM buffers.
+        # In headless mode the display write callbacks are omitted since
+        # there is no window; the bus's local VRAM buffers remain the
+        # source of truth for screen reads and dumps.
         self.cpu_module = Cpu6502Module(
             config,
             mpu_class,
-            char_write_cb=self._on_char_memory_write,
-            color_write_cb=self._on_color_memory_write,
+            char_write_cb=None if config.headless else self._on_char_memory_write,
+            color_write_cb=None if config.headless else self._on_color_memory_write,
             key_event_cb=self._on_key_event,
+            screen_dump_cb=self._on_force_screen_dump,
         )
 
         # Pacing state
@@ -863,10 +961,54 @@ class FConsole:
         self.debug_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
     def console_print(self, text: str) -> None:
-        """Write text directly into the debug window (dout)."""
-        if hasattr(self, "debug_text") and self.debug_text:
+        """Write text directly into the debug window (dout).
+
+        In headless mode there is no debug window, so the message is
+        echoed to stdout instead.
+        """
+        if not hasattr(self, "debug_text"):
+            print(str(text))
+            return
+        if self.debug_text:
             self.debug_text.insert(tk.END, str(text) + "\n")
             self.debug_text.see(tk.END)
+
+    # -- FORCE_SCREEN_DUMP magic location ($0205) ----------------------------
+
+    def _on_force_screen_dump(self, mode: int) -> None:
+        """Handle a screen dump request from the $0205 magic location.
+
+        Mode 1 renders the screen to a PNG image; mode 2 renders it as a
+        text grid.  The screen is snapshotted straight from the bus's
+        local VRAM buffers, so dumps reflect the CPU's writes even when
+        no display window exists (headless mode).
+        """
+        cfg = self.config
+        with self._dump_lock:
+            self._dump_counter += 1
+            counter = self._dump_counter
+
+        bus = self.cpu_module.bus
+        char_ram = bus.read_char_ram()
+        color_ram = bus.read_color_ram()
+
+        if mode == 1:
+            data: bytes | str = screen_dump.screen_to_png(
+                char_ram, color_ram, cfg.screen_cols, cfg.screen_rows
+            )
+        else:
+            data = screen_dump.screen_to_text(
+                char_ram, cfg.screen_cols, cfg.screen_rows
+            )
+
+        try:
+            path = screen_dump.write_dump(data, cfg.screen_dump_dir, mode, counter)
+        except (ValueError, TypeError, OSError) as e:
+            print(f"ERROR: screen dump (mode {mode}) failed: {e}")
+            return
+
+        label = "image" if mode == 1 else "text"
+        print(f"[fcon] FORCE_SCREEN_DUMP mode {mode}: wrote {label} dump {path}")
 
     # -- Video memory write callbacks ---------------------------------------
 
@@ -979,15 +1121,26 @@ class FConsole:
     def _on_close(self) -> None:
         """Handle vout window close."""
         self.running = False
-        try:
-            self.vout.close()
-            self.dout_root.destroy()
-        except Exception:
-            pass
+        vout = getattr(self, "vout", None)
+        if vout is not None:
+            try:
+                vout.close()
+            except Exception:
+                pass
+        dout_root = getattr(self, "dout_root", None)
+        if dout_root is not None:
+            try:
+                dout_root.destroy()
+            except Exception:
+                pass
 
     def run(self) -> None:
-        """Start the main emulator loop."""
+        """Start the main emulator loop (windowed mode)."""
         cfg = self.config
+        if cfg.headless:
+            self.run_headless()
+            return
+
         print("=" * 60)
         print("FCONSOLE EMULATOR")
         print("=" * 60)
@@ -1008,6 +1161,41 @@ class FConsole:
 
         self._update_cpu_step()
         self._update_video_frame()
+
+    def run_headless(self) -> None:
+        """Run the CPU without any display windows.
+
+        Executes as fast as the host allows, stopping once the
+        configured number of emulated cycles (``--cycles``) has been
+        consumed.  Screen dumps triggered via the FORCE_SCREEN_DUMP
+        magic location ($0205) are still written to the configured dump
+        directory.
+        """
+        cfg = self.config
+        print("=" * 60)
+        print("FCONSOLE EMULATOR (HEADLESS)")
+        print("=" * 60)
+        print(f"Screen: {cfg.screen_rows} rows x {cfg.screen_cols} columns")
+        cycle_mode = (
+            "py65 processorCycles"
+            if self.cpu_module.has_native_cycle_counter
+            else f"fallback ({cfg.fallback_cycles_per_instruction:g} cycles/instruction)"
+        )
+        print(f"Clock: {cycle_mode}")
+        print(f"Running until {cfg.headless_cycles:,} emulated cycles (unthrottled).")
+        print(f"Screen dumps: {cfg.screen_dump_dir}")
+        print()
+
+        batch = cfg.instructions_per_batch
+        while self.running and self._emulated_cycles < cfg.headless_cycles:
+            for _ in range(batch):
+                if self._emulated_cycles >= cfg.headless_cycles:
+                    break
+                self._emulated_cycles += self.cpu_module.step()
+            time.sleep(0)  # cooperative yield; stays as fast as possible
+
+        self.running = False
+        print(f"\nHeadless run complete: {self._emulated_cycles:,.0f} emulated cycles.")
 
         try:
             if cfg.video_backend == "pygame":
@@ -1082,7 +1270,16 @@ def main() -> None:
     if args.program_file:
         console.cpu_module.load_program(args.program_file)
 
-    console.run()
+    # Arm the BIOS-gated FORCE_SCREEN_DUMP self-test, if requested.
+    # The BIOS checks this at its reset handler, which runs when the CPU
+    # starts below in run()/run_headless().
+    if args.screen_dump_selftest:
+        console.cpu_module.bus[SystemBus.SCREEN_DUMP_TEST_FLAG] = 1
+
+    if config.headless:
+        console.run_headless()
+    else:
+        console.run()
     sys.exit(0)
 
 
